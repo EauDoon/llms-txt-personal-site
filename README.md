@@ -84,9 +84,13 @@ Build it for the first job. Do not expect it to do the second.
 
 ## Continuous integration
 
-A GitHub Actions workflow that runs the build and the quality gate on every
-push is in [`docs/`](docs/), opt-in rather than installed by default. See
-[docs/CI.md](docs/CI.md) for the two commands to enable it.
+Every push and pull request builds the site from the template and runs the
+quality gate. If the gate fails, the build fails. The workflow is in
+[`.github/workflows/quality-check.yml`](.github/workflows/quality-check.yml).
+
+Your fork inherits it. If a push is rejected with *"refusing to allow an
+OAuth App to create or update workflow"*, your token lacks the `workflow`
+scope: run `gh auth refresh -s workflow` and push again.
 
 ## Licence
 

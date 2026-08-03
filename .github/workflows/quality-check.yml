@@ -1,0 +1,23 @@
+name: quality check
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Build the site from the template
+        run: |
+          cp site.config.example.json site.config.json
+          python scripts/build.py
+
+      - name: Run the quality gate
+        run: python scripts/quality_check.py

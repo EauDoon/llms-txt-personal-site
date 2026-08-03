@@ -1,24 +1,26 @@
 # Continuous integration
 
-`github-actions-quality-check.yml` in this directory runs the build and the
-quality gate on every push and pull request. It is not installed by default.
+CI is **enabled** in this repository. `.github/workflows/quality-check.yml`
+builds the site from the template and runs the quality gate on every push and
+pull request. A failing gate fails the build.
 
-To enable it in your fork:
+A copy of the workflow is kept here as `github-actions-quality-check.yml` so it
+can be restored if the live one is deleted.
 
-```bash
-mkdir -p .github/workflows
-cp docs/github-actions-quality-check.yml .github/workflows/quality-check.yml
-git add .github/workflows/quality-check.yml
-git commit -m "Enable CI"
-git push
-```
+## If your fork cannot push the workflow
 
-If the push is rejected with *"refusing to allow an OAuth App to create or
-update workflow"*, your token lacks the `workflow` scope. Fix it with:
+GitHub refuses to let an OAuth app create or update anything under
+`.github/workflows/` unless the token carries the `workflow` scope. The error
+reads *"refusing to allow an OAuth App to create or update workflow"*.
 
 ```bash
 gh auth refresh -s workflow
 ```
 
-Then push again. This is a GitHub permission on your token, not a problem with
-the file.
+Then push again. This is a permission on your token, not a problem with the
+file.
+
+**If `gh auth refresh` fails with "received credentials for <other name>",**
+your GitHub account was renamed and the local gh config still holds the old
+username. Use `gh auth login -s workflow` instead, then
+`gh auth logout -u <old-name>` to clear the stale entry.
