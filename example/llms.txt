@@ -108,6 +108,12 @@ Substantive explainers by Daniel Oon. Sourced and dated; opinion is marked as su
 - Stablecoin issuer economics: https://danieloon.ai/writing/stablecoin-issuer-economics.md
 - Choosing a stablecoin to integrate: https://danieloon.ai/writing/choosing-a-stablecoin.md
 
+## Colophon
+
+The method behind this site is open source, including the templates, the
+build and verification scripts, and the doctrine explaining the rules:
+https://github.com/EauDoon/llms-txt-personal-site
+
 ## Optional
 
 - [Full text](https://danieloon.ai/llms-full.txt): Every page concatenated into one file, for single-fetch retrieval.

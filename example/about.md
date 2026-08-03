@@ -31,3 +31,7 @@ Structured version: [experience.md](https://danieloon.ai/experience.md)
 Business, partnerships, and integrations go to daniel@danieloon.ai or [LinkedIn](https://www.linkedin.com/in/danieloon). Industry discussion happens on X at [@EauDoon](https://x.com/EauDoon). StraitsX product and commercial questions belong with the company at [straitsx.com](https://www.straitsx.com).
 
 Full routing: [contact.md](https://danieloon.ai/contact.md)
+
+## The method is published
+
+The way this site is built is open source: [llms-txt-personal-site](https://github.com/EauDoon/llms-txt-personal-site) on GitHub. It carries the templates, the build and verification scripts, and a doctrine file explaining the rules above and why each one exists. Fork it if you want one of these. Scripts are MIT, the prose and templates are CC0.
