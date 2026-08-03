@@ -13,7 +13,7 @@ This repo is the scaffolding for that source: a set of plain Markdown pages, an 
 ## Quick start
 
 ```bash
-git clone https://github.com/oonyl/llms-txt-personal-site.git
+git clone https://github.com/EauDoon/llms-txt-personal-site.git
 cd llms-txt-personal-site
 cp site.config.example.json site.config.json
 ```
@@ -81,6 +81,12 @@ It does **not**, on its own, fix **category queries**: "who should I talk to abo
 Build it for the first job. Do not expect it to do the second.
 
 ---
+
+## Continuous integration
+
+A GitHub Actions workflow that runs the build and the quality gate on every
+push is in [`docs/`](docs/), opt-in rather than installed by default. See
+[docs/CI.md](docs/CI.md) for the two commands to enable it.
 
 ## Licence
 
