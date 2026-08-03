@@ -1,0 +1,19 @@
+# Normalise line endings so a Windows clone does not show every file as modified.
+* text=auto eol=lf
+
+# These are read by servers and by Python; CRLF breaks some of them.
+*.md   text eol=lf
+*.txt  text eol=lf
+*.html text eol=lf
+*.xml  text eol=lf
+*.json text eol=lf
+*.yml  text eol=lf
+*.py   text eol=lf
+.htaccess text eol=lf
+_headers  text eol=lf
+
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.pdf binary
