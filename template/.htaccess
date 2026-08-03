@@ -1,0 +1,100 @@
+# Apache / LiteSpeed config for Hostinger and most shared hosting.
+# Cloudflare Pages uses _headers instead; Vercel uses vercel.json.
+# Having all three in the folder is harmless: each host ignores the others.
+#
+# WITHOUT THIS FILE, .md requests are served as application/octet-stream and
+# download instead of rendering. Several AI crawlers skip them entirely at that
+# point, which defeats the purpose of the site. Verify after deploy with:
+#   curl -sI https://{{DOMAIN}}/profile.md
+#
+# TWO HOSTINGER GOTCHAS:
+#   1. File Manager hides dotfiles. Enable Settings -> Show hidden files and
+#      confirm this file actually uploaded, and that it did not get merged with
+#      a Hostinger-provided default .htaccess.
+#   2. Permissions must be 644. At 600, LiteSpeed silently ignores the entire
+#      file and surfaces no error. The symptom is .md downloading again.
+
+DirectoryIndex index.html
+
+# No index file exists in writing/, so without this a request for that
+# directory can return a browsable file listing instead of a 404.
+Options -Indexes
+
+# --- Content types ---------------------------------------------------------
+
+AddType text/markdown .md
+AddDefaultCharset UTF-8
+
+# "always" so the headers are set regardless of response status, not only on
+# 2xx. Matters for the security headers in particular.
+<IfModule mod_headers.c>
+  <FilesMatch "\.md$">
+    Header always set Content-Type "text/markdown; charset=utf-8"
+    Header always set Content-Disposition "inline"
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set X-Robots-Tag "all"
+    Header always set Cache-Control "public, max-age=3600"
+  </FilesMatch>
+
+  <FilesMatch "\.txt$">
+    Header always set Content-Type "text/plain; charset=utf-8"
+    Header always set Content-Disposition "inline"
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set X-Robots-Tag "all"
+    Header always set Cache-Control "public, max-age=3600"
+  </FilesMatch>
+
+  <FilesMatch "\.xml$">
+    Header always set Content-Type "application/xml; charset=utf-8"
+  </FilesMatch>
+
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+  # HTTPS is forced unconditionally below, so tell browsers not to try plaintext
+  # at all. Remove this line if the site ever needs to be reachable over HTTP.
+  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+</IfModule>
+
+# --- One canonical host: force HTTPS, strip www ------------------------------
+
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # Both conditions must fail before redirecting. The X-Forwarded-Proto check is
+  # required on Hostinger and any host that terminates SSL at a proxy. Without
+  # it, %{HTTPS} reads "off" on an already-secure request and the site enters an
+  # infinite redirect loop. If hPanel's own "Force HTTPS" is enabled, this block
+  # is redundant but harmless; delete it if you prefer one source of truth.
+  RewriteCond %{HTTPS} !=on
+  RewriteCond %{HTTP:X-Forwarded-Proto} !=https
+  RewriteRule ^(.*)$ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+  RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
+  RewriteRule ^(.*)$ https://%1%{REQUEST_URI} [L,R=301]
+</IfModule>
+
+# --- Compression ------------------------------------------------------------
+# Inert on LiteSpeed, which compresses natively and no-ops these directives.
+# Kept so the file still works on real Apache.
+
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/plain text/markdown text/css application/javascript application/xml
+</IfModule>
+
+# --- Keep deployment plumbing off the served surface -------------------------
+# Belt and braces. These files should not be uploaded at all. See README.
+
+<FilesMatch "\.(ps1|sh)$">
+  Require all denied
+</FilesMatch>
+
+<FilesMatch "^(_headers|vercel\.json)$">
+  Require all denied
+</FilesMatch>
+
+# Anchored so it cannot also catch a legitimate name such as /.gitignore.
+RedirectMatch 404 ^/\.git
+
+# Custom 404. Keeps agents on a page that explains where the canonical facts are.
+ErrorDocument 404 /404.html

@@ -1,0 +1,23 @@
+# Cloudflare Pages headers
+# Critical: without these, .md files download instead of rendering in the browser,
+# and some crawlers skip them entirely because the content type is wrong.
+
+/*.md
+  Content-Type: text/markdown; charset=utf-8
+  Content-Disposition: inline
+  X-Robots-Tag: all
+  Cache-Control: public, max-age=3600
+
+/*.txt
+  Content-Type: text/plain; charset=utf-8
+  Content-Disposition: inline
+  X-Robots-Tag: all
+  Cache-Control: public, max-age=3600
+
+/sitemap.xml
+  Content-Type: application/xml; charset=utf-8
+
+/*
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Access-Control-Allow-Origin: *

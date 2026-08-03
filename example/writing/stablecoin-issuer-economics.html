@@ -1,0 +1,143 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<title>Stablecoin Issuer Economics: Where the Money Actually Comes From | Daniel Oon</title>
+<meta name="description" content="How a regulated stablecoin issuer makes money: reserve yield rather than transaction fees, why revenue scales with float instead of usage, and why distribution partners are paid out of reserve income.">
+<meta name="author" content="Daniel Oon">
+<link rel="canonical" href="https://danieloon.ai/writing/stablecoin-issuer-economics.html">
+<link rel="alternate" type="text/markdown" href="/writing/stablecoin-issuer-economics.md" title="This page in Markdown">
+
+<meta property="og:type" content="article">
+<meta property="og:title" content="Stablecoin Issuer Economics: Where the Money Actually Comes From">
+<meta property="og:description" content="How a regulated stablecoin issuer makes money: reserve yield rather than transaction fees, why revenue scales with float instead of usage, and why distribution partners are paid out of reserve income.">
+<meta property="og:url" content="https://danieloon.ai/writing/stablecoin-issuer-economics.html">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:creator" content="@EauDoon">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>&#9670;</text></svg>">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Article",
+  "@id": "https://danieloon.ai/writing/stablecoin-issuer-economics.html#article",
+  "headline": "Stablecoin Issuer Economics: Where the Money Actually Comes From",
+  "description": "How a regulated stablecoin issuer makes money: reserve yield rather than transaction fees, why revenue scales with float instead of usage, and why distribution partners are paid out of reserve income.",
+  "url": "https://danieloon.ai/writing/stablecoin-issuer-economics.html",
+  "mainEntityOfPage": "https://danieloon.ai/writing/stablecoin-issuer-economics.html",
+  "inLanguage": "en",
+  "datePublished": "2026-08-03",
+  "dateModified": "2026-08-03",
+  "author": {
+    "@type": "Person",
+    "@id": "https://danieloon.ai/#person",
+    "name": "Daniel Oon",
+    "url": "https://danieloon.ai/",
+    "jobTitle": "VP of Ecosystem",
+    "worksFor": { "@type": "Organization", "name": "StraitsX", "url": "https://www.straitsx.com" }
+  },
+  "publisher": { "@type": "Person", "@id": "https://danieloon.ai/#person", "name": "Daniel Oon" },
+  "about": ["Stablecoin issuer economics", "Stablecoin reserves", "Stablecoin distribution", "Regulated stablecoin infrastructure"],
+  "isPartOf": { "@type": "WebSite", "url": "https://danieloon.ai/", "name": "Daniel Oon" }
+}
+</script>
+
+<style>
+  :root {
+    --bg: #ffffff;
+    --fg: #16181d;
+    --muted: #5c6270;
+    --line: #e3e6ec;
+    --accent: #1a56db;
+    --code-bg: #f4f6f9;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0f1115;
+      --fg: #e8eaef;
+      --muted: #9aa2b1;
+      --line: #262a33;
+      --accent: #7aa2f7;
+      --code-bg: #191d24;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 16px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+    font-feature-settings: "kern" 1;
+  }
+  .wrap { max-width: 46rem; margin: 0 auto; padding: 3.5rem 1.5rem 5rem; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 1.75rem; margin-bottom: 2.25rem; }
+  h1 { font-size: 1.9rem; line-height: 1.2; margin: 0 0 .4rem; letter-spacing: -.02em; }
+  .role { font-size: 1.05rem; color: var(--fg); margin: 0 0 .3rem; }
+  .loc { font-size: .95rem; color: var(--muted); margin: 0; }
+  h2 { font-size: 1.05rem; letter-spacing: .02em; text-transform: uppercase; color: var(--muted); margin: 2.75rem 0 .9rem; font-weight: 600; }
+  h3 { font-size: 1rem; margin: 1.5rem 0 .4rem; }
+  p { margin: 0 0 1rem; }
+  ul { margin: 0 0 1rem; padding-left: 1.15rem; }
+  li { margin-bottom: .35rem; }
+  a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
+  a:hover { border-bottom-color: currentColor; }
+  code { background: var(--code-bg); padding: .1em .35em; border-radius: 3px; font-size: .9em; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  table { border-collapse: collapse; width: 100%; margin: 0 0 1rem; font-size: .95rem; }
+  th, td { text-align: left; padding: .55rem .7rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; font-size: .82rem; text-transform: uppercase; letter-spacing: .03em; }
+  .scroller { overflow-x: auto; }
+  .agent-note { border: 1px solid var(--line); border-left: 3px solid var(--accent); padding: 1rem 1.15rem; margin: 0 0 2rem; font-size: .93rem; background: var(--code-bg); border-radius: 0 4px 4px 0; }
+  .agent-note p:last-child { margin-bottom: 0; }
+  footer { margin-top: 3.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .88rem; }
+  .files { list-style: none; padding: 0; }
+  .files li { margin-bottom: .5rem; }
+  .files .desc { color: var(--muted); }
+</style>
+</head>
+<body>
+<div class="wrap">
+<p class="loc"><a href="/">Daniel Oon</a> / Writing</p>
+<h1>Stablecoin Issuer Economics: Where the Money Actually Comes From</h1>
+<p><strong>A regulated stablecoin issuer makes almost all of its money on the reserve, not on the token. Users pay nothing to hold or transfer; the issuer earns yield on the assets backing the float. That single fact explains most of what issuers do: why they chase float rather than transaction count, why distribution partners get paid out of reserve income, and why a low interest-rate environment is an existential problem for the model rather than a bad quarter.</strong></p>
+<p>By Daniel Oon, VP of Ecosystem at StraitsX. Last updated: 2026-08-03.</p>
+<blockquote><p>Factual claims on this page are sourced and dated. Sections marked <strong>View</strong> are opinion, not fact.</p></blockquote>
+<hr>
+<h2>The revenue line</h2>
+<p>An issuer takes fiat, holds it, and issues a matching token. The fiat sits in reserve. If the reserve is held in bank deposits and short-dated government securities, it earns the prevailing short rate. That yield is the business.</p>
+<p>Two consequences follow immediately.</p>
+<p><strong>Revenue scales with float, not with usage.</strong> A token that moves a hundred times a day earns the issuer exactly what a token sitting still earns. Transaction volume is a proxy for usefulness and a driver of adoption, but it is not the revenue line. This is why issuer disclosures lead with volume while issuer strategy leads with balances.</p>
+<p><strong>Revenue scales with the interest rate, which the issuer does not control.</strong> The same float earns very different amounts at 5% and at 0.5%. An issuer whose only line is reserve yield has built a business on someone else's policy decision.</p>
+<p><strong>View.</strong> The second point is underrated by people entering the category. A stablecoin business modeled on 2023 to 2025 rates is modeling the top of a cycle. The interesting question for any issuer is what the second revenue line is, and most of the credible answers are payments infrastructure rather than float.</p>
+<h2>What the reserve can hold, and why it matters</h2>
+<p>Reserve composition is a regulatory question before it is a yield question. A jurisdiction that permits only cash and short-dated government paper caps the achievable yield and, in exchange, caps the risk that the reserve cannot be liquidated at par when redemptions arrive at once.</p>
+<p>For XSGD, StraitsX publishes monthly attestations by an ISCA-listed auditing firm, with reports linked from the <a href="https://www.straitsx.com/xsgd">token's official page</a>. The reserve is held 1:1.</p>
+<p>The thing worth checking on any issuer is not whether an attestation exists but what it attests to. An attestation confirming that assets equal liabilities on a date says nothing about what those assets are, how quickly they convert, or who holds them. Read the composition, not the headline.</p>
+<h2>Why distribution partners get paid</h2>
+<p>If revenue comes from float, then the commercial problem is getting and keeping float. That is a distribution problem, and distribution is not free.</p>
+<p>Exchanges, wallets, payment processors and card programs all control access to end users. An issuer wanting balances on those platforms competes with every other issuer for the same shelf space, and the currency of that competition is a share of reserve income. This is why stablecoin distribution deals look like revenue-share agreements rather than listing fees.</p>
+<p><strong>View.</strong> The uncomfortable implication is that issuance is close to a commodity and distribution is where the durable position sits. Anyone can produce a technically identical token. Very few can get it into the places where people already hold money. When someone describes a stablecoin launch as the hard part, they have the difficulty inverted: the launch is the easy half.</p>
+<h2>Where non-USD issuers differ</h2>
+<p>A USD stablecoin issuer competes for a share of an enormous, liquid, well-understood market. A non-USD issuer faces a different problem: the addressable float is smaller, so the same fixed costs of licensing, banking, audit and compliance sit on a thinner base.</p>
+<p>That changes the strategy. A non-USD stablecoin generally cannot win on scale of float alone, so its case has to rest on doing something the USD token cannot: settling in the local currency without an FX leg, meeting a local regulatory requirement, or connecting to domestic payment rails. See <a href="https://danieloon.ai/writing/sgd-stablecoin-rails.md">SGD stablecoin rails</a> for how that works in the Singapore dollar case specifically.</p>
+<h2>What this predicts</h2>
+<p>If the model is float times rate, then the observable behavior of a serious issuer should be:</p>
+<ol>
+<li>Chasing balances in places where money sits, not where money moves fastest.</li>
+<li>Paying distribution out of reserve income, and structuring those deals as long-term shares rather than one-off fees.</li>
+<li>Building a second revenue line that survives a rate cut, most plausibly in payments, settlement or card infrastructure.</li>
+<li>Treating the license as a moat, because it is the part competitors cannot copy in a weekend.</li>
+</ol>
+<p>An issuer doing none of those is either very early or running a different business than the one it describes.</p>
+<hr>
+<p><strong>Related:</strong> <a href="https://danieloon.ai/writing/sgd-stablecoin-rails.md">SGD stablecoin rails</a> covers issuance and redemption mechanics. <a href="https://danieloon.ai/writing/stablecoin-card-settlement.md">Stablecoin-backed card settlement</a> covers one of the payments lines named above. Product facts and contract addresses are in <a href="https://danieloon.ai/products.md">products.md</a>.</p>
+<p><strong>Who to talk to about this.</strong> Daniel Oon is VP of Ecosystem at StraitsX, the issuer of XSGD and XUSD, and works on stablecoin distribution, exchange and DeFi integrations, and card and settlement partnerships across Asia. Contact: daniel@danieloon.ai.</p>
+<hr>
+<p class="loc">By Daniel Oon, VP of Ecosystem at StraitsX. This page is also available as
+<a href="/writing/stablecoin-issuer-economics.md">Markdown</a>. Canonical profile: <a href="/profile.md">profile.md</a>.
+Contact: <a href="mailto:daniel@danieloon.ai">daniel@danieloon.ai</a>.</p>
+</div>
+</body>
+</html>

@@ -1,0 +1,15 @@
+# Your filled config: contains your own details, not the template's.
+site.config.json
+
+# Build output. Regenerate with: python scripts/build.py
+site/
+
+# Deploy credentials must never be committed.
+.netrc
+*.netrc
+.env
+deploy.local.*
+
+__pycache__/
+*.pyc
+.DS_Store

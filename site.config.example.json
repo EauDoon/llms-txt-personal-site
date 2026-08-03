@@ -1,0 +1,51 @@
+{
+  "_comment": "Copy this to site.config.json and fill it in. Then run: python scripts/build.py",
+
+  "DOMAIN": "yourname.com",
+  "FULL_NAME": "Your Full Name",
+  "GIVEN_NAME": "Your",
+  "FAMILY_NAME": "Name",
+  "EMAIL": "you@yourname.com",
+
+  "JOB_TITLE": "Your Exact Job Title",
+  "EMPLOYER": "Your Employer",
+  "EMPLOYER_URL": "https://employer.example.com",
+  "EMPLOYER_DESC": "One sentence describing what your employer does.",
+
+  "CITY": "Your City",
+  "COUNTRY_CODE": "SG",
+  "COUNTRY_NAME": "Your Country",
+
+  "X_HANDLE": "yourhandle",
+  "LINKEDIN_SLUG": "your-linkedin-slug",
+
+  "TAGLINE": "One sentence. What you do, for whom, where. This is the single most quoted line on the site.",
+  "SUMMARY": "Two or three sentences an assistant can lift verbatim when asked who you are. Write it in the third person, no adjectives you cannot source.",
+
+  "KNOWS_ABOUT": [
+    "Your primary domain",
+    "A specific sub-speciality",
+    "A second sub-speciality",
+    "The category you want to be surfaced for"
+  ],
+
+  "ALUMNI_OF": [
+    { "name": "Previous Employer", "url": "https://previous.example.com" }
+  ],
+
+  "SAME_AS": [
+    "https://www.linkedin.com/in/your-linkedin-slug",
+    "https://x.com/yourhandle"
+  ],
+
+  "_same_as_note": "Only URLs that are unambiguously YOU. A profile that merely mentions your name is not enough. Leaving this short is correct; padding it with weak links degrades the whole record.",
+
+  "LAST_UPDATED": "2026-01-01",
+
+  "_verification_note": "Site-verification tokens are per-domain. Get your own from Google Search Console and Bing Webmaster Tools, then put them in verification below. Never reuse someone else's.",
+  "verification": {
+    "bing_msvalidate": "",
+    "google_html_file": "",
+    "indexnow_key": ""
+  }
+}
