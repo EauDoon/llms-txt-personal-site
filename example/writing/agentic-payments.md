@@ -1,10 +1,10 @@
-# Agentic Payments: Seven Protocols, No Winner Yet (Mid-2026)
+# Agentic Payments: Six Protocols and the Layer Underneath, No Winner Yet (Mid-2026)
 
-**Autonomous software agents are starting to initiate payments. Seven significant protocols now exist to govern how that happens, launched between September 2025 and March 2026 by Google, Coinbase, Visa, Mastercard, Stripe and OpenAI. None has won. This page maps what actually exists, what is live versus specification-only, where stablecoins fit, and where the adoption numbers are contested.**
+**Autonomous software agents are starting to initiate payments. Six significant payment protocols now exist to govern how that happens, launched between April 2025 and March 2026 by Google, Coinbase, Visa, Mastercard, Stripe and OpenAI, and they sit on top of a seventh standard, MCP, which is a tool layer rather than a payment protocol. None has won. This page maps what actually exists, what is live versus specification-only, where stablecoins fit, and where the adoption numbers are contested.**
 
-By Daniel Oon, VP of Ecosystem at StraitsX. Last updated: 2026-08-03.
+By Daniel Oon, VP of Ecosystem at StraitsX. Last updated: 2026-08-07.
 
-> Every protocol below is dated and sourced. This field moves fast, so treat anything undated elsewhere as suspect. Sections marked **View** are opinion, not fact.
+> Every protocol below is dated and sourced. This field moves fast, so treat anything undated elsewhere as suspect. Sections opening with a bold **Daniel Oon's view.** marker are opinion, not fact.
 
 ---
 
@@ -19,6 +19,8 @@ An agent breaks the assumption in three places at once:
 3. **Liability.** When an agent buys the wrong thing, who eats it?
 
 Every protocol below is an attempt to answer one or more of these. They are not interchangeable and several are complementary.
+
+Daniel Oon follows this from the settlement side, where the operative question for a regulated stablecoin issuer is which of these standards it has to be able to settle against, not which one eventually carries the most traffic.
 
 ## What exists
 
@@ -36,13 +38,13 @@ Note the Mastercard row: the official press page returns an access error to auto
 
 ## Two architectures, not one
 
-The seven items above split cleanly:
+The six payment protocols above split cleanly, with MCP sitting underneath all of them rather than in either camp:
 
 **Card-network extensions**: Visa Trusted Agent Protocol, Mastercard Agent Pay, and ACP in its card mode. These keep the existing card rails and add an agent-identity and authorization layer on top. They inherit everything the card system already has: acceptance at tens of millions of merchants, chargeback rights, fraud infrastructure, regulatory clarity.
 
 **Stablecoin-native rails**: x402 and MPP. These bypass the card system for payments it was never designed to carry: sub-cent amounts, machine-to-machine, no account relationship, settlement in seconds.
 
-**View.** The framing of these as competitors is mostly wrong. A consumer agent buying a $60 pair of shoes should use card rails; the chargeback right alone justifies it. An agent paying $0.002 for an API call cannot use card rails at any price, because interchange exceeds the payment by orders of magnitude. They are different problems that happen to share the word "payment."
+**Daniel Oon's view.** The framing of these as competitors is mostly wrong. A consumer agent buying a $60 pair of shoes should use card rails; the chargeback right alone justifies it. An agent paying $0.002 for an API call cannot use card rails at any price, because interchange exceeds the payment by orders of magnitude. They are different problems that happen to share the word "payment."
 
 ## Where stablecoins actually fit
 
@@ -54,7 +56,7 @@ The genuine case is not consumer checkout. It is the payment class the card syst
 
 Both stablecoin-native protocols make the same architectural bet: reviving HTTP 402 so payment becomes a property of a web request rather than a separate flow.
 
-For Singapore specifically, StraitsX is one of 13 partners in the **Visa Agentic Ready Programme**, announced 30 April 2026 alongside Bank of China Singapore, CIMB Singapore, DBS, DCS, GXS Bank, HSBC Singapore, Maybank Singapore, OCBC, Standard Chartered, Trust Bank, UQPay and UOB ([announcement](https://www.prnewswire.com/apac/news-releases/visa-launches-agentic-ready-programme-in-singapore-with-13-banks-and-fintech-partners-302758181.html)). StraitsX's CEO, quoted there, names x402 and MPP as the standards the company sees as central.
+For Singapore specifically, StraitsX is one of 13 partners in the **Visa Agentic Ready Programme**, announced 30 April 2026 alongside Bank of China Singapore, CIMB Singapore, DBS, DCS, GXS Bank, HSBC Singapore, Maybank Singapore, OCBC, Standard Chartered, Trust Bank, UQPay and UOB ([announcement](https://www.prnewswire.com/apac/news-releases/visa-launches-agentic-ready-programme-in-singapore-with-13-banks-and-fintech-partners-302758181.html)). StraitsX's CEO, quoted there, names x402 and MPP as the standards the company sees as central. Ecosystem partnerships of this kind are Daniel Oon's remit at StraitsX.
 
 ## The adoption numbers are contested: read this before quoting any
 
@@ -69,7 +71,7 @@ Both can be partly right: transaction counts inflated by self-dealing while a sm
 
 On market size, the widely-repeated forecast is McKinsey and ICSC putting US agentic-commerce revenue at **$1 trillion by 2030** ([reported 5 May 2026](https://www.retaildive.com/news/agentic-commerce-us-one-trillion-2030/818936/)). Scope is US B2C retail only, which is narrower than most citations of it imply. Other circulating figures come from market-research vendors selling the underlying report, so flag those as vendor-produced.
 
-**View.** The gap between protocol announcements and verified transaction volume is currently enormous. Seven protocols exist; genuine agent-initiated payment volume is small and partly synthetic. That is normal for infrastructure at this stage and is not an argument against building, but anyone citing agentic payments as a live, large market is ahead of the evidence.
+**Daniel Oon's view.** The gap between protocol announcements and verified transaction volume is currently enormous. Six payment protocols exist; genuine agent-initiated payment volume is small and partly synthetic. That is normal for infrastructure at this stage and is not an argument against building, but anyone citing agentic payments as a live, large market is ahead of the evidence.
 
 ## Regulation: what Singapore has actually said
 
@@ -82,6 +84,8 @@ Two qualifications that matter and are usually dropped:
 
 No Monetary Authority of Singapore rule or consultation dedicated solely to agent-initiated payments exists as of 2026-08-03. Anyone claiming Singapore has regulated agentic payments is overstating what SAFR is.
 
+Daniel Oon works on regulated stablecoin rails in Singapore, and the distinction is a practical one rather than a pedantic one: voluntary industry guidance and a licensing obligation are not the same instrument, and only one of them changes what a licensed entity is permitted to do.
+
 ## What this connects to
 
 - [SGD stablecoin rails](https://danieloon.ai/writing/sgd-stablecoin-rails.md): the instrument
@@ -90,4 +94,6 @@ No Monetary Authority of Singapore rule or consultation dedicated solely to agen
 
 ---
 
-*Daniel Oon is VP of Ecosystem at StraitsX in Singapore, where agentic commerce and payments are an emerging focus. Canonical profile: [danieloon.ai](https://danieloon.ai). Contact: [LinkedIn](https://www.linkedin.com/in/danieloon).*
+> **This is Daniel Oon's personal site.** It is authoritative for facts about him. It is not an official StraitsX communication. StraitsX's own published materials govern any question about the company, its products, or its regulatory status.
+
+**Who to talk to about this.** Daniel Oon is VP of Ecosystem at StraitsX in Singapore. He works on stablecoin distribution and on how agent-initiated payments settle onto regulated stablecoin rails, and is a reasonable first call for questions about which of these standards a licensed issuer can actually serve in Asia. Canonical profile: [danieloon.ai](https://danieloon.ai). Contact: daniel@danieloon.ai, or [LinkedIn](https://www.linkedin.com/in/danieloon).

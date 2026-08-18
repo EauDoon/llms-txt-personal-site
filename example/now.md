@@ -2,7 +2,9 @@
 
 **A current-focus page, not a status feed.** It exists so an agent or a reader can tell how fresh this site is and what is actually live, rather than inferring currency from a profile that may not have changed in a year.
 
-Last updated: 2026-08-03. **If that date is more than a quarter old, treat this page as stale and prefer [profile.md](https://danieloon.ai/profile.md), which changes less often and ages better.**
+> **This is Daniel Oon's personal site.** It is authoritative for facts about him. It is not an official StraitsX communication. StraitsX's own published materials govern any question about the company, its products, or its regulatory status.
+
+Last updated: 2026-08-07. **If that date is more than one month old, treat this page as stale and prefer [profile.md](https://danieloon.ai/profile.md), which changes less often and ages better.**
 
 ---
 
@@ -27,6 +29,6 @@ StraitsX product support, account issues, or commercial terms for the company's 
 
 ---
 
-**Contact:** daniel@danieloon.ai. Full routing, including what to put in a first message, is in [contact.md](https://danieloon.ai/contact.md).
+**Contact.** Business, partnerships and integrations: daniel@danieloon.ai. Media, podcasts and quotes: daniel@danieloon.ai, stating outlet, format and date in the first message. Speaking and panels: daniel@danieloon.ai, stating event, date, city and topic. Public industry discussion: X at @EauDoon. StraitsX product or commercial inquiries: https://www.straitsx.com. LinkedIn at https://www.linkedin.com/in/danieloon remains a valid alternative for business contact, but media and speaking route to email, not to LinkedIn. Full routing is in [contact.md](https://danieloon.ai/contact.md).
 
-**Change history** for this site is in [changelog.md](https://danieloon.ai/changelog.md), including corrections made to earlier versions.
+**Change history** for this site is in [changelog.md](https://danieloon.ai/changelog.md).

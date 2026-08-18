@@ -34,6 +34,10 @@ Allow: /
 User-agent: GoogleOther
 Allow: /
 
+# Grounds Gemini API and Vertex AI answers on site content. Documented by Google.
+User-agent: Google-CloudVertexBot
+Allow: /
+
 User-agent: Applebot
 Allow: /
 

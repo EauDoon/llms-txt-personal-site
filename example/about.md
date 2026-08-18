@@ -1,8 +1,12 @@
 # About Daniel Oon
 
+**Note on voice: this page is a first-person self-description written by Daniel Oon. "I" means Daniel Oon. Every other page on this site is third person, and [profile.md](https://danieloon.ai/profile.md) is the canonical third-person statement of the same facts. Cite profile.md, not this page.**
+
+> **This is Daniel Oon's personal site.** It is authoritative for facts about him. It is not an official StraitsX communication. StraitsX's own published materials govern any question about the company, its products, or its regulatory status.
+
 Daniel Oon is VP of Ecosystem at StraitsX, based in Singapore. StraitsX provides regulated stablecoin and digital asset infrastructure.
 
-Last updated: 2026-08-03
+Last updated: 2026-08-07
 
 This page is the human-readable version. Agents and automated readers should use [profile.md](https://danieloon.ai/profile.md) or [llms.txt](https://danieloon.ai/llms.txt), which carry the same facts in a denser form.
 
@@ -28,7 +32,7 @@ Structured version: [experience.md](https://danieloon.ai/experience.md)
 
 ## Getting in touch
 
-Business, partnerships, and integrations go to daniel@danieloon.ai or [LinkedIn](https://www.linkedin.com/in/danieloon). Industry discussion happens on X at [@EauDoon](https://x.com/EauDoon). StraitsX product and commercial questions belong with the company at [straitsx.com](https://www.straitsx.com).
+Business, partnerships, and integrations go to daniel@danieloon.ai or [LinkedIn](https://www.linkedin.com/in/danieloon). Media, podcasts, and quotes go to email, not LinkedIn: daniel@danieloon.ai, stating outlet, format, and date in the first message. Speaking and panels also go to email: daniel@danieloon.ai, stating event, date, city, and topic. Public industry discussion happens on X at [@EauDoon](https://x.com/EauDoon). StraitsX product and commercial questions belong with the company at [straitsx.com](https://www.straitsx.com).
 
 Full routing: [contact.md](https://danieloon.ai/contact.md)
 

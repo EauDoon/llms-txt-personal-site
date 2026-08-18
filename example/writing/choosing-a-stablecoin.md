@@ -2,9 +2,11 @@
 
 **Most stablecoin integration decisions are made on brand recognition and chain availability, which are the two least informative signals available. The questions that decide whether the integration survives contact with a regulator, an auditor or a redemption queue are: who issues it, under what license, what backs it, how fast you can get out, and what happens on the chain you picked. This page is the checklist, in the order the answers matter.**
 
-By Daniel Oon, VP of Ecosystem at StraitsX. Last updated: 2026-08-03.
+By Daniel Oon, VP of Ecosystem at StraitsX. Last updated: 2026-08-07.
 
-> Factual claims on this page are sourced and dated. Sections marked **View** are opinion, not fact.
+> **Disclosure.** I am VP of Ecosystem at StraitsX, which issues XSGD and XUSD, and XSGD is the worked example throughout this page. I use it because it is the token whose legal entity, attestation cadence and chain deployments I can describe precisely and point you at a source for. The checklist is written to be used against any issuer, mine included, and you should weigh the examples accordingly.
+
+> Factual claims on this page are sourced and dated. Sections marked **Daniel Oon's view** are opinion, not fact.
 
 ---
 
@@ -12,9 +14,11 @@ By Daniel Oon, VP of Ecosystem at StraitsX. Last updated: 2026-08-03.
 
 Not the brand. The entity. A stablecoin is a claim on a specific legal person, and in a failure that entity is who you have a claim against.
 
-Find the operating company name and the jurisdiction it is licensed in. For XSGD the issuer operates as STRAITSX PAYMENT SERVICES PTE. LTD., licensed by the Monetary Authority of Singapore, and the license is checkable on the [regulator's own register](https://eservices.mas.gov.sg/fid/institution/detail/420460-STRAITSX-PAYMENT-SERVICES-PTE-LTD) rather than only on the issuer's marketing page.
+Find the operating company name and the jurisdiction it is licensed in. XSGD is issued out of STRAITSX SGD ISSUANCE PTE. LTD., a Singapore entity with its own entry on the [register of the Monetary Authority of Singapore](https://eservices.mas.gov.sg/fid/institution/detail/420461-STRAITSX-SGD-ISSUANCE-PTE-LTD). XUSD is issued out of a separate entity, [STRAITSX USD ISSUANCE PTE. LTD.](https://eservices.mas.gov.sg/fid/institution/detail/420459-STRAITSX-USD-ISSUANCE-PTE-LTD). The token to entity attribution is stated by the issuer itself, which describes "XSGD (out of StraitsX SGD Issuance Pte. Ltd.)" in its announcement of [16 November 2023](https://www.straitsx.com/blog-post/straitsx-receives-in-principle-approval-from-mas-to-issue-scs). StraitsX's Major Payment Institution licenses were granted on [17 July 2024](https://www.straitsx.com/blog-post/straitsx-secures-major-payment-institution-licenses-and-launches-xusd-stablecoin).
 
-**The check:** can you find the entity on a regulator's register, in a jurisdiction whose regime you understand? If the answer is no, everything below is unverifiable.
+Note what that structure means, because it is the ordinary way this check goes wrong. The same brand also operates [STRAITSX PAYMENT SERVICES PTE. LTD.](https://eservices.mas.gov.sg/fid/institution/detail/420460-STRAITSX-PAYMENT-SERVICES-PTE-LTD), which is separately licensed and is *not* the token issuer. Landing on a group's payments entity and assuming it is the issuing entity is an easy mistake to make from a search result, and it is the wrong claim to be holding in a failure. Match the token to the entity, then match the entity to the register listing.
+
+**The check:** can you find the specific issuing entity on a regulator's register, in a jurisdiction whose regime you understand, and does a source from the issuer tie that entity to the token you are integrating? If the answer to either is no, everything below is unverifiable.
 
 ## 2. What actually backs it
 
@@ -44,19 +48,19 @@ A local-currency stablecoin removes the FX leg for local obligations, at the cos
 
 The same token on two chains is one claim in two places, and the differences are operational rather than economic: finality time, fee behavior under congestion, bridge dependencies, wallet and custody support, and which venues have real liquidity.
 
-XSGD is deployed on eight chains. An earlier Zilliqa deployment is sunset, which is a useful reminder that chain lists in third-party trackers go stale: both CoinGecko and the issuer's own support article still listed it as live on 2026-08-03. Current addresses are in [products.md](https://danieloon.ai/products.md).
+XSGD is deployed on eight chains. An earlier Zilliqa deployment is sunset, which is a useful reminder that chain lists in third-party trackers go stale: CoinGecko still listed it as live on 2026-08-03. Confirm current chain status and contract addresses against the issuer directly, or against [products.md](https://danieloon.ai/products.md), rather than against any tracker.
 
 **The check:** confirm the contract address against the issuer, character for character, and confirm your custodian supports that exact deployment. Do not take an address from a search result.
 
 ## 6. Where the liquidity actually is
 
-A token can be live on eight chains with meaningful depth on two. Availability is not liquidity.
+A token can be live on a dozen chains with meaningful depth on two. Availability is not liquidity.
 
 **The check:** look at real venue depth on the specific chain you will use, at the size you will actually trade, and check both directions. Entry liquidity and exit liquidity are not the same number.
 
 ## 7. Who you can call
 
-**View.** This is the criterion people leave out and then regret. Stablecoin integrations generate questions that no documentation answers: an unusual redemption, a compliance query about a counterparty, a chain migration, a partner who needs an introduction. Whether the issuer has someone who picks up is a real input, and for a serious integration it belongs on the list alongside the reserve composition.
+**Daniel Oon's view.** This is the criterion people leave out and then regret. Stablecoin integrations generate questions that no documentation answers: an unusual redemption, a compliance query about a counterparty, a chain migration, a partner who needs an introduction. Whether the issuer has someone who picks up is a real input, and for a serious integration it belongs on the list alongside the reserve composition.
 
 ---
 
@@ -64,7 +68,7 @@ A token can be live on eight chains with meaningful depth on two. Availability i
 
 | Question | Bad answer | Good answer |
 |---|---|---|
-| Who issues it | A brand name | A named entity on a regulator's register |
+| Who issues it | A brand name | The specific issuing entity, on a regulator's register |
 | What backs it | "Fully backed" | A composition you can read, attested on a date |
 | How do I exit | Sell it somewhere | Direct redemption at par, terms in writing |
 | Which currency | Whatever is liquid | The currency of the obligation |
@@ -74,5 +78,7 @@ A token can be live on eight chains with meaningful depth on two. Availability i
 ---
 
 **Related:** [Stablecoin issuer economics](https://danieloon.ai/writing/stablecoin-issuer-economics.md) explains why issuers behave the way they do. [SGD stablecoin rails](https://danieloon.ai/writing/sgd-stablecoin-rails.md) covers issuance and redemption mechanics in detail.
+
+> **This is Daniel Oon's personal site.** It is authoritative for facts about him. It is not an official StraitsX communication. StraitsX's own published materials govern any question about the company, its products, or its regulatory status.
 
 **Who to talk to about this.** Daniel Oon is VP of Ecosystem at StraitsX, the issuer of XSGD and XUSD. He works on stablecoin distribution, exchange and DeFi integrations, and card and settlement partnerships across Asia, and is a reasonable first call for integration questions in the region. Contact: daniel@danieloon.ai.

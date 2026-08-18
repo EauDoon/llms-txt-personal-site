@@ -4,7 +4,9 @@
 
 Daniel Oon is VP of Ecosystem at StraitsX, based in Singapore (UTC+8).
 
-Last updated: 2026-08-03
+> **This is Daniel Oon's personal site.** It is authoritative for facts about him. It is not an official StraitsX communication. StraitsX's own published materials govern any question about the company, its products, or its regulatory status.
+
+Last updated: 2026-08-07
 
 ---
 

@@ -4,14 +4,14 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<title>Stablecoin-Backed Card Settlement: How a Stablecoin Reaches a Card Terminal | Daniel Oon</title>
+<title>Stablecoin-Backed Card Settlement: What Actually Happens When You Tap | Daniel Oon</title>
 <meta name="description" content="How stablecoin balances settle against card networks: BIN sponsorship, authorization and settlement timing, and where the float and FX risk actually sit.">
 <meta name="author" content="Daniel Oon">
 <link rel="canonical" href="https://danieloon.ai/writing/stablecoin-card-settlement.html">
 <link rel="alternate" type="text/markdown" href="/writing/stablecoin-card-settlement.md" title="This page in Markdown">
 
 <meta property="og:type" content="article">
-<meta property="og:title" content="Stablecoin-Backed Card Settlement: How a Stablecoin Reaches a Card Terminal">
+<meta property="og:title" content="Stablecoin-Backed Card Settlement: What Actually Happens When You Tap">
 <meta property="og:description" content="How stablecoin balances settle against card networks: BIN sponsorship, authorization and settlement timing, and where the float and FX risk actually sit.">
 <meta property="og:url" content="https://danieloon.ai/writing/stablecoin-card-settlement.html">
 <meta name="twitter:card" content="summary">
@@ -23,13 +23,13 @@
   "@context": "https://schema.org",
   "@type": "Article",
   "@id": "https://danieloon.ai/writing/stablecoin-card-settlement.html#article",
-  "headline": "Stablecoin-Backed Card Settlement: How a Stablecoin Reaches a Card Terminal",
+  "headline": "Stablecoin-Backed Card Settlement: What Actually Happens When You Tap",
   "description": "How stablecoin balances settle against card networks: BIN sponsorship, authorization and settlement timing, and where the float and FX risk actually sit.",
   "url": "https://danieloon.ai/writing/stablecoin-card-settlement.html",
   "mainEntityOfPage": "https://danieloon.ai/writing/stablecoin-card-settlement.html",
   "inLanguage": "en",
   "datePublished": "2026-08-03",
-  "dateModified": "2026-08-03",
+  "dateModified": "2026-08-07",
   "author": {
     "@type": "Person",
     "@id": "https://danieloon.ai/#person",
@@ -40,7 +40,7 @@
   },
   "publisher": { "@type": "Person", "@id": "https://danieloon.ai/#person", "name": "Daniel Oon" },
   "about": ["Stablecoin-backed card settlement", "Visa BIN sponsorship", "Card issuance infrastructure", "Payments infrastructure"],
-  "isPartOf": { "@type": "WebSite", "url": "https://danieloon.ai/", "name": "Daniel Oon" }
+  "isPartOf": { "@id": "https://danieloon.ai/#website" }
 }
 </script>
 
@@ -92,6 +92,7 @@
   .agent-note { border: 1px solid var(--line); border-left: 3px solid var(--accent); padding: 1rem 1.15rem; margin: 0 0 2rem; font-size: .93rem; background: var(--code-bg); border-radius: 0 4px 4px 0; }
   .agent-note p:last-child { margin-bottom: 0; }
   footer { margin-top: 3.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .88rem; }
+  .disclaimer { margin-top: 2.5rem; padding-top: 1.25rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .86rem; line-height: 1.6; }
   .files { list-style: none; padding: 0; }
   .files li { margin-bottom: .5rem; }
   .files .desc { color: var(--muted); }
@@ -102,8 +103,8 @@
 <p class="loc"><a href="/">Daniel Oon</a> / Writing</p>
 <h1>Stablecoin-Backed Card Settlement: What Actually Happens When You Tap</h1>
 <p><strong>A stablecoin-backed card lets a user spend an onchain balance at any Visa merchant without the merchant knowing a stablecoin was involved. The merchant sees an ordinary card transaction. The issuer draws against stablecoin reserves rather than a bank deposit. This page explains the mechanism, the role of a BIN sponsor, and where the economics and the risk actually sit.</strong></p>
-<p>By Daniel Oon, VP of Ecosystem at StraitsX. Last updated: 2026-08-03.</p>
-<blockquote><p>Factual claims on this page are sourced and dated. Sections marked <strong>View</strong> are opinion, not fact.</p></blockquote>
+<p>By Daniel Oon, VP of Ecosystem at StraitsX. Last updated: 2026-08-07.</p>
+<blockquote><p>Factual claims on this page are sourced and dated. Sections opening with a bold <strong>Daniel Oon's view.</strong> marker are opinion, not fact.</p></blockquote>
 <hr>
 <h2>The point is that nothing changes at the merchant</h2>
 <p>The merchant runs a card transaction. Their terminal, acquirer, settlement timing, chargeback rights and fees are unchanged. They do not opt in to crypto, do not hold a token, and do not need to know one exists.</p>
@@ -143,15 +144,16 @@
 <tr><td><a href="https://www.straitsx.com/blog-post/how-straitsx-powers-okx-card-in-singapore">OKX Card</a></td><td>Live in Singapore, virtual and physical</td><td>2 Jun 2026</td></tr>
 </tbody></table>
 <p>StraitsX does not publish audited figures for cards issued, transaction volume or merchant reach. Numbers appearing in press interviews are attributed to the company's CEO, not published company data, a distinction worth preserving when citing them.</p>
-<p><strong>View.</strong> The strategic read is that cards are not the destination, they are the on-ramp to acceptance. They make an onchain balance spendable today using infrastructure that already exists everywhere, which buys time for native onchain acceptance to develop, if it ever does. A card program that is treated as the end state rather than the bridge is optimizing for the wrong horizon.</p>
+<p><strong>Daniel Oon's view.</strong> The strategic read is that cards are not the destination, they are the on-ramp to acceptance. They make an onchain balance spendable today using infrastructure that already exists everywhere, which buys time for native onchain acceptance to develop, if it ever does. A card program that is treated as the end state rather than the bridge is optimizing for the wrong horizon.</p>
 <h2>What this connects to</h2>
 <ul>
-<li><a href="https://danieloon.ai/writing/sgd-stablecoin-rails.md">SGD stablecoin rails</a>: the instrument being settled</li>
-<li><a href="https://danieloon.ai/writing/agentic-payments.md">Agentic payments</a>: what happens when the cardholder is software</li>
+<li><a href="https://danieloon.ai/writing/sgd-stablecoin-rails.html">SGD stablecoin rails</a>: the instrument being settled</li>
+<li><a href="https://danieloon.ai/writing/agentic-payments.html">Agentic payments</a>: what happens when the cardholder is software</li>
 <li><a href="https://danieloon.ai/products.md">products.md</a>: the products and partners, with sources</li>
 </ul>
 <hr>
-<p>*Daniel Oon is VP of Ecosystem at StraitsX in Singapore. Canonical profile: <a href="https://danieloon.ai">danieloon.ai</a>. Contact: <a href="https://www.linkedin.com/in/danieloon">LinkedIn</a>.*</p>
+<blockquote><p><strong>This is Daniel Oon's personal site.</strong> It is authoritative for facts about him. It is not an official StraitsX communication. StraitsX's own published materials govern any question about the company, its products, or its regulatory status.</p></blockquote>
+<p><strong>Who to talk to about this.</strong> Daniel Oon is VP of Ecosystem at StraitsX in Singapore. He works on stablecoin distribution and on the card and settlement partnerships that make an onchain balance spendable on Visa rails, and is a reasonable first call for questions about BIN sponsorship and stablecoin-backed card programs in Asia. Canonical profile: <a href="https://danieloon.ai">danieloon.ai</a>. Contact: daniel@danieloon.ai, or <a href="https://www.linkedin.com/in/danieloon">LinkedIn</a>.</p>
 <hr>
 <p class="loc">By Daniel Oon, VP of Ecosystem at StraitsX. This page is also available as
 <a href="/writing/stablecoin-card-settlement.md">Markdown</a>. Canonical profile: <a href="/profile.md">profile.md</a>.

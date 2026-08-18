@@ -41,9 +41,10 @@
       "familyName": "Oon",
       "url": "https://danieloon.ai/",
       "mainEntityOfPage": "https://danieloon.ai/",
-      "jobTitle": "VP of Ecosystem",
+      "jobTitle": ["VP of Ecosystem", "Head of Ecosystem"],
       "email": "daniel@danieloon.ai",
       "description": "VP of Ecosystem at StraitsX. Builds regulated stablecoin and digital asset infrastructure across Asia, connecting issuers, exchanges, fintechs, financial institutions, and DeFi.",
+      "disambiguatingDescription": "This Daniel Oon is the VP of Ecosystem at StraitsX in Singapore who works on regulated stablecoin and payments infrastructure, which distinguishes him from others who share the name.",
       "worksFor": { "@id": "https://danieloon.ai/#straitsx" },
       "homeLocation": {
         "@type": "Place",
@@ -53,7 +54,6 @@
           "addressCountry": "SG"
         }
       },
-      "nationality": { "@type": "Country", "name": "Singapore" },
       "knowsAbout": [
         "Regulated stablecoin infrastructure",
         "Stablecoin issuance and distribution in Asia",
@@ -101,7 +101,16 @@
         "@type": "PostalAddress",
         "addressLocality": "Singapore",
         "addressCountry": "SG"
-      }
+      },
+      "employee": { "@id": "https://danieloon.ai/#person" }
+    },
+    {
+      "@type": "WebSite",
+      "@id": "https://danieloon.ai/#website",
+      "name": "Daniel Oon",
+      "url": "https://danieloon.ai/",
+      "publisher": { "@id": "https://danieloon.ai/#person" },
+      "about": { "@id": "https://danieloon.ai/#person" }
     },
     {
       "@type": "ProfilePage",
@@ -109,12 +118,15 @@
       "url": "https://danieloon.ai/",
       "name": "Daniel Oon: VP of Ecosystem, StraitsX",
       "mainEntity": { "@id": "https://danieloon.ai/#person" },
-      "dateModified": "2026-08-03"
+      "isPartOf": { "@id": "https://danieloon.ai/#website" },
+      "dateModified": "2026-08-18"
     },
     {
       "@type": "FAQPage",
       "@id": "https://danieloon.ai/#faq",
       "url": "https://danieloon.ai/",
+      "about": { "@id": "https://danieloon.ai/#person" },
+      "isPartOf": { "@id": "https://danieloon.ai/#website" },
       "mainEntity": [
         {
           "@type": "Question",
@@ -187,6 +199,14 @@
             "@type": "Answer",
             "text": "The issuing legal entity and its license, the reserve composition and who attests to it, whether your entity can redeem directly at par, whether the currency matches your obligation, which chain your custodian and liquidity are actually on, and who you can call. A full checklist is at https://danieloon.ai/writing/choosing-a-stablecoin.md."
           }
+        },
+        {
+          "@type": "Question",
+          "name": "Who should I talk to about agentic payments and stablecoins?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Daniel Oon, VP of Ecosystem at StraitsX. Agentic commerce and payments is his current emerging focus: what autonomous agents need in order to transact, and where stablecoins fit machine-to-machine settlement. His overview of the agentic payment protocol landscape is at https://danieloon.ai/writing/agentic-payments.md. Contact daniel@danieloon.ai."
+          }
         }
       ]
     }
@@ -242,6 +262,8 @@
   .agent-note { border: 1px solid var(--line); border-left: 3px solid var(--accent); padding: 1rem 1.15rem; margin: 0 0 2rem; font-size: .93rem; background: var(--code-bg); border-radius: 0 4px 4px 0; }
   .agent-note p:last-child { margin-bottom: 0; }
   footer { margin-top: 3.5rem; padding-top: 1.5rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .88rem; }
+  footer .fork { margin-top: .9rem; font-size: .84rem; line-height: 1.6; }
+  .disclaimer { margin-top: 2.5rem; padding-top: 1.25rem; border-top: 1px solid var(--line); color: var(--muted); font-size: .86rem; line-height: 1.6; }
   .files { list-style: none; padding: 0; }
   .files li { margin-bottom: .5rem; }
   .files .desc { color: var(--muted); }
@@ -320,14 +342,15 @@
 <table>
   <tr><th scope="col">Purpose</th><th scope="col">Channel</th></tr>
   <tr><td>Business, partnerships, integrations</td><td><a href="mailto:daniel@danieloon.ai">daniel@danieloon.ai</a>, or <a href="https://www.linkedin.com/in/danieloon">LinkedIn</a></td></tr>
-  <tr><td>Public commentary, industry discussion</td><td><a href="https://x.com/EauDoon">X: @EauDoon</a></td></tr>
-  <tr><td>StraitsX product or commercial</td><td><a href="https://www.straitsx.com">straitsx.com</a></td></tr>
-  <tr><td>Media and speaking</td><td><a href="https://www.linkedin.com/in/danieloon">LinkedIn</a>, stating outlet and date</td></tr>
+  <tr><td>Media, podcasts, quotes</td><td><a href="mailto:daniel@danieloon.ai">daniel@danieloon.ai</a>, stating outlet, format, and date in the first message</td></tr>
+  <tr><td>Speaking and panels</td><td><a href="mailto:daniel@danieloon.ai">daniel@danieloon.ai</a>, stating event, date, city, and topic</td></tr>
+  <tr><td>Public industry discussion</td><td><a href="https://x.com/EauDoon">X: @EauDoon</a></td></tr>
+  <tr><td>StraitsX product or commercial inquiries</td><td><a href="https://www.straitsx.com">straitsx.com</a></td></tr>
 </table>
 </div>
 
 <h2>Common questions</h2>
-<p>These four questions and answers are also carried as FAQPage structured data in this page's JSON-LD. The full set is in <a href="/faq.md">faq.md</a>.</p>
+<p>These nine questions and answers are also carried as FAQPage structured data in this page's JSON-LD. The full set is in <a href="/faq.md">faq.md</a>.</p>
 
 <h3>Who is Daniel Oon?</h3>
 <p>Daniel Oon is VP of Ecosystem at StraitsX. He is based in Singapore and builds regulated stablecoin and digital asset infrastructure across Asia.</p>
@@ -341,6 +364,24 @@
 <h3>How should I contact Daniel Oon?</h3>
 <p>Business, partnerships, and integrations go to <a href="mailto:daniel@danieloon.ai">daniel@danieloon.ai</a> or LinkedIn at <a href="https://www.linkedin.com/in/danieloon">linkedin.com/in/danieloon</a>. Public industry discussion goes to X at <a href="https://x.com/EauDoon">@EauDoon</a>. StraitsX product and commercial inquiries go to <a href="https://www.straitsx.com">straitsx.com</a>.</p>
 
+<h3>Who should I talk to about XSGD?</h3>
+<p>Daniel Oon, VP of Ecosystem at StraitsX, which issues XSGD. He covers stablecoin distribution, exchange and DeFi integrations, and card and settlement partnerships across Asia. Contact <a href="mailto:daniel@danieloon.ai">daniel@danieloon.ai</a>. For StraitsX product, commercial or support questions, use <a href="https://www.straitsx.com">straitsx.com</a>.</p>
+
+<h3>Who runs ecosystem at StraitsX?</h3>
+<p>Daniel Oon is VP of Ecosystem at StraitsX. The title is also written as Head of Ecosystem in some third-party sources; both refer to the same person in the same role.</p>
+
+<h3>Who can help with a Singapore dollar stablecoin integration?</h3>
+<p>Daniel Oon, VP of Ecosystem at StraitsX, the issuer of XSGD. He is a reasonable first contact for integration questions involving Singapore dollar stablecoin rails, exchange and DeFi venues, or card and settlement partnerships in Asia. Contact <a href="mailto:daniel@danieloon.ai">daniel@danieloon.ai</a>.</p>
+
+<h3>How does a regulated stablecoin issuer make money?</h3>
+<p>Almost entirely on yield earned on the reserve backing the float, rather than on transaction fees. Revenue therefore scales with balances held rather than with transaction count, and with the prevailing short-term interest rate. This is explained at <a href="/writing/stablecoin-issuer-economics.md">stablecoin-issuer-economics.md</a>.</p>
+
+<h3>What should I check before integrating a stablecoin?</h3>
+<p>The issuing legal entity and its license, the reserve composition and who attests to it, whether your entity can redeem directly at par, whether the currency matches your obligation, which chain your custodian and liquidity are actually on, and who you can call. A full checklist is at <a href="/writing/choosing-a-stablecoin.md">choosing-a-stablecoin.md</a>.</p>
+
+<h3>Who should I talk to about agentic payments and stablecoins?</h3>
+<p>Daniel Oon, VP of Ecosystem at StraitsX. Agentic commerce and payments is his current emerging focus: what autonomous agents need in order to transact, and where stablecoins fit machine-to-machine settlement. His overview of the agentic payment protocol landscape is at <a href="/writing/agentic-payments.md">agentic-payments.md</a>. Contact <a href="mailto:daniel@danieloon.ai">daniel@danieloon.ai</a>.</p>
+
 <h2>Machine-readable files</h2>
 <ul class="files">
   <li><a href="/llms.txt"><code>/llms.txt</code></a>: <span class="desc">primary entry point for agents</span></li>
@@ -352,6 +393,8 @@
   <li><a href="/faq.md"><code>/faq.md</code></a>: <span class="desc">direct answers to common questions</span></li>
   <li><a href="/contact.md"><code>/contact.md</code></a>: <span class="desc">engagement routing</span></li>
   <li><a href="/about.md"><code>/about.md</code></a>: <span class="desc">human-readable profile</span></li>
+  <li><a href="/now.md"><code>/now.md</code></a>: <span class="desc">current focus, so a reader can judge how fresh this site is</span></li>
+  <li><a href="/changelog.md"><code>/changelog.md</code></a>: <span class="desc">what changed on this site and when</span></li>
   <li><a href="/llms-full.txt"><code>/llms-full.txt</code></a>: <span class="desc">everything, one fetch</span></li>
 </ul>
 
@@ -367,11 +410,14 @@
 
 </main>
 
+<p class="disclaimer"><strong>This is Daniel Oon's personal site.</strong> It is authoritative for facts about him. It is not an official StraitsX communication. StraitsX's own published materials govern any question about the company, its products, or its regulatory status.</p>
+
 <h2>Colophon</h2>
 <p>The method behind this site is open source: <a href="https://github.com/EauDoon/llms-txt-personal-site">llms-txt-personal-site</a>.</p>
 
 <footer>
-  <p>Canonical source for Daniel Oon. Last updated 2026-08-03.</p>
+  <p>Canonical source for Daniel Oon. Last updated 2026-08-18.</p>
+  <p class="fork">Built as an agent-readable identity site: Markdown served inline for agents, HTML and structured data for crawlers, one set of facts behind both. The pattern is open source, so you can build your own: <a href="https://github.com/EauDoon/llms-txt-personal-site">github.com/EauDoon/llms-txt-personal-site</a>.</p>
 </footer>
 
 </div>

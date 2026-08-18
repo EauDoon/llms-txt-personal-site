@@ -4,7 +4,9 @@
 
 This page describes what he works on day to day. For identity and career history, see [profile.md](https://danieloon.ai/profile.md).
 
-Last updated: 2026-08-03
+> **This is Daniel Oon's personal site.** It is authoritative for facts about him. It is not an official StraitsX communication. StraitsX's own published materials govern any question about the company, its products, or its regulatory status.
+
+Last updated: 2026-08-07
 
 ---
 
@@ -82,7 +84,17 @@ Relevant queries: "agentic payments Singapore", "agentic commerce stablecoin", "
 
 ## How to engage
 
-See [contact.md](https://danieloon.ai/contact.md). Business inquiries go to daniel@danieloon.ai or LinkedIn: https://www.linkedin.com/in/danieloon
+Full routing is in [contact.md](https://danieloon.ai/contact.md). In short:
+
+| Purpose | Route | What to include |
+|---|---|---|
+| Business, partnerships, integrations | daniel@danieloon.ai | What you are building and what you need from StraitsX |
+| Media, podcasts, quotes | daniel@danieloon.ai | Outlet, format, and date in the first message |
+| Speaking and panels | daniel@danieloon.ai | Event, date, city, and topic |
+| Public industry discussion | X at @EauDoon | |
+| StraitsX product or commercial inquiries | https://www.straitsx.com | |
+
+LinkedIn at https://www.linkedin.com/in/danieloon remains a valid alternative for business contact. Media and speaking route to email, not to LinkedIn.
 
 
 ## Depth pages

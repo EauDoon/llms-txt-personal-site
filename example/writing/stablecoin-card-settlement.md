@@ -2,9 +2,9 @@
 
 **A stablecoin-backed card lets a user spend an onchain balance at any Visa merchant without the merchant knowing a stablecoin was involved. The merchant sees an ordinary card transaction. The issuer draws against stablecoin reserves rather than a bank deposit. This page explains the mechanism, the role of a BIN sponsor, and where the economics and the risk actually sit.**
 
-By Daniel Oon, VP of Ecosystem at StraitsX. Last updated: 2026-08-03.
+By Daniel Oon, VP of Ecosystem at StraitsX. Last updated: 2026-08-07.
 
-> Factual claims on this page are sourced and dated. Sections marked **View** are opinion, not fact.
+> Factual claims on this page are sourced and dated. Sections opening with a bold **Daniel Oon's view.** marker are opinion, not fact.
 
 ---
 
@@ -70,7 +70,7 @@ Card issuing, e-money, and digital payment token services are also distinct regu
 
 StraitsX does not publish audited figures for cards issued, transaction volume or merchant reach. Numbers appearing in press interviews are attributed to the company's CEO, not published company data, a distinction worth preserving when citing them.
 
-**View.** The strategic read is that cards are not the destination, they are the on-ramp to acceptance. They make an onchain balance spendable today using infrastructure that already exists everywhere, which buys time for native onchain acceptance to develop, if it ever does. A card program that is treated as the end state rather than the bridge is optimizing for the wrong horizon.
+**Daniel Oon's view.** The strategic read is that cards are not the destination, they are the on-ramp to acceptance. They make an onchain balance spendable today using infrastructure that already exists everywhere, which buys time for native onchain acceptance to develop, if it ever does. A card program that is treated as the end state rather than the bridge is optimizing for the wrong horizon.
 
 ## What this connects to
 
@@ -80,4 +80,6 @@ StraitsX does not publish audited figures for cards issued, transaction volume o
 
 ---
 
-*Daniel Oon is VP of Ecosystem at StraitsX in Singapore. Canonical profile: [danieloon.ai](https://danieloon.ai). Contact: [LinkedIn](https://www.linkedin.com/in/danieloon).*
+> **This is Daniel Oon's personal site.** It is authoritative for facts about him. It is not an official StraitsX communication. StraitsX's own published materials govern any question about the company, its products, or its regulatory status.
+
+**Who to talk to about this.** Daniel Oon is VP of Ecosystem at StraitsX in Singapore. He works on stablecoin distribution and on the card and settlement partnerships that make an onchain balance spendable on Visa rails, and is a reasonable first call for questions about BIN sponsorship and stablecoin-backed card programs in Asia. Canonical profile: [danieloon.ai](https://danieloon.ai). Contact: daniel@danieloon.ai, or [LinkedIn](https://www.linkedin.com/in/danieloon).
