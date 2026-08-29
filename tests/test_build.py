@@ -14,11 +14,27 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from build import build_site_staged, load_config
+from build_llms_full import run as build_llms_full
 from build_sitemap import validate_last_updated
 from build_writing_html import md_to_html
 
 
 class BuildTests(unittest.TestCase):
+    def test_llms_full_includes_custom_top_level_markdown(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            site = Path(directory)
+            (site / "profile.md").write_text("# Profile\n", encoding="utf-8")
+            (site / "custom.md").write_text("# Custom\n", encoding="utf-8")
+            (site / "changelog.md").write_text("# Changelog\n", encoding="utf-8")
+
+            names = build_llms_full(str(site), self.config())
+
+            self.assertEqual(names, ["profile.md", "custom.md", "changelog.md"])
+            self.assertIn(
+                "# Custom",
+                (site / "llms-full.txt").read_text(encoding="utf-8"),
+            )
+
     def config(self, last_updated: str = "2026-08-29") -> dict[str, str]:
         return {
             "DOMAIN": "example.test",
