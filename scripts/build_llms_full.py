@@ -35,6 +35,11 @@ def run(site_dir, cfg):
     ]
 
     names = [f for f in ORDER if os.path.exists(os.path.join(site_dir, f))]
+    names += [
+        f for f in sorted(os.listdir(site_dir))
+        if f.endswith(".md") and f not in names and f != "changelog.md"
+        and os.path.isfile(os.path.join(site_dir, f))
+    ]
 
     writing = os.path.join(site_dir, "writing")
     if os.path.isdir(writing):
