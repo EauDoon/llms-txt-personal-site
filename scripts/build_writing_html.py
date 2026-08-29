@@ -41,7 +41,7 @@ def md_to_html(md):
         if in_ol: out.append("</ol>"); in_ol = False
 
     def inline(s):
-        s = html.escape(s, quote=False)
+        s = html.escape(s, quote=True)
         s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
         s = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
         s = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r'<a href="\2">\1</a>', s)

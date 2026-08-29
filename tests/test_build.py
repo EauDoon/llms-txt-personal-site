@@ -15,6 +15,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 
 from build import build_site_staged, load_config
 from build_sitemap import validate_last_updated
+from build_writing_html import md_to_html
 
 
 class BuildTests(unittest.TestCase):
@@ -134,6 +135,14 @@ class BuildTests(unittest.TestCase):
                 config_path.write_text(json.dumps({**self.config(), "DOMAIN": domain}), encoding="utf-8")
                 with self.subTest(domain=domain), patch("build.CONFIG", str(config_path)):
                     self.assertEqual(load_config()["DOMAIN"], domain)
+
+    def test_markdown_link_cannot_inject_html_attributes(self) -> None:
+        rendered = md_to_html(
+            '[safe](https://example.test/" onmouseover="document.body.dataset.pwned=\'yes\')'
+        )
+
+        self.assertNotIn(' onmouseover="', rendered)
+        self.assertIn("&quot;", rendered)
 
 
 if __name__ == "__main__":
