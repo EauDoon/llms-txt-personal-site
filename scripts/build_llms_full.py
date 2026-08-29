@@ -49,9 +49,11 @@ def run(site_dir, cfg):
         parts.append("\n\n" + "=" * 70 + "\n")
         parts.append("# SOURCE: https://%s/%s\n" % (domain, rel))
         parts.append("=" * 70 + "\n\n")
-        parts.append(io.open(path, encoding="utf-8").read())
+        with io.open(path, encoding="utf-8") as source:
+            parts.append(source.read())
 
     out = "".join(parts)
-    io.open(os.path.join(site_dir, "llms-full.txt"), "w", encoding="utf-8", newline="").write(out)
+    with io.open(os.path.join(site_dir, "llms-full.txt"), "w", encoding="utf-8", newline="") as output:
+        output.write(out)
     print("  wrote llms-full.txt from %d files (%d bytes)" % (len(names), len(out)))
     return names
