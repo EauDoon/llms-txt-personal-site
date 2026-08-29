@@ -168,14 +168,16 @@ def run(site_dir, cfg):
     idx = os.path.join(site_dir, "index.html")
     style = ""
     if os.path.exists(idx):
-        m = re.search(r"<style>.*?</style>", io.open(idx, encoding="utf-8").read(), re.S)
+        with io.open(idx, encoding="utf-8") as index:
+            m = re.search(r"<style>.*?</style>", index.read(), re.S)
         style = m.group(0) if m else ""
 
     for f in sorted(os.listdir(wr)):
         if not f.endswith(".md"):
             continue
         slug = f[:-3]
-        meta, md = parse_front_matter(io.open(os.path.join(wr, f), encoding="utf-8").read())
+        with io.open(os.path.join(wr, f), encoding="utf-8") as source:
+            meta, md = parse_front_matter(source.read())
         title = meta.get("title") or slug.replace("-", " ").title()
         desc = meta.get("desc", "")
         about = [a.strip() for a in meta.get("about", "").split(",") if a.strip()]
@@ -195,5 +197,6 @@ def run(site_dir, cfg):
             style=style,
             content=md_to_html(md),
         )
-        io.open(os.path.join(wr, slug + ".html"), "w", encoding="utf-8", newline="").write(page)
+        with io.open(os.path.join(wr, slug + ".html"), "w", encoding="utf-8", newline="") as output:
+            output.write(page)
         print("  wrote writing/%s.html" % slug)
