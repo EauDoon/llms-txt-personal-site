@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import os
 import sys
 import tempfile
 import unittest
@@ -12,7 +13,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from build import build_site_staged
+from build import build_site_staged, is_link_like
 from build_sitemap import validate_last_updated
 
 
@@ -97,10 +98,229 @@ class BuildTests(unittest.TestCase):
             self.assertFalse((site / "stale.txt").exists())
             backups = list(root.glob(".site-backup-*"))
             self.assertEqual(len(backups), 1)
-            self.assertEqual((backups[0] / "stale.txt").read_text(encoding="utf-8"), "old site\n")
+            self.assertEqual(
+                (backups[0] / "site" / "stale.txt").read_text(encoding="utf-8"),
+                "old site\n",
+            )
             self.assertIn("new site was promoted", error.getvalue())
             self.assertIn("previous output could not be removed", error.getvalue())
             self.assertIn("locked by scanner", error.getvalue())
+
+    def test_failed_backup_move_removes_reserved_slot(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            template = root / "template"
+            template.mkdir()
+            (template / "index.html").write_text(
+                "<h1>New site</h1>\n", encoding="utf-8"
+            )
+            site = root / "site"
+            site.mkdir()
+            (site / "previous.txt").write_text("previous build\n", encoding="utf-8")
+            real_replace = os.replace
+
+            def replace(source: str, destination: str) -> None:
+                if os.path.normpath(source) == os.path.normpath(str(site)):
+                    raise PermissionError("site locked by scanner")
+                real_replace(source, destination)
+
+            with patch("build.os.replace", side_effect=replace):
+                with self.assertRaisesRegex(PermissionError, r"site locked"):
+                    build_site_staged(str(template), str(site), self.config())
+
+            self.assertEqual(
+                (site / "previous.txt").read_text(encoding="utf-8"),
+                "previous build\n",
+            )
+            self.assertFalse((site / "index.html").exists())
+            self.assertEqual(list(root.glob(".site-build-*")), [])
+            self.assertEqual(list(root.glob(".site-backup-*")), [])
+
+    def test_failed_promotion_and_restore_report_backup_recovery_path(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            template = root / "template"
+            template.mkdir()
+            (template / "index.html").write_text(
+                "<h1>New site</h1>\n", encoding="utf-8"
+            )
+            site = root / "site"
+            site.mkdir()
+            (site / "previous.txt").write_text("previous build\n", encoding="utf-8")
+            real_replace = os.replace
+
+            def replace(source: str, destination: str) -> None:
+                source_path = Path(source)
+                if source_path.parent.name.startswith(".site-backup-"):
+                    raise PermissionError("restore failed")
+                if source_path.name.startswith(".site-build-"):
+                    raise PermissionError("promotion failed")
+                real_replace(source, destination)
+
+            with patch("build.os.replace", side_effect=replace):
+                with self.assertRaisesRegex(
+                    OSError, r"recover it from .*\.site-backup-.*/site"
+                ) as raised:
+                    build_site_staged(str(template), str(site), self.config())
+
+            self.assertFalse(site.exists())
+            backups = list(root.glob(".site-backup-*/site"))
+            self.assertEqual(len(backups), 1)
+            self.assertEqual(
+                (backups[0] / "previous.txt").read_text(encoding="utf-8"),
+                "previous build\n",
+            )
+            self.assertIsInstance(raised.exception.__cause__, PermissionError)
+            self.assertEqual(str(raised.exception.__cause__), "restore failed")
+            self.assertIsInstance(
+                raised.exception.__cause__.__context__, PermissionError
+            )
+            self.assertEqual(
+                str(raised.exception.__cause__.__context__), "promotion failed"
+            )
+            self.assertEqual(list(root.glob(".site-build-*")), [])
+
+    def test_failed_staging_cleanup_preserves_original_error_and_warns(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            template = root / "template"
+            template.mkdir()
+            site = root / "site"
+            error = io.StringIO()
+
+            with patch("build.build_site", side_effect=ValueError("generation failed")):
+                with patch(
+                    "build.shutil.rmtree",
+                    side_effect=PermissionError("staging cleanup failed"),
+                ):
+                    with contextlib.redirect_stderr(error):
+                        with self.assertRaisesRegex(ValueError, r"generation failed"):
+                            build_site_staged(str(template), str(site), self.config())
+
+            staging = list(root.glob(".site-build-*"))
+            self.assertEqual(len(staging), 1)
+            self.assertIn(str(staging[0]), error.getvalue())
+            self.assertIn("staging cleanup failed", error.getvalue())
+            self.assertIn("the build failed", error.getvalue())
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "symlinks are not supported")
+    def test_symlinked_template_file_is_rejected_without_replacing_site(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            template = root / "template"
+            template.mkdir()
+            (template / "index.html").write_text("<h1>New site</h1>\n", encoding="utf-8")
+            outside = root / "private.txt"
+            outside.write_text("must not be published\n", encoding="utf-8")
+            try:
+                os.symlink(outside, template / "leak.txt")
+            except OSError as exc:
+                self.skipTest("cannot create a symlink in this environment: %s" % exc)
+
+            site = root / "site"
+            site.mkdir()
+            (site / "previous.txt").write_text("previous build\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(
+                OSError, r"link-like template path: leak\.txt"
+            ):
+                build_site_staged(str(template), str(site), self.config())
+
+            self.assertEqual(
+                (site / "previous.txt").read_text(encoding="utf-8"),
+                "previous build\n",
+            )
+            self.assertFalse((site / "leak.txt").exists())
+            self.assertEqual(list(root.glob(".site-build-*")), [])
+            self.assertEqual(list(root.glob(".site-backup-*")), [])
+
+    @unittest.skipUnless(hasattr(os, "symlink"), "symlinks are not supported")
+    def test_symlinked_template_root_is_rejected_without_replacing_site(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            outside = root / "outside"
+            outside.mkdir()
+            (outside / "index.html").write_text(
+                "<h1>must not be published</h1>\n", encoding="utf-8"
+            )
+            template = root / "template"
+            try:
+                os.symlink(outside, template, target_is_directory=True)
+            except OSError as exc:
+                self.skipTest("cannot create a symlink in this environment: %s" % exc)
+
+            site = root / "site"
+            site.mkdir()
+            (site / "previous.txt").write_text("previous build\n", encoding="utf-8")
+
+            with self.assertRaisesRegex(OSError, r"link-like template root"):
+                build_site_staged(str(template), str(site), self.config())
+
+            self.assertEqual(
+                (site / "previous.txt").read_text(encoding="utf-8"),
+                "previous build\n",
+            )
+            self.assertFalse((site / "index.html").exists())
+            self.assertEqual(list(root.glob(".site-build-*")), [])
+            self.assertEqual(list(root.glob(".site-backup-*")), [])
+
+    def test_junction_like_template_directory_is_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            template = root / "template"
+            linked = template / "linked"
+            linked.mkdir(parents=True)
+            (linked / "private.txt").write_text(
+                "must not be published\n", encoding="utf-8"
+            )
+            site = root / "site"
+
+            def isjunction(path: str) -> bool:
+                return os.path.normpath(path) == os.path.normpath(str(linked))
+
+            with patch("build.os.path.isjunction", side_effect=isjunction, create=True):
+                with self.assertRaisesRegex(
+                    OSError, r"link-like template path: linked"
+                ):
+                    build_site_staged(str(template), str(site), self.config())
+
+            self.assertFalse(site.exists())
+            self.assertEqual(list(root.glob(".site-build-*")), [])
+            self.assertEqual(list(root.glob(".site-backup-*")), [])
+
+    def test_reparse_point_fallback_does_not_require_isjunction(self) -> None:
+        with patch("build.os.path.islink", return_value=False):
+            with patch("build.os.path.isjunction", None, create=True):
+                with patch("build.os.lstat") as lstat:
+                    lstat.return_value.st_file_attributes = 0x0400
+                    self.assertTrue(is_link_like("junction"))
+
+    def test_junction_like_output_directory_is_not_replaced(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            template = root / "template"
+            template.mkdir()
+            (template / "index.html").write_text(
+                "<h1>New site</h1>\n", encoding="utf-8"
+            )
+            site = root / "site"
+            site.mkdir()
+            (site / "previous.txt").write_text("previous build\n", encoding="utf-8")
+
+            def isjunction(path: str) -> bool:
+                return os.path.normpath(path) == os.path.normpath(str(site))
+
+            with patch("build.os.path.isjunction", side_effect=isjunction, create=True):
+                with self.assertRaisesRegex(OSError, r"not a real directory"):
+                    build_site_staged(str(template), str(site), self.config())
+
+            self.assertEqual(
+                (site / "previous.txt").read_text(encoding="utf-8"),
+                "previous build\n",
+            )
+            self.assertFalse((site / "index.html").exists())
+            self.assertEqual(list(root.glob(".site-build-*")), [])
+            self.assertEqual(list(root.glob(".site-backup-*")), [])
 
     def test_last_updated_requires_an_exact_calendar_date(self) -> None:
         self.assertEqual(validate_last_updated("2024-02-29"), "2024-02-29")
