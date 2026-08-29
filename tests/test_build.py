@@ -16,7 +16,7 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from build import build_site_staged, load_config
 from build_llms_full import run as build_llms_full
 from build_sitemap import validate_last_updated
-from build_writing_html import md_to_html
+from build_writing_html import md_to_html, run as build_writing_html
 
 
 class BuildTests(unittest.TestCase):
@@ -159,6 +159,20 @@ class BuildTests(unittest.TestCase):
 
         self.assertNotIn(' onmouseover="', rendered)
         self.assertIn("&quot;", rendered)
+
+    def test_writing_filename_cannot_inject_html_attributes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            site = Path(directory)
+            writing = site / "writing"
+            writing.mkdir()
+            slug = 'bad" onmouseover="alert(1)'
+            (writing / f"{slug}.md").write_text("# Test\n", encoding="utf-8")
+
+            build_writing_html(str(site), self.config())
+
+            rendered = (writing / f"{slug}.html").read_text(encoding="utf-8")
+            self.assertNotIn(' onmouseover="', rendered)
+            self.assertIn("bad%22%20onmouseover%3D%22alert%281%29.html", rendered)
 
 
 if __name__ == "__main__":

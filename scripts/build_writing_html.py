@@ -16,6 +16,7 @@ import io
 import os
 import re
 import html
+from urllib.parse import quote
 
 
 def parse_front_matter(md):
@@ -176,6 +177,7 @@ def run(site_dir, cfg):
         if not f.endswith(".md"):
             continue
         slug = f[:-3]
+        url_slug = quote(slug, safe="-._~")
         with io.open(os.path.join(wr, f), encoding="utf-8") as source:
             meta, md = parse_front_matter(source.read())
         title = meta.get("title") or slug.replace("-", " ").title()
@@ -184,7 +186,7 @@ def run(site_dir, cfg):
         page = SHELL.format(
             title=html.escape(title, quote=True),
             desc=html.escape(desc, quote=True),
-            slug=slug,
+            slug=url_slug,
             domain=cfg.get("DOMAIN", ""),
             name=html.escape(cfg.get("FULL_NAME", ""), quote=True),
             email=cfg.get("EMAIL", ""),
