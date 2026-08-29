@@ -35,9 +35,11 @@ python scripts/quality_check.py
 The output lands in `site/`. Generation happens in a clean staging directory,
 so files removed or renamed in `template/` cannot survive in the deployed
 output. If generation fails before promotion, the previous `site/` stays in
-place. Deploy that directory anywhere static: GitHub Pages, Netlify, Vercel,
-Cloudflare Pages, or ordinary shared hosting. Config for the three most common
-hosts ships with the template.
+place. Template entries must be regular files and directories: the builder
+rejects symlinks and Windows junctions so links cannot copy content from outside
+`template/` into a public build. Deploy that directory anywhere static: GitHub Pages, Netlify,
+Vercel, Cloudflare Pages, or ordinary shared hosting. Config for the three most
+common hosts ships with the template.
 
 ---
 
