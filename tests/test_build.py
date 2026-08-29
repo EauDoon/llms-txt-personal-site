@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import contextlib
 import io
+import json
 import sys
 import tempfile
 import unittest
@@ -12,7 +13,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from build import build_site_staged
+from build import build_site_staged, load_config
 from build_sitemap import validate_last_updated
 
 
@@ -108,6 +109,31 @@ class BuildTests(unittest.TestCase):
             with self.subTest(value=value):
                 with self.assertRaisesRegex(ValueError, "calendar-valid"):
                     validate_last_updated(value)
+
+    def test_domain_must_be_a_bare_hostname(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = Path(directory) / "site.config.json"
+            for domain in (
+                "HTTPS://example.test",
+                "example.test/path",
+                "user@example.test",
+                "example.test:443",
+                "example..test",
+                "-example.test",
+                "example-.test",
+                "example\\test",
+                'example"test',
+                "café.test",
+                f"{'a' * 64}.test",
+            ):
+                config_path.write_text(json.dumps({**self.config(), "DOMAIN": domain}), encoding="utf-8")
+                with self.subTest(domain=domain), patch("build.CONFIG", str(config_path)):
+                    with self.assertRaisesRegex(SystemExit, "bare hostname"):
+                        load_config()
+            for domain in ("EXAMPLE.TEST", "xn--caf-dma.test"):
+                config_path.write_text(json.dumps({**self.config(), "DOMAIN": domain}), encoding="utf-8")
+                with self.subTest(domain=domain), patch("build.CONFIG", str(config_path)):
+                    self.assertEqual(load_config()["DOMAIN"], domain)
 
 
 if __name__ == "__main__":
