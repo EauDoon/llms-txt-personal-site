@@ -10,11 +10,19 @@
 # which is worse than having none. Every rule below is therefore scoped to the
 # thing it actually forbids, and the deliberate exceptions are named in code.
 import io, os, re, json, subprocess, sys
+import xml.etree.ElementTree as ET
+from collections import Counter
+
+from build_sitemap import public_urls, validate_last_updated
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 R = os.path.join(REPO, "site")
 _cfg_path = os.path.join(REPO, "site.config.json")
-_cfg = json.load(io.open(_cfg_path, encoding="utf-8")) if os.path.exists(_cfg_path) else {}
+if os.path.exists(_cfg_path):
+    with io.open(_cfg_path, encoding="utf-8") as config_file:
+        _cfg = json.load(config_file)
+else:
+    _cfg = {}
 DOMAIN = _cfg.get("DOMAIN", "example.com")
 EMAIL = _cfg.get("EMAIL", "")
 JOB_TITLE = _cfg.get("JOB_TITLE", "")
@@ -40,7 +48,8 @@ def sources(include_generated=False):
     return out
 
 def read(p):
-    return io.open(p, encoding="utf-8", errors="ignore").read()
+    with io.open(p, encoding="utf-8", errors="ignore") as source:
+        return source.read()
 
 def head(msg):
     print("\n" + "=" * 68 + "\n" + msg + "\n" + "=" * 68)
@@ -146,10 +155,28 @@ for rel, p in sources():
             print("  FAIL %-40s %s" % (rel, e))
 
 head("4. LAST-UPDATED DATES")
+configured_lastmod = _cfg.get("LAST_UPDATED")
+try:
+    expected_lastmod = validate_last_updated(configured_lastmod)
+    print("  ok   site.config.json LAST_UPDATED is %s" % expected_lastmod)
+except ValueError as exc:
+    expected_lastmod = None
+    fails.append(str(exc))
+    print("  FAIL %s" % exc)
 for rel, p in sources():
-    if rel.endswith(".md") and not re.search(r"Last updated:\s*\d{4}-\d{2}-\d{2}", read(p)):
+    if not rel.endswith(".md"):
+        continue
+    match = re.search(r"Last updated:\s*(\S+)", read(p))
+    if not match:
         warns.append("%s has no 'Last updated'" % rel)
         print("  WARN %-40s no Last updated line" % rel)
+        continue
+    page_lastmod = match.group(1).rstrip(".,;:)")
+    try:
+        validate_last_updated(page_lastmod)
+    except ValueError:
+        fails.append("%s has an invalid Last updated date" % rel)
+        print("  FAIL %-40s invalid Last updated date" % rel)
 print("  (files with a date are not listed)")
 
 head("5. GENERATED FILE IS IN SYNC")
@@ -165,8 +192,63 @@ if os.path.exists(lf):
     else:
         print("  ok   llms-full.txt contains every .md source")
 
+head("6. SITEMAP MATCHES BUILD OUTPUT")
+sitemap_path = os.path.join(R, "sitemap.xml")
+try:
+    root = ET.parse(sitemap_path).getroot()
+    entries = root.findall("{http://www.sitemaps.org/schemas/sitemap/0.9}url")
+    actual_urls = [entry.findtext("{http://www.sitemaps.org/schemas/sitemap/0.9}loc", "") for entry in entries]
+    expected_urls = public_urls(R, DOMAIN)
+    duplicates = sorted(url for url, count in Counter(actual_urls).items() if count > 1)
+    missing = sorted(set(expected_urls) - set(actual_urls))
+    stale = sorted(set(actual_urls) - set(expected_urls))
+    lastmods = [entry.findtext("{http://www.sitemaps.org/schemas/sitemap/0.9}lastmod", "") for entry in entries]
+    malformed_lastmod = [
+        url for url, value in zip(actual_urls, lastmods)
+        if value and not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value)
+    ]
+    for url, value in zip(actual_urls, lastmods):
+        if not value or url in malformed_lastmod:
+            continue
+        try:
+            validate_last_updated(value)
+        except ValueError:
+            malformed_lastmod.append(url)
+    bad_lastmod = [
+        url for url, value in zip(actual_urls, lastmods) if value != expected_lastmod
+    ] if expected_lastmod is not None else []
+    unexpected_lastmod = [
+        url for url, value in zip(actual_urls, lastmods) if value
+    ] if expected_lastmod is None else []
+    if duplicates:
+        fails.append("sitemap.xml has duplicate URLs: %s" % duplicates)
+        print("  FAIL duplicate URLs: %s" % duplicates)
+    if missing:
+        fails.append("sitemap.xml missing built files: %s" % missing)
+        print("  FAIL missing built files: %s" % missing)
+    if stale:
+        fails.append("sitemap.xml has URLs without built files: %s" % stale)
+        print("  FAIL URLs without built files: %s" % stale)
+    if malformed_lastmod:
+        malformed_lastmod = sorted(set(malformed_lastmod))
+        fails.append("sitemap.xml has malformed lastmod dates: %s" % malformed_lastmod)
+        print("  FAIL malformed lastmod dates: %s" % malformed_lastmod)
+    if bad_lastmod:
+        fails.append("sitemap.xml lastmod does not match LAST_UPDATED: %s" % bad_lastmod)
+        print("  FAIL lastmod differs from LAST_UPDATED: %s" % bad_lastmod)
+    if unexpected_lastmod:
+        fails.append("sitemap.xml has lastmod dates without a valid LAST_UPDATED: %s" % unexpected_lastmod)
+        print("  FAIL unexpected lastmod without valid LAST_UPDATED: %s" % unexpected_lastmod)
+    if not duplicates and not missing and not stale and not malformed_lastmod and not bad_lastmod and not unexpected_lastmod:
+        print("  ok   %d sitemap URLs match public build artifacts" % len(actual_urls))
+        if expected_lastmod is not None:
+            print("  ok   every lastmod matches LAST_UPDATED (%s)" % expected_lastmod)
+except (ET.ParseError, OSError) as exc:
+    fails.append("sitemap.xml is missing or invalid: %s" % exc)
+    print("  FAIL sitemap.xml is missing or invalid: %s" % exc)
+
 if LIVE:
-    head("6. LIVE: LINKS AND SITEMAP")
+    head("7. LIVE: LINKS AND SITEMAP")
     links = set()
     for rel, p in sources():
         for m in re.finditer(r"https://" + re.escape(DOMAIN) + r"(/[^\s)\"'<>\]]*)?", read(p)):
