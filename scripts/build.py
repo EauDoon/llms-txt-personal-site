@@ -29,7 +29,12 @@ def load_config():
     missing = [k for k in ("DOMAIN", "FULL_NAME", "EMAIL", "JOB_TITLE", "LAST_UPDATED") if not cfg.get(k)]
     if missing:
         sys.exit("site.config.json is missing required keys: %s" % ", ".join(missing))
-    if cfg["DOMAIN"].startswith("http"):
+    domain = cfg["DOMAIN"]
+    if (
+        not isinstance(domain, str)
+        or len(domain) > 253
+        or not all(re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", label) for label in domain.split("."))
+    ):
         sys.exit("DOMAIN should be a bare hostname, e.g. yourname.com (no https://)")
     try:
         validate_last_updated(cfg["LAST_UPDATED"])
