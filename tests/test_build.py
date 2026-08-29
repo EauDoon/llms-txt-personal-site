@@ -13,13 +13,23 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from build import build_site_staged, load_config
+from build import build_site, build_site_staged, load_config
 from build_llms_full import run as build_llms_full
 from build_sitemap import validate_last_updated
 from build_writing_html import md_to_html, run as build_writing_html
 
 
 class BuildTests(unittest.TestCase):
+    def test_missing_writing_generator_fails_the_build(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            template = root / "template"
+            template.mkdir()
+
+            with patch.dict(sys.modules, {"build_writing_html": None}):
+                with self.assertRaises(ModuleNotFoundError):
+                    build_site(str(template), str(root / "site"), self.config())
+
     def test_llms_full_includes_custom_top_level_markdown(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             site = Path(directory)

@@ -109,11 +109,8 @@ def build_site(template_dir, out_dir, cfg):
 
     # steps 2 and 3
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    try:
-        import build_writing_html
-        build_writing_html.run(out_dir, cfg)
-    except ImportError:
-        print("  (skipped writing/ HTML generation: build_writing_html.py not found)")
+    import build_writing_html
+    build_writing_html.run(out_dir, cfg)
     import build_llms_full
     build_llms_full.run(out_dir, cfg)
     import build_sitemap
