@@ -24,13 +24,20 @@ Fill in `site.config.json`, then:
 python scripts/build.py
 ```
 
-That fills the template, generates an HTML companion for every long-form page, and concatenates everything into `llms-full.txt`. Then check it:
+That fills the template, generates an HTML companion for every long-form page,
+concatenates everything into `llms-full.txt`, and builds `sitemap.xml` from the
+files that actually exist. Then check it:
 
 ```bash
 python scripts/quality_check.py
 ```
 
-The output lands in `site/`. Deploy that directory anywhere static: GitHub Pages, Netlify, Vercel, Cloudflare Pages, or ordinary shared hosting. Config for the three most common hosts ships with the template.
+The output lands in `site/`. Generation happens in a clean staging directory,
+so files removed or renamed in `template/` cannot survive in the deployed
+output. If generation fails before promotion, the previous `site/` stays in
+place. Deploy that directory anywhere static: GitHub Pages, Netlify, Vercel,
+Cloudflare Pages, or ordinary shared hosting. Config for the three most common
+hosts ships with the template.
 
 ---
 

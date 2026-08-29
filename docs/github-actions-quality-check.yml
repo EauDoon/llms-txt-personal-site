@@ -14,6 +14,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Run build regression tests
+        run: python -m unittest discover -s tests -v
+
       - name: Build the site from the template
         run: |
           cp site.config.example.json site.config.json
