@@ -3,12 +3,13 @@
 
     python scripts/build.py
 
-Runs five steps:
+Runs six steps:
   1. fill placeholders from site.config.json
-  2. index every writing/*.md page in llms.txt
-  3. generate an HTML companion for every writing/*.md page
-  4. concatenate everything into llms-full.txt
-  5. generate sitemap.xml from the public files that were built
+  2. publish an explicitly configured, validated A2A v1 Agent Card
+  3. index every writing/*.md page in llms.txt
+  4. generate an HTML companion for every writing/*.md page
+  5. concatenate everything into llms-full.txt
+  6. generate sitemap.xml from the public files that were built
 
 Then run scripts/quality_check.py before you deploy.
 """
@@ -108,8 +109,10 @@ def build_site(template_dir, out_dir, cfg):
     else:
         print("  no unfilled placeholders")
 
-    # steps 2 through 5
+    # steps 2 through 6
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import a2a_agent_card
+    a2a_agent_card.publish_agent_card(ROOT, out_dir, cfg)
     import build_llms_index
     if os.path.isfile(os.path.join(out_dir, "llms.txt")):
         build_llms_index.run(out_dir, cfg)

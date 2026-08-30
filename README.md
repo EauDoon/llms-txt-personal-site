@@ -82,6 +82,47 @@ The homepage and generated writing pages also use `rel="alternate"` with
 `/llms.txt`. The hosting configs provide the same `describedby` relationship as
 an HTTP header, including for non-HTML resources.
 
+## Optional A2A v1 discovery
+
+[A2A](https://a2a-protocol.org/latest/specification/) is for communication
+between deployed agents. It is not a richer biography format. A static personal
+site with no A2A service should return `404` at
+`/.well-known/agent-card.json`, which is this template's default.
+
+If the deployed domain fronts a real A2A server, create its public Agent Card
+from the server's actual capabilities and add this key to your private
+`site.config.json`:
+
+```json
+"A2A_AGENT_CARD_PATH": "agent-card.local.json"
+```
+
+The build then validates and copies that exact file to the permanent discovery
+path, `/.well-known/agent-card.json`. The suggested local filename is ignored by
+Git. No example card ships, because an example with invented skills or an
+invented endpoint would be unsafe to publish accidentally.
+
+The dependency-free gate checks the required v1 card fields, per-interface
+`supportedInterfaces` declarations, major and minor protocol versions, media
+modes, skills, security schemes and requirements, legacy pre-v1 fields,
+duplicate JSON keys, credential-like fields, and secure production endpoints.
+The hosting configs serve an enabled card as `application/a2a+json` with cache
+headers.
+
+After deployment, `python scripts/quality_check.py --live` also checks the
+card's status, media type, `Cache-Control`, and exact byte equality with the
+validated local build. A missing `ETag` is reported as a warning because the
+static host, rather than this repository, normally generates it. When A2A is
+disabled, the same check requires the live discovery path to return `404` or
+`410`, which catches stale cards left behind by upload-only deployments.
+
+This is a publication guard, not full server conformance. It does not prove
+that the endpoint implements every advertised operation, verify JWS signatures,
+or test authorization behavior. Complete those checks against the deployed A2A
+server before enabling public discovery. The official
+[v1 migration guide](https://a2a-protocol.org/latest/whats-new-v1/) explains the
+breaking changes from pre-v1 cards.
+
 ---
 
 ## The short version of the method
