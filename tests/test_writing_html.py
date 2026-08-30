@@ -30,11 +30,25 @@ class WritingHtmlTests(unittest.TestCase):
             "file:///private.txt",
             "//other.example/path",
             "\\\\other.example\\path",
+            r"\//outside.example/path",
+            r"/\outside.example/path",
+            r"folder\page.md",
+            "javascript:https://safe.example/path",
         ):
             with self.subTest(target=target):
                 rendered = md_to_html("[<unsafe> & link](%s)" % target)
                 self.assertNotIn("<a href=", rendered)
                 self.assertIn("&lt;unsafe&gt; &amp; link", rendered)
+
+    def test_unsafe_markdown_link_text_is_not_autolinked(self) -> None:
+        for markdown in (
+            "[label](javascript:https://safe.example/path)",
+            "[https://safe.example/path](javascript:alert%281%29)",
+        ):
+            with self.subTest(markdown=markdown):
+                rendered = md_to_html(markdown)
+                self.assertNotIn("<a href=", rendered)
+                self.assertIn("https://safe.example/path", rendered)
 
     def test_relative_and_explicit_safe_markdown_links_remain_links(self) -> None:
         for target in (
