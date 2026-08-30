@@ -50,6 +50,7 @@ AddDefaultCharset UTF-8
 
   Header always set X-Content-Type-Options "nosniff"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Link "</llms.txt>; rel=describedby"
 
   # HTTPS is forced unconditionally below, so tell browsers not to try plaintext
   # at all. Remove this line if the site ever needs to be reachable over HTTP.

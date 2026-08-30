@@ -21,3 +21,4 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Access-Control-Allow-Origin: *
+  Link: </llms.txt>; rel=describedby
