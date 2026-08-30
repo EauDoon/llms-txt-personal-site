@@ -42,9 +42,10 @@ def sources(include_generated=False):
                 continue
             out.append((f, os.path.join(R, f)))
     w = os.path.join(R, "writing")
-    for f in sorted(os.listdir(w)):
-        if f.endswith((".md", ".html")):
-            out.append(("writing/" + f, os.path.join(w, f)))
+    if os.path.isdir(w):
+        for f in sorted(os.listdir(w)):
+            if f.endswith((".md", ".html")):
+                out.append(("writing/" + f, os.path.join(w, f)))
     return out
 
 def read(p):
