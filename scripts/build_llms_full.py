@@ -8,6 +8,7 @@ that stops early still has the facts it came for.
 """
 import io
 import os
+from urllib.parse import quote
 
 # Identity pages, in the order a reader should meet them.
 ORDER = [
@@ -52,7 +53,7 @@ def run(site_dir, cfg):
     for rel in names:
         path = os.path.join(site_dir, rel.replace("/", os.sep))
         parts.append("\n\n" + "=" * 70 + "\n")
-        parts.append("# SOURCE: https://%s/%s\n" % (domain, rel))
+        parts.append("# SOURCE: https://%s/%s\n" % (domain, quote(rel, safe="/-._~")))
         parts.append("=" * 70 + "\n\n")
         with io.open(path, encoding="utf-8") as source:
             parts.append(source.read())
