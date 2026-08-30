@@ -43,7 +43,7 @@ class WritingHtmlTests(unittest.TestCase):
             "#evidence",
             "http://example.test/path",
             "HTTPS://example.test/path?x=1&y=2",
-            "mailto:person@example.test",
+            "mailto:person%40example.test",
         ):
             with self.subTest(target=target):
                 rendered = md_to_html("[<safe> & link](%s)" % target)
