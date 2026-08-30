@@ -16,7 +16,7 @@ import io
 import os
 import re
 import html
-from urllib.parse import quote
+from urllib.parse import quote, urlsplit
 
 
 def parse_front_matter(md):
@@ -45,8 +45,30 @@ def md_to_html(md):
         s = html.escape(s, quote=True)
         s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
         s = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
-        s = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r'<a href="\2">\1</a>', s)
+        inert_links = []
+        def link(match):
+            label, escaped_target = match.groups()
+            target = html.unescape(escaped_target).strip()
+            try:
+                scheme = urlsplit(target).scheme.lower()
+            except ValueError:
+                scheme = "unsafe"
+            unsafe = (
+                not target
+                or target.startswith("//")
+                or "\\" in target
+                or any(ord(character) < 0x20 or ord(character) == 0x7f for character in target)
+                or scheme not in {"", "http", "https", "mailto"}
+            )
+            if unsafe:
+                placeholder = '<span data-inert-markdown-link="%d"></span>' % len(inert_links)
+                inert_links.append((placeholder, "%s (%s)" % (label, escaped_target)))
+                return placeholder
+            return '<a href="%s">%s</a>' % (escaped_target, label)
+        s = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", link, s)
         s = re.sub(r"(?<![\">=/\w])(https?://[^\s<),]+)", r'<a href="\1">\1</a>', s)
+        for placeholder, inert_text in inert_links:
+            s = s.replace(placeholder, inert_text)
         return s
 
     while i < len(lines):
