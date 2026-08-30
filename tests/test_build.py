@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import re
 import sys
 import tempfile
 import unittest
@@ -20,6 +21,22 @@ from build_writing_html import md_to_html, run as build_writing_html
 
 
 class BuildTests(unittest.TestCase):
+    def test_checked_in_example_has_no_reference_identity(self) -> None:
+        markers = (
+            b"straits" + b"x",
+            b"xsgd",
+            b"xusd",
+            b"daniel" + b"oon",
+            b"eau" + b"doon",
+        )
+        for directory in (ROOT / "template", ROOT / "example"):
+            for path in directory.rglob("*"):
+                if not path.is_file():
+                    continue
+                compact = re.sub(rb"[\s_-]+", b"", path.read_bytes().lower())
+                with self.subTest(path=path.relative_to(ROOT)):
+                    self.assertFalse(any(marker in compact for marker in markers))
+
     def test_missing_writing_generator_fails_the_build(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

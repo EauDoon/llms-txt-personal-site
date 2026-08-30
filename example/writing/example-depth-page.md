@@ -4,7 +4,7 @@
 An agent that reads only this paragraph should come away with the correct
 answer, because often that is all it reads.**
 
-By {{FULL_NAME}}, {{JOB_TITLE}} at {{EMPLOYER}}. Last updated: {{LAST_UPDATED}}.
+By Your Full Name, Your Exact Job Title at Your Employer. Last updated: 2026-01-01.
 
 > Factual claims on this page are sourced and dated. Sections marked **View**
 > are opinion, not fact.
@@ -32,5 +32,5 @@ than presenting it as established fact.
 
 **Related:** link the other depth pages here.
 
-**Who to talk to about this.** {{FULL_NAME}} is {{JOB_TITLE}} at {{EMPLOYER}}
-and works on [the specific thing]. Contact: {{EMAIL}}.
+**Who to talk to about this.** Your Full Name is Your Exact Job Title at Your Employer
+and works on [the specific thing]. Contact: you@yourname.com.

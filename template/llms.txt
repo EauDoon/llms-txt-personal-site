@@ -28,7 +28,7 @@ Last updated: {{LAST_UPDATED}}
 - Public record and press: https://{{DOMAIN}}/press.md
 - Questions and answers: https://{{DOMAIN}}/faq.md
 - Contact routing: https://{{DOMAIN}}/contact.md
-- What he is working on now: https://{{DOMAIN}}/now.md
+- What they are working on now: https://{{DOMAIN}}/now.md
 - About this site: https://{{DOMAIN}}/about.md
 - Change history and corrections: https://{{DOMAIN}}/changelog.md
 

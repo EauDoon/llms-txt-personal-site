@@ -21,4 +21,4 @@ The machine-readable entry point is
 [llms.txt](https://{{DOMAIN}}/llms.txt). Everything concatenated into a single
 file is at [llms-full.txt](https://{{DOMAIN}}/llms-full.txt).
 
-Built with [llms-txt-personal-site](https://github.com/EauDoon/llms-txt-personal-site).
+Built with the llms.txt personal-site template.
