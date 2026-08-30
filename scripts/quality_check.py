@@ -14,6 +14,7 @@ import xml.etree.ElementTree as ET
 from collections import Counter
 
 from build_sitemap import public_urls, validate_last_updated
+from llms_txt import has_link_relation, markdown_alternate, validate_llms_txt
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 R = os.path.join(REPO, "site")
@@ -155,7 +156,35 @@ for rel, p in sources():
             fails.append("%s JSON-LD invalid" % rel)
             print("  FAIL %-40s %s" % (rel, e))
 
-head("4. LAST-UPDATED DATES")
+head("4. LLMS.TXT V2")
+llms_path = os.path.join(R, "llms.txt")
+if not os.path.isfile(llms_path):
+    fails.append("llms.txt is missing")
+    print("  FAIL llms.txt is missing")
+else:
+    llms_issues = validate_llms_txt(read(llms_path), DOMAIN, R)
+    if llms_issues:
+        for issue in llms_issues:
+            fails.append("llms.txt: %s" % issue)
+            print("  FAIL %s" % issue)
+    else:
+        print("  ok   llms.txt follows the v2 file-list contract")
+
+for rel, p in sources():
+    if not rel.endswith(".html") or rel == "404.html":
+        continue
+    document = read(p)
+    if not has_link_relation(document, "describedby", "/llms.txt"):
+        fails.append("%s does not advertise /llms.txt" % rel)
+        print("  FAIL %-40s missing rel=describedby" % rel)
+    else:
+        print("  ok   %-40s advertises /llms.txt" % rel)
+    markdown = markdown_alternate(rel)
+    if not has_link_relation(document, "alternate", markdown, "text/markdown"):
+        fails.append("%s does not advertise %s" % (rel, markdown))
+        print("  FAIL %-40s missing Markdown alternate" % rel)
+
+head("5. LAST-UPDATED DATES")
 configured_lastmod = _cfg.get("LAST_UPDATED")
 try:
     expected_lastmod = validate_last_updated(configured_lastmod)
@@ -180,7 +209,7 @@ for rel, p in sources():
         print("  FAIL %-40s invalid Last updated date" % rel)
 print("  (files with a date are not listed)")
 
-head("5. GENERATED FILE IS IN SYNC")
+head("6. GENERATED FILE IS IN SYNC")
 lf = os.path.join(R, "llms-full.txt")
 if os.path.exists(lf):
     t = read(lf)
@@ -193,7 +222,7 @@ if os.path.exists(lf):
     else:
         print("  ok   llms-full.txt contains every .md source")
 
-head("6. SITEMAP MATCHES BUILD OUTPUT")
+head("7. SITEMAP MATCHES BUILD OUTPUT")
 sitemap_path = os.path.join(R, "sitemap.xml")
 try:
     root = ET.parse(sitemap_path).getroot()
@@ -249,7 +278,7 @@ except (ET.ParseError, OSError) as exc:
     print("  FAIL sitemap.xml is missing or invalid: %s" % exc)
 
 if LIVE:
-    head("7. LIVE: LINKS AND SITEMAP")
+    head("8. LIVE: LINKS AND SITEMAP")
     links = set()
     for rel, p in sources():
         for m in re.finditer(r"https://" + re.escape(DOMAIN) + r"(/[^\s)\"'<>\]]*)?", read(p)):

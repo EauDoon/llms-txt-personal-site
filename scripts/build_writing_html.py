@@ -147,6 +147,7 @@ SHELL = """<!doctype html>
 <meta name="author" content="{name}">
 <link rel="canonical" href="https://{domain}/writing/{slug}.html">
 <link rel="alternate" type="text/markdown" href="/writing/{slug}.md" title="This page in Markdown">
+<link rel="describedby" href="/llms.txt">
 <meta property="og:type" content="article">
 <meta property="og:title" content="{title}">
 <meta property="og:description" content="{desc}">
@@ -188,8 +189,33 @@ SHELL = """<!doctype html>
 """
 
 
-def run(site_dir, cfg):
+def render_page(slug, source, cfg, style=""):
+    """Render one writing page without requiring its slug to be a local filename."""
     import json as _json
+
+    meta, md = parse_front_matter(source)
+    title = meta.get("title") or slug.replace("-", " ").title()
+    desc = meta.get("desc", "")
+    about = [a.strip() for a in meta.get("about", "").split(",") if a.strip()]
+    return SHELL.format(
+        title=html.escape(title, quote=True),
+        desc=html.escape(desc, quote=True),
+        slug=quote(slug, safe="-._~"),
+        domain=cfg.get("DOMAIN", ""),
+        name=html.escape(cfg.get("FULL_NAME", ""), quote=True),
+        email=cfg.get("EMAIL", ""),
+        date=cfg.get("LAST_UPDATED", ""),
+        title_json=_json.dumps(title),
+        desc_json=_json.dumps(desc),
+        name_json=_json.dumps(cfg.get("FULL_NAME", "")),
+        title_role_json=_json.dumps(cfg.get("JOB_TITLE", "")),
+        about_json=", ".join(_json.dumps(a) for a in about),
+        style=style,
+        content=md_to_html(md),
+    )
+
+
+def run(site_dir, cfg):
     wr = os.path.join(site_dir, "writing")
     if not os.path.isdir(wr):
         return
@@ -204,28 +230,8 @@ def run(site_dir, cfg):
         if not f.endswith(".md"):
             continue
         slug = f[:-3]
-        url_slug = quote(slug, safe="-._~")
         with io.open(os.path.join(wr, f), encoding="utf-8") as source:
-            meta, md = parse_front_matter(source.read())
-        title = meta.get("title") or slug.replace("-", " ").title()
-        desc = meta.get("desc", "")
-        about = [a.strip() for a in meta.get("about", "").split(",") if a.strip()]
-        page = SHELL.format(
-            title=html.escape(title, quote=True),
-            desc=html.escape(desc, quote=True),
-            slug=url_slug,
-            domain=cfg.get("DOMAIN", ""),
-            name=html.escape(cfg.get("FULL_NAME", ""), quote=True),
-            email=cfg.get("EMAIL", ""),
-            date=cfg.get("LAST_UPDATED", ""),
-            title_json=_json.dumps(title),
-            desc_json=_json.dumps(desc),
-            name_json=_json.dumps(cfg.get("FULL_NAME", "")),
-            title_role_json=_json.dumps(cfg.get("JOB_TITLE", "")),
-            about_json=", ".join(_json.dumps(a) for a in about),
-            style=style,
-            content=md_to_html(md),
-        )
+            page = render_page(slug, source.read(), cfg, style)
         with io.open(os.path.join(wr, slug + ".html"), "w", encoding="utf-8", newline="") as output:
             output.write(page)
         print("  wrote writing/%s.html" % slug)

@@ -19,16 +19,40 @@ class QualityCheckTests(unittest.TestCase):
             scripts = repo / "scripts"
             scripts.mkdir()
             shutil.copy2(ROOT / "scripts" / "build_sitemap.py", scripts)
+            shutil.copy2(ROOT / "scripts" / "llms_txt.py", scripts)
             shutil.copy2(ROOT / "scripts" / "quality_check.py", scripts)
 
             site = repo / "site"
             site.mkdir()
-            (site / "index.html").write_text("<!doctype html>\n", encoding="utf-8")
+            (site / "index.html").write_text(
+                '<!doctype html>\n'
+                '<link rel="alternate" type="text/markdown" href="/profile.md">\n'
+                '<link rel="describedby" href="/llms.txt">\n',
+                encoding="utf-8",
+            )
+            (site / "profile.md").write_text(
+                "# Example profile\n\nLast updated: 2026-08-30\n",
+                encoding="utf-8",
+            )
+            (site / "llms.txt").write_text(
+                "# Example\n\n"
+                "## Start here\n\n"
+                "- [Profile](https://example.test/profile.md): Canonical profile.\n",
+                encoding="utf-8",
+            )
             (site / "sitemap.xml").write_text(
                 '<?xml version="1.0" encoding="UTF-8"?>\n'
                 '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
                 "  <url>\n"
                 "    <loc>https://example.test/</loc>\n"
+                "    <lastmod>2026-08-30</lastmod>\n"
+                "  </url>\n"
+                "  <url>\n"
+                "    <loc>https://example.test/llms.txt</loc>\n"
+                "    <lastmod>2026-08-30</lastmod>\n"
+                "  </url>\n"
+                "  <url>\n"
+                "    <loc>https://example.test/profile.md</loc>\n"
                 "    <lastmod>2026-08-30</lastmod>\n"
                 "  </url>\n"
                 "</urlset>\n",
