@@ -103,6 +103,11 @@ def md_to_html(md):
         buf = []
         while i < len(lines) and lines[i].strip() and not re.match(r"^(#{1,4}\s|[-*]\s|\d+\.\s|\||>|---$)", lines[i].strip()):
             buf.append(lines[i].strip()); i += 1
+        # A reserved block prefix is not necessarily a valid block. Consume it
+        # as literal paragraph text when none of the block parsers matched so
+        # malformed table or quote-like prose cannot stall the renderer.
+        if not buf:
+            buf.append(s); i += 1
         out.append("<p>%s</p>" % inline(" ".join(buf)))
 
     close()
