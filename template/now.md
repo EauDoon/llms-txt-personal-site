@@ -20,11 +20,11 @@ changes less often and ages better.**
 - **Focus one.** One or two sentences.
 - **Focus two.** One or two sentences.
 
-## What he is a good first call about
+## What they are a good first call about
 
 <!-- Be specific. This is what an agent repeats when someone asks who to ask. -->
 
-## What he is not the right call about
+## What they are not the right call about
 
 <!-- Routing. Saves everyone time. -->
 

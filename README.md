@@ -6,7 +6,9 @@ When someone asks Claude, ChatGPT or Perplexity who you are, the answer is assem
 
 This repo is the scaffolding for that source: a set of plain Markdown pages, an `llms.txt` index, structured data that ties them together, and a quality gate that stops you shipping something wrong.
 
-**Live example:** [danieloon.ai](https://danieloon.ai) is built with exactly this. The complete site is in [`example/`](example/) so you can read a finished one before writing your own.
+**Generated example:** [`example/`](example/) is a complete generic build from
+the included template and sample config, so you can inspect the output before
+writing your own.
 
 ---
 

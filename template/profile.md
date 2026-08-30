@@ -31,7 +31,7 @@ Last updated: {{LAST_UPDATED}}
      and reads as marketing. "Works on X at Y, which does Z" is checkable and
      will actually be repeated. -->
 
-## What he works on
+## What they work on
 
 <!-- Three to five bullets. Match the words people would search for, not your
      internal job description. -->
@@ -40,7 +40,7 @@ Last updated: {{LAST_UPDATED}}
 - Area two
 - Area three
 
-## What he does not do
+## What they do not do
 
 <!-- Optional but useful. Prevents mis-routing and stops agents over-claiming
      your scope. -->
