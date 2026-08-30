@@ -105,6 +105,11 @@ Markdown version or `llms.txt` exists. HTML pages carry standard `alternate`
 and `describedby` link relations. Hosting configuration supplies the covering
 `llms.txt` relation as an HTTP header for other resources.
 
+**An A2A Agent Card describes a server, not a person.** Publish the permanent
+well-known card only when the domain fronts a real A2A endpoint. Its interfaces,
+protocol versions, skills, modes, and security requirements must describe what
+that server actually implements. A static identity site should omit the card.
+
 **One JSON-LD graph, not scattered fragments.** A single `@graph` with `Person`, `Organization`, `ProfilePage` and `FAQPage`, all cross-referenced by `@id`. Depth pages carry `Article` with `author` pointing at the same `@id`, which is what ties your name to your subject matter.
 
 **`sameAs` should be short.** Only URLs that are unambiguously you. A page that mentions your name is not enough. Two verified profiles beat six uncertain ones.
@@ -123,6 +128,11 @@ and `describedby` link relations. Hosting configuration supplies the covering
 guess its URL. Keep the HTML link relations, HTTP `Link` header, and `llms.txt`
 file lists in sync. The build and test gates check all three surfaces before
 deploy.
+
+**The false Agent Card trap.** A plausible JSON file at the A2A well-known path
+is an executable interoperability claim. Do not derive one from biography text
+or publish a sample with invented skills. Configure a card explicitly, reject
+legacy fields and credential material, then test the declared server separately.
 
 **The verification-file trap.** Search-engine verification files verify one domain. Never fork someone else's, and never delete your own: removing it un-verifies the site, usually without telling you.
 

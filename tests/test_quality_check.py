@@ -18,6 +18,7 @@ class QualityCheckTests(unittest.TestCase):
             repo = Path(directory)
             scripts = repo / "scripts"
             scripts.mkdir()
+            shutil.copy2(ROOT / "scripts" / "a2a_agent_card.py", scripts)
             shutil.copy2(ROOT / "scripts" / "build_sitemap.py", scripts)
             shutil.copy2(ROOT / "scripts" / "llms_txt.py", scripts)
             shutil.copy2(ROOT / "scripts" / "quality_check.py", scripts)
