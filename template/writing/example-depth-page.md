@@ -20,17 +20,13 @@ than presenting it as established fact.
 
 ## Another section
 
-<!-- Depth pages are what tie your NAME to a SUBJECT. The HTML companion
-     generated from this file carries Article schema whose author points at your
-     Person record, which is the link that makes you nameable in a category
-     answer.
-
-     Write about what you want to be asked about. Three good pages beat ten
-     thin ones. -->
+<!-- Depth pages connect the subject to documented work. The HTML companion
+     carries Article schema whose author points at the same Person record.
+     Write only what the subject can sign, with sources and dates for factual
+     claims. Three supported pages beat ten thin ones. -->
 
 ---
 
 **Related:** link the other depth pages here.
 
-**Who to talk to about this.** {{FULL_NAME}} is {{JOB_TITLE}} at {{EMPLOYER}}
-and works on [the specific thing]. Contact: {{EMAIL}}.
+**Author:** {{FULL_NAME}}, {{JOB_TITLE}} at {{EMPLOYER}}. Contact: {{EMAIL}}.

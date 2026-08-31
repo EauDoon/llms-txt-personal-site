@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -13,13 +14,20 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class QualityCheckTests(unittest.TestCase):
-    def run_quality_check(self, writing_as_file: bool = False) -> subprocess.CompletedProcess[str]:
+    def run_quality_check(
+        self,
+        writing_as_file: bool = False,
+        live: bool = False,
+        domain: str = "example.test",
+        path: str | None = None,
+    ) -> subprocess.CompletedProcess[str]:
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
             scripts = repo / "scripts"
             scripts.mkdir()
             shutil.copy2(ROOT / "scripts" / "a2a_agent_card.py", scripts)
             shutil.copy2(ROOT / "scripts" / "build_sitemap.py", scripts)
+            shutil.copy2(ROOT / "scripts" / "http_client.py", scripts)
             shutil.copy2(ROOT / "scripts" / "llms_txt.py", scripts)
             shutil.copy2(ROOT / "scripts" / "quality_check.py", scripts)
 
@@ -38,41 +46,58 @@ class QualityCheckTests(unittest.TestCase):
             (site / "llms.txt").write_text(
                 "# Example\n\n"
                 "## Start here\n\n"
-                "- [Profile](https://example.test/profile.md): Canonical profile.\n",
+                "- [Profile](https://%s/profile.md): Canonical profile.\n" % domain,
                 encoding="utf-8",
             )
             (site / "sitemap.xml").write_text(
                 '<?xml version="1.0" encoding="UTF-8"?>\n'
                 '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
                 "  <url>\n"
-                "    <loc>https://example.test/</loc>\n"
+                "    <loc>https://%s/</loc>\n"
                 "    <lastmod>2026-08-30</lastmod>\n"
                 "  </url>\n"
                 "  <url>\n"
-                "    <loc>https://example.test/llms.txt</loc>\n"
+                "    <loc>https://%s/llms.txt</loc>\n"
                 "    <lastmod>2026-08-30</lastmod>\n"
                 "  </url>\n"
                 "  <url>\n"
-                "    <loc>https://example.test/profile.md</loc>\n"
+                "    <loc>https://%s/profile.md</loc>\n"
                 "    <lastmod>2026-08-30</lastmod>\n"
                 "  </url>\n"
-                "</urlset>\n",
+                "</urlset>\n" % (domain, domain, domain),
                 encoding="utf-8",
             )
             if writing_as_file:
                 (site / "writing").write_text("not a directory\n", encoding="utf-8")
 
             (repo / "site.config.json").write_text(
-                json.dumps({"DOMAIN": "example.test", "LAST_UPDATED": "2026-08-30"}),
+                json.dumps({"DOMAIN": domain, "LAST_UPDATED": "2026-08-30"}),
                 encoding="utf-8",
             )
 
+            command = [sys.executable, str(scripts / "quality_check.py")]
+            if live:
+                command.append("--live")
+            env = os.environ.copy()
+            if path is not None:
+                env["PATH"] = path
+                env.update(
+                    {
+                        "ALL_PROXY": "",
+                        "HTTPS_PROXY": "",
+                        "NO_PROXY": "*",
+                        "all_proxy": "",
+                        "https_proxy": "",
+                        "no_proxy": "*",
+                    }
+                )
             return subprocess.run(
-                [sys.executable, str(scripts / "quality_check.py")],
+                command,
                 cwd=repo,
                 capture_output=True,
                 text=True,
                 check=False,
+                env=env,
             )
 
     def test_site_without_writing_directory_passes_quality_check(self) -> None:
@@ -86,6 +111,26 @@ class QualityCheckTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertNotIn("Traceback", result.stderr)
+
+    def test_live_check_does_not_require_curl_executable(self) -> None:
+        source = (ROOT / "scripts" / "quality_check.py").read_text(encoding="utf-8")
+        self.assertNotIn("curl.exe", source)
+
+        result = self.run_quality_check(
+            live=True,
+            domain="127.0.0.1:9",
+            path="",
+        )
+
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("9. LIVE: LINKS AND SITEMAP", result.stdout)
+        self.assertIn(
+            "A2A is disabled locally but the live Agent Card path returned",
+            result.stdout,
+        )
+        self.assertIn("FAILURES:", result.stdout)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertNotIn("FileNotFoundError", result.stderr)
 
 
 if __name__ == "__main__":

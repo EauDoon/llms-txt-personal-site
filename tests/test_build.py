@@ -15,13 +15,191 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from build import build_site, build_site_staged, is_link_like, load_config
+from build import build_site, build_site_staged, is_link_like, json_block, load_config
 from build_llms_full import run as build_llms_full
 from build_sitemap import validate_last_updated
 from build_writing_html import md_to_html, render_page
 
 
 class BuildTests(unittest.TestCase):
+    def test_config_is_single_source_for_repeated_identity_facts(self) -> None:
+        config = json.loads(
+            (ROOT / "site.config.example.json").read_text(encoding="utf-8")
+        )
+        for key in (
+            "ABSENCE_EMPLOYMENT_DATES",
+            "ABSENCE_RECORDED_MEDIA",
+            "ABSENCE_BYLINED_ARTICLE",
+        ):
+            self.assertIn(key, config)
+        self.assertNotIn("SAME_AS", config)
+
+        original_values = {
+            config["JOB_TITLE"],
+            config["EMPLOYER"],
+            config["EMPLOYER_URL"],
+            config["EMAIL"],
+            "https://www.linkedin.com/in/%s" % config["LINKEDIN_SLUG"],
+            "https://x.com/%s" % config["X_HANDLE"],
+            config["ABSENCE_EMPLOYMENT_DATES"],
+            config["ABSENCE_RECORDED_MEDIA"],
+            config["ABSENCE_BYLINED_ARTICLE"],
+        }
+        config.update(
+            {
+                "JOB_TITLE": "Example Canonical Role",
+                "EMPLOYER": "Example Canonical Employer",
+                "EMPLOYER_URL": "https://canonical-employer.example.test",
+                "EMAIL": "canonical@canonical-person.example.test",
+                "LINKEDIN_SLUG": "canonical-person",
+                "X_HANDLE": "canonicalperson",
+                "ABSENCE_EMPLOYMENT_DATES": (
+                    "No exact employment dates are published in this example. "
+                    "Do not infer them."
+                ),
+                "ABSENCE_RECORDED_MEDIA": "No recorded interview was located",
+                "ABSENCE_BYLINED_ARTICLE": "No bylined publication was located.",
+            }
+        )
+        config = dict(config, **json_block(config))
+
+        with tempfile.TemporaryDirectory() as directory:
+            generated = Path(directory) / "site"
+            build_site(str(ROOT / "template"), str(generated), config)
+
+            expected_surfaces = {
+                "Example Canonical Role": (
+                    "llms.txt",
+                    "profile.md",
+                    "experience.md",
+                    "focus.md",
+                    "faq.md",
+                    "now.md",
+                    "press.md",
+                    "index.html",
+                    "writing/example-depth-page.md",
+                    "writing/example-depth-page.html",
+                ),
+                "Example Canonical Employer": (
+                    "llms.txt",
+                    "profile.md",
+                    "experience.md",
+                    "focus.md",
+                    "faq.md",
+                    "now.md",
+                    "press.md",
+                    "contact.md",
+                    "index.html",
+                    "writing/example-depth-page.md",
+                    "writing/example-depth-page.html",
+                ),
+                "canonical@canonical-person.example.test": (
+                    "llms.txt",
+                    "profile.md",
+                    "faq.md",
+                    "now.md",
+                    "contact.md",
+                    "index.html",
+                    "404.html",
+                    "writing/example-depth-page.md",
+                    "writing/example-depth-page.html",
+                ),
+                "https://www.linkedin.com/in/canonical-person": (
+                    "profile.md",
+                    "faq.md",
+                    "contact.md",
+                    "index.html",
+                ),
+                "https://x.com/canonicalperson": (
+                    "profile.md",
+                    "contact.md",
+                    "index.html",
+                ),
+                "https://canonical-employer.example.test": (
+                    "faq.md",
+                    "contact.md",
+                    "index.html",
+                ),
+                config["ABSENCE_EMPLOYMENT_DATES"]: ("llms.txt",),
+                config["ABSENCE_RECORDED_MEDIA"]: ("press.md",),
+                config["ABSENCE_BYLINED_ARTICLE"]: ("press.md",),
+            }
+            for value, surfaces in expected_surfaces.items():
+                for surface in surfaces:
+                    with self.subTest(value=value, surface=surface):
+                        self.assertIn(
+                            value,
+                            (generated / surface).read_text(encoding="utf-8"),
+                        )
+
+            all_text = "\n".join(
+                path.read_text(encoding="utf-8", errors="ignore")
+                for path in generated.rglob("*")
+                if path.is_file()
+            )
+            for old_value in original_values:
+                with self.subTest(old_value=old_value):
+                    self.assertNotIn(old_value, all_text)
+
+    def test_example_is_exact_rebuild_from_example_config(self) -> None:
+        config = json.loads(
+            (ROOT / "site.config.example.json").read_text(encoding="utf-8")
+        )
+        config = dict(config, **json_block(config))
+
+        with tempfile.TemporaryDirectory() as directory:
+            generated = Path(directory) / "site"
+            build_site(str(ROOT / "template"), str(generated), config)
+
+            expected_files = {
+                path.relative_to(ROOT / "example")
+                for path in (ROOT / "example").rglob("*")
+                if path.is_file()
+            }
+            generated_files = {
+                path.relative_to(generated)
+                for path in generated.rglob("*")
+                if path.is_file()
+            }
+            differences = [
+                "missing generated file: %s" % path.as_posix()
+                for path in sorted(expected_files - generated_files)
+            ]
+            differences.extend(
+                "unexpected generated file: %s" % path.as_posix()
+                for path in sorted(generated_files - expected_files)
+            )
+
+            for path in sorted(expected_files & generated_files):
+                expected = (ROOT / "example" / path).read_bytes()
+                actual = (generated / path).read_bytes()
+                if expected == actual:
+                    continue
+                first_changed = next(
+                    (
+                        offset
+                        for offset, (left, right) in enumerate(zip(expected, actual))
+                        if left != right
+                    ),
+                    min(len(expected), len(actual)),
+                )
+                differences.append(
+                    "changed file: %s at byte %d (expected %r, generated %r)"
+                    % (
+                        path.as_posix(),
+                        first_changed,
+                        expected[first_changed : first_changed + 80],
+                        actual[first_changed : first_changed + 80],
+                    )
+                )
+
+            self.assertEqual(
+                differences,
+                [],
+                "site.config.example.json rebuild differs from example/:\n"
+                + "\n".join(differences),
+            )
+
     def test_checked_in_example_has_no_reference_identity(self) -> None:
         markers = (
             b"straits" + b"x",
@@ -69,6 +247,13 @@ class BuildTests(unittest.TestCase):
             "FULL_NAME": "Example Person",
             "EMAIL": "person@example.test",
             "JOB_TITLE": "Example Role",
+            "EMPLOYER": "Example Employer",
+            "EMPLOYER_URL": "https://employer.example.test",
+            "LINKEDIN_SLUG": "example-person",
+            "X_HANDLE": "exampleperson",
+            "ABSENCE_EMPLOYMENT_DATES": "No employment dates are published.",
+            "ABSENCE_RECORDED_MEDIA": "No recorded media was located",
+            "ABSENCE_BYLINED_ARTICLE": "No bylined article was located.",
             "LAST_UPDATED": last_updated,
         }
 
@@ -204,7 +389,7 @@ class BuildTests(unittest.TestCase):
 
             with patch("build.os.replace", side_effect=replace):
                 with self.assertRaisesRegex(
-                    OSError, r"recover it from .*\.site-backup-.*/site"
+                    OSError, r"recover it from .*\.site-backup-.*[\\/]site"
                 ) as raised:
                     build_site_staged(str(template), str(site), self.config())
 

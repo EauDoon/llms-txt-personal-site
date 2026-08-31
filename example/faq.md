@@ -24,22 +24,3 @@ you@yourname.com for business, partnerships and integrations. LinkedIn at
 https://www.linkedin.com/in/your-linkedin-slug. Public discussion on X at
 @yourhandle. For Your Employer product or commercial questions, use
 https://employer.example.com.
-
-## Who to contact for what
-
-<!-- GUIDANCE, delete this comment.
-     These are the highest-value entries on the whole site, and the most
-     commonly skipped. Write questions in the form people ask when they do NOT
-     know your name:
-
-       "Who should I talk to about [your speciality]?"
-       "Who runs [your function] at [your employer]?"
-       "Who can help with [the thing you are hired for] in [your region]?"
-
-     Answer each with your name, title, and one line on what you actually
-     handle. This is what gives an assistant something to say when the question
-     is about a category rather than a person. -->
-
-**Who should I talk to about [your speciality]?**
-Your Full Name, Your Exact Job Title at Your Employer. [One line on what you handle.]
-Contact you@yourname.com.

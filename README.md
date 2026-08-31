@@ -12,28 +12,46 @@ writing your own.
 
 ---
 
-## Quick start
+## Fork in one sitting
 
 ```bash
 git clone https://github.com/EauDoon/llms-txt-personal-site.git
 cd llms-txt-personal-site
-cp site.config.example.json site.config.json
+python scripts/fork.py --init
 ```
 
-Fill in `site.config.json`, then:
+Fill in the private `site.config.json`, edit the Markdown in `template/`, and
+remove or replace every starter entry named by the fork check. Do not invent a
+source or identifier to make the check pass. If a source is not verified,
+remove the sample row and state the absence or conflict instead. Set the two
+`FORK_*_CONFIRMED` values to `true` only after the subject has signed the facts
+and the stated absences have been checked.
+
+Then run one command:
+
+```bash
+python scripts/fork.py
+```
+
+It names every unchanged sample value and starter file, refuses category-query
+prompts, and stops before building while any gap remains. Once ready, the same
+command runs both existing gates:
 
 ```bash
 python scripts/build.py
-```
-
-That fills the template, adds every long-form Markdown page to the concise
-`llms.txt` index, generates its HTML companion, concatenates everything into
-`llms-full.txt`, and builds `sitemap.xml` from the files that actually exist.
-Then check it:
-
-```bash
 python scripts/quality_check.py
 ```
+
+The first command fills the template, adds every long-form Markdown page to the
+concise `llms.txt` index, generates its HTML companion, concatenates everything
+into `llms-full.txt`, and builds `sitemap.xml` from the files that actually
+exist. The second checks the completed output.
+
+`site.config.json` is the single input for repeated facts: title, employer,
+email, LinkedIn, X, employer routing, and checked absence statements. The build
+fans those values into the Markdown pages, HTML, and JSON-LD. The LinkedIn and X
+contact fields also generate `sameAs`; there is no second list to keep in sync.
+Narrative content stays in the Markdown templates.
 
 The output lands in `site/`. The quality gate validates the `llms.txt` v2
 structure, checks every same-site index link against the built files, and
@@ -57,7 +75,7 @@ common hosts ships with the template.
 | `llms-full.txt` | Every page concatenated, for agents that get one fetch. |
 | `profile.md` | The canonical facts. Short, quotable, no adjectives you cannot source. |
 | `experience.md` | Roles, in order, with the title you actually held. |
-| `focus.md` | What you work on now, written to match how people search. |
+| `focus.md` | Current, subject-verifiable work scope. |
 | `press.md` | Independently published sources, and a standard for what earns a place. |
 | `faq.md` | Questions phrased the way people ask them. |
 | `contact.md` | Routing. What goes to you, what goes to your employer. |
@@ -83,6 +101,22 @@ The homepage and generated writing pages also use `rel="alternate"` with
 `type="text/markdown"` for their Markdown versions and `rel="describedby"` for
 `/llms.txt`. The hosting configs provide the same `describedby` relationship as
 an HTTP header, including for non-HTML resources.
+
+## Identity-question eval
+
+The generic example includes ten identity questions and source-copied gold
+answers in `eval/identity_questions.json`. List them, then score an assistant
+answer pasted on standard input:
+
+```bash
+python scripts/score_identity_eval.py --list
+python scripts/score_identity_eval.py current_title
+```
+
+The scorer checks required gold phrases and known contradictory phrases. It
+makes no model call and stores no run or score. A pass is a mechanical coverage
+result, not proof that the answer contains no unsupported claim, so review the
+answer before publishing it.
 
 ## Optional A2A v1 discovery
 
@@ -117,6 +151,8 @@ validated local build. A missing `ETag` is reported as a warning because the
 static host, rather than this repository, normally generates it. When A2A is
 disabled, the same check requires the live discovery path to return `404` or
 `410`, which catches stale cards left behind by upload-only deployments.
+The live check uses Python's standard-library HTTP client and does not require
+`curl` or another platform-specific executable.
 
 This is a publication guard, not full server conformance. It does not prove
 that the endpoint implements every advertised operation, verify JWS signatures,
@@ -164,6 +200,6 @@ Your fork inherits it. If a push is rejected with *"refusing to allow an
 OAuth App to create or update workflow"*, your token lacks the `workflow`
 scope: run `gh auth refresh -s workflow` and push again.
 
-## Licence
+## License
 
 Scripts and build tooling: [MIT](LICENSE). Template prose, doctrine and example content: [CC0](LICENSE-CONTENT), public domain, no attribution required. Fork it, strip the credit, make it yours.

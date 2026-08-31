@@ -33,8 +33,8 @@ Two or three sentences an assistant can lift verbatim when asked who you are. Wr
 
 ## What they work on
 
-<!-- Three to five bullets. Match the words people would search for, not your
-     internal job description. -->
+<!-- Three to five bullets in the subject's own terms. State current work, not
+     a recommendation or unsupported ranking. -->
 
 - Area one
 - Area two

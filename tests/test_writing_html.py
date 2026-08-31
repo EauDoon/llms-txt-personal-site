@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -8,7 +9,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from build_writing_html import md_to_html
+from build_writing_html import md_to_html, run
 
 
 class WritingHtmlTests(unittest.TestCase):
@@ -67,6 +68,42 @@ class WritingHtmlTests(unittest.TestCase):
             'href="HTTPS://example.test/path?x=1&amp;y=2"',
             md_to_html("[query](HTTPS://example.test/path?x=1&y=2)"),
         )
+
+    def test_writing_index_is_generated_from_markdown_not_edited_html(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            site = Path(directory)
+            writing = site / "writing"
+            writing.mkdir()
+            (writing / "signed-work.md").write_text(
+                "<!--\ntitle: Signed Work\n-->\n\n# Signed Work\n",
+                encoding="utf-8",
+            )
+            (site / "index.html").write_text(
+                "<h2>Writing</h2>\n"
+                "<!-- BEGIN GENERATED WRITING INDEX -->\n"
+                "<ul><li><a href=\"/writing/example-depth-page.html\">"
+                "Example depth page</a></li></ul>\n"
+                "<!-- END GENERATED WRITING INDEX -->\n",
+                encoding="utf-8",
+            )
+
+            run(
+                str(site),
+                {
+                    "DOMAIN": "person.example",
+                    "FULL_NAME": "Signed Person",
+                    "EMAIL": "signed@person.example",
+                    "LAST_UPDATED": "2026-08-31",
+                    "JOB_TITLE": "Signed Role",
+                },
+            )
+
+            index = (site / "index.html").read_text(encoding="utf-8")
+            self.assertIn(
+                '<a href="/writing/signed-work.html">Signed Work</a>',
+                index,
+            )
+            self.assertNotIn("example-depth-page", index)
 
 
 if __name__ == "__main__":

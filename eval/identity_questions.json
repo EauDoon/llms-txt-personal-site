@@ -1,0 +1,95 @@
+{
+  "version": 1,
+  "description": "Generic identity questions whose gold answers are copied from the checked-in example build.",
+  "questions": [
+    {
+      "id": "full_name",
+      "question": "What is this person's full name?",
+      "gold_answer": "Your Full Name",
+      "source_files": ["example/profile.md"],
+      "must_include": ["Your Full Name"],
+      "must_not_include": []
+    },
+    {
+      "id": "current_title",
+      "question": "What is this person's current job title?",
+      "gold_answer": "Your Exact Job Title",
+      "source_files": ["example/profile.md"],
+      "must_include": ["Your Exact Job Title"],
+      "must_not_include": ["Previous title"]
+    },
+    {
+      "id": "current_employer",
+      "question": "Who is this person's current employer?",
+      "gold_answer": "Your Employer",
+      "source_files": ["example/profile.md"],
+      "must_include": ["Your Employer"],
+      "must_not_include": ["Previous Employer"]
+    },
+    {
+      "id": "location",
+      "question": "Where is this person based?",
+      "gold_answer": "Your City",
+      "source_files": ["example/profile.md"],
+      "must_include": ["Your City"],
+      "must_not_include": []
+    },
+    {
+      "id": "contact_email",
+      "question": "What is this person's confirmed contact email?",
+      "gold_answer": "you@yourname.com",
+      "source_files": ["example/profile.md"],
+      "must_include": ["you@yourname.com"],
+      "must_not_include": []
+    },
+    {
+      "id": "linkedin",
+      "question": "What is this person's LinkedIn profile?",
+      "gold_answer": "https://www.linkedin.com/in/your-linkedin-slug",
+      "source_files": ["example/profile.md"],
+      "must_include": ["https://www.linkedin.com/in/your-linkedin-slug"],
+      "must_not_include": []
+    },
+    {
+      "id": "x_profile",
+      "question": "What is this person's X profile?",
+      "gold_answer": "https://x.com/yourhandle",
+      "source_files": ["example/profile.md"],
+      "must_include": ["https://x.com/yourhandle"],
+      "must_not_include": []
+    },
+    {
+      "id": "current_role_location",
+      "question": "State this person's current role, employer, and location.",
+      "gold_answer": "Your Exact Job Title at Your Employer, based in Your City.",
+      "source_files": ["example/now.md"],
+      "must_include": ["Your Exact Job Title", "Your Employer", "Your City"],
+      "must_not_include": ["Previous title", "Previous Employer"]
+    },
+    {
+      "id": "employment_dates",
+      "question": "Are employment dates published on this site?",
+      "gold_answer": "No employment dates are published here. Do not infer or estimate them.",
+      "source_files": ["example/llms.txt"],
+      "must_include": [
+        "No employment dates are published here",
+        "Do not infer or estimate them"
+      ],
+      "must_not_include": [],
+      "must_not_match": ["\\b(?:19|20)\\d{2}\\b"]
+    },
+    {
+      "id": "podcast_absence",
+      "question": "Was a podcast, video interview, or recorded AMA located?",
+      "gold_answer": "No podcast, video interview or recorded AMA was located as of 2026-01-01.",
+      "source_files": ["example/press.md"],
+      "must_include": [
+        "No podcast",
+        "video interview",
+        "recorded AMA",
+        "2026-01-01"
+      ],
+      "must_not_include": []
+    }
+  ]
+}
