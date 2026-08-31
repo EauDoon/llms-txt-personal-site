@@ -13,7 +13,7 @@ Runs six steps:
 
 Then run scripts/quality_check.py before you deploy.
 """
-import io, json, os, re, shutil, sys, tempfile
+import io, json, os, re, shutil, stat, sys, tempfile
 
 from build_sitemap import validate_last_updated
 
@@ -21,6 +21,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATE = os.path.join(ROOT, "template")
 OUT = os.path.join(ROOT, "site")
 CONFIG = os.path.join(ROOT, "site.config.json")
+WINDOWS_REPARSE_POINT = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x0400)
 
 
 def load_config():
@@ -71,16 +72,50 @@ def json_block(cfg):
     }
 
 
+def is_link_like(path):
+    """Return whether path can redirect traversal outside the template tree."""
+    if os.path.islink(path):
+        return True
+    isjunction = getattr(os.path, "isjunction", None)
+    if isjunction and isjunction(path):
+        return True
+    attributes = getattr(os.lstat(path), "st_file_attributes", 0)
+    return bool(attributes & WINDOWS_REPARSE_POINT)
+
+
 def build_site(template_dir, out_dir, cfg):
     """Build a complete site into an empty staging directory."""
+    if not os.path.lexists(template_dir):
+        raise OSError("template path does not exist: %s" % template_dir)
+    if is_link_like(template_dir):
+        raise OSError("refusing to build from link-like template root: %s" % template_dir)
+    if not os.path.isdir(template_dir):
+        raise OSError("template path is not a directory: %s" % template_dir)
+
     n = 0
-    for dirpath, _, files in os.walk(template_dir):
+    for dirpath, dirs, files in os.walk(template_dir):
+        for dirname in dirs:
+            path = os.path.join(dirpath, dirname)
+            if is_link_like(path):
+                raise OSError(
+                    "refusing to build from link-like template path: %s"
+                    % os.path.relpath(path, template_dir)
+                )
         rel = os.path.relpath(dirpath, template_dir)
         target_dir = out_dir if rel == "." else os.path.join(out_dir, rel)
         os.makedirs(target_dir, exist_ok=True)
         for f in files:
             src = os.path.join(dirpath, f)
             dst = os.path.join(target_dir, f)
+            relative = os.path.relpath(src, template_dir)
+            if is_link_like(src):
+                raise OSError(
+                    "refusing to build from link-like template path: %s" % relative
+                )
+            if not os.path.isfile(src):
+                raise OSError(
+                    "refusing to build from non-regular template path: %s" % relative
+                )
             if f.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".ico", ".webp", ".pdf")):
                 with open(src, "rb") as a, open(dst, "wb") as b:
                     b.write(a.read())
@@ -128,25 +163,51 @@ def replace_output(staging_dir, output_dir):
     """Replace only output_dir, restoring the prior build if promotion fails."""
     parent = os.path.dirname(output_dir)
     backup = None
+    backup_slot = None
     if os.path.lexists(output_dir):
-        if os.path.islink(output_dir) or not os.path.isdir(output_dir):
+        if is_link_like(output_dir) or not os.path.isdir(output_dir):
             raise OSError("refusing to replace site/ because it is not a real directory")
-        backup = tempfile.mkdtemp(prefix=".site-backup-", dir=parent)
-        os.rmdir(backup)
-        os.replace(output_dir, backup)
+        backup_slot = tempfile.mkdtemp(prefix=".site-backup-", dir=parent)
+        backup = os.path.join(backup_slot, "site")
+        try:
+            os.replace(output_dir, backup)
+        except Exception:
+            try:
+                shutil.rmtree(backup_slot)
+            except OSError as exc:
+                print(
+                    "  WARNING: the previous site was preserved, but an empty "
+                    "backup slot could not be removed at %s: %s" % (backup_slot, exc),
+                    file=sys.stderr,
+                )
+            raise
     try:
         os.replace(staging_dir, output_dir)
     except Exception:
         if backup is not None:
-            os.replace(backup, output_dir)
+            try:
+                os.replace(backup, output_dir)
+            except Exception as restore_exc:
+                raise OSError(
+                    "site promotion failed and the previous site could not be "
+                    "restored; recover it from %s" % backup
+                ) from restore_exc
+            try:
+                os.rmdir(backup_slot)
+            except OSError as exc:
+                print(
+                    "  WARNING: the previous site was restored, but an empty "
+                    "backup slot could not be removed at %s: %s" % (backup_slot, exc),
+                    file=sys.stderr,
+                )
         raise
-    if backup is not None:
+    if backup_slot is not None:
         try:
-            shutil.rmtree(backup)
+            shutil.rmtree(backup_slot)
         except OSError as exc:
             print(
                 "  WARNING: new site was promoted, but the previous output "
-                "could not be removed at %s: %s" % (backup, exc),
+                "could not be removed at %s: %s" % (backup_slot, exc),
                 file=sys.stderr,
             )
 
@@ -160,8 +221,18 @@ def build_site_staged(template_dir, output_dir, cfg):
         build_site(template_dir, staging, cfg)
         replace_output(staging, output_dir)
     finally:
+        build_failed = sys.exc_info()[0] is not None
         if os.path.isdir(staging):
-            shutil.rmtree(staging)
+            try:
+                shutil.rmtree(staging)
+            except OSError as exc:
+                if not build_failed:
+                    raise
+                print(
+                    "  WARNING: the build failed, and its staging directory "
+                    "could not be removed at %s: %s" % (staging, exc),
+                    file=sys.stderr,
+                )
 
 
 def main():
