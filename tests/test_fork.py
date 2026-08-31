@@ -151,6 +151,48 @@ class ForkTests(unittest.TestCase):
                 issues,
             )
 
+    def test_blank_required_identity_fact_is_named(self) -> None:
+        module = self.load_module()
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            sample, current = self.customized_config(module)
+            current["SUMMARY"] = "   "
+            (repo / "site.config.example.json").write_text(
+                json.dumps(sample),
+                encoding="utf-8",
+            )
+            (repo / "site.config.json").write_text(
+                json.dumps(current),
+                encoding="utf-8",
+            )
+            (repo / "template").mkdir()
+
+            issues = module.readiness_issues(repo)
+
+            self.assertTrue(
+                any("SUMMARY" in issue and "nonempty string" in issue for issue in issues),
+                issues,
+            )
+
+    def test_non_object_config_is_named_instead_of_crashing(self) -> None:
+        module = self.load_module()
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            sample, _ = self.customized_config(module)
+            (repo / "site.config.example.json").write_text(
+                json.dumps(sample),
+                encoding="utf-8",
+            )
+            (repo / "site.config.json").write_text(
+                "[]",
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                module.readiness_issues(repo),
+                ["site.config.example.json and site.config.json must contain JSON objects"],
+            )
+
     def test_renamed_example_writing_still_reports_starter_prose(self) -> None:
         module = self.load_module()
         with tempfile.TemporaryDirectory() as directory:

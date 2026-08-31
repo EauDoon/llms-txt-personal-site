@@ -132,13 +132,21 @@ def readiness_issues(repo=REPO):
         current = load_json(current_path)
     except (OSError, ValueError, json.JSONDecodeError) as exc:
         return ["config is unreadable: %s" % exc]
+    if not isinstance(sample, dict) or not isinstance(current, dict):
+        return [
+            "site.config.example.json and site.config.json must contain JSON objects"
+        ]
 
     issues = []
     for key in CONFIG_KEYS_TO_REPLACE:
         if key not in current:
             issues.append("site.config.json: %s is missing" % key)
-        elif key not in COLLECTION_CONFIG_KEYS and current.get(key) == sample.get(key):
-            issues.append("site.config.json: %s still matches the sample" % key)
+        elif key not in COLLECTION_CONFIG_KEYS:
+            value = current.get(key)
+            if not isinstance(value, str) or not value.strip():
+                issues.append("site.config.json: %s must be a nonempty string" % key)
+            elif value == sample.get(key):
+                issues.append("site.config.json: %s still matches the sample" % key)
 
     for key in COLLECTION_CONFIG_KEYS:
         if key not in current:
