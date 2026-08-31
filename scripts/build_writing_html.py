@@ -19,6 +19,10 @@ import html
 from urllib.parse import quote, urlsplit
 
 
+WRITING_INDEX_BEGIN = "<!-- BEGIN GENERATED WRITING INDEX -->"
+WRITING_INDEX_END = "<!-- END GENERATED WRITING INDEX -->"
+
+
 def parse_front_matter(md):
     m = re.match(r"\s*<!--(.*?)-->", md, re.S)
     meta = {}
@@ -215,10 +219,35 @@ def render_page(slug, source, cfg, style=""):
     )
 
 
+def update_writing_index(site_dir, entries):
+    """Replace the home-page writing list from canonical Markdown pages."""
+    index_path = os.path.join(site_dir, "index.html")
+    if not os.path.isfile(index_path):
+        return
+    with io.open(index_path, encoding="utf-8") as source:
+        document = source.read()
+    pattern = re.compile(
+        re.escape(WRITING_INDEX_BEGIN)
+        + r".*?"
+        + re.escape(WRITING_INDEX_END),
+        re.S,
+    )
+    if not pattern.search(document):
+        return
+    lines = [WRITING_INDEX_BEGIN, "<ul>"]
+    for slug, title in entries:
+        lines.append(
+            '  <li><a href="/writing/%s.html">%s</a></li>'
+            % (quote(slug, safe="-._~"), html.escape(title, quote=True))
+        )
+    lines.extend(("</ul>", WRITING_INDEX_END))
+    document = pattern.sub("\n".join(lines), document, count=1)
+    with io.open(index_path, "w", encoding="utf-8", newline="") as output:
+        output.write(document)
+
+
 def run(site_dir, cfg):
     wr = os.path.join(site_dir, "writing")
-    if not os.path.isdir(wr):
-        return
     idx = os.path.join(site_dir, "index.html")
     style = ""
     if os.path.exists(idx):
@@ -226,12 +255,19 @@ def run(site_dir, cfg):
             m = re.search(r"<style>.*?</style>", index.read(), re.S)
         style = m.group(0) if m else ""
 
-    for f in sorted(os.listdir(wr)):
-        if not f.endswith(".md"):
-            continue
-        slug = f[:-3]
-        with io.open(os.path.join(wr, f), encoding="utf-8") as source:
-            page = render_page(slug, source.read(), cfg, style)
-        with io.open(os.path.join(wr, slug + ".html"), "w", encoding="utf-8", newline="") as output:
-            output.write(page)
-        print("  wrote writing/%s.html" % slug)
+    entries = []
+    if os.path.isdir(wr):
+        for f in sorted(os.listdir(wr)):
+            if not f.endswith(".md"):
+                continue
+            slug = f[:-3]
+            with io.open(os.path.join(wr, f), encoding="utf-8") as source:
+                markdown = source.read()
+            meta, _ = parse_front_matter(markdown)
+            title = meta.get("title") or slug.replace("-", " ").title()
+            entries.append((slug, title))
+            page = render_page(slug, markdown, cfg, style)
+            with io.open(os.path.join(wr, slug + ".html"), "w", encoding="utf-8", newline="") as output:
+                output.write(page)
+            print("  wrote writing/%s.html" % slug)
+    update_writing_index(site_dir, entries)

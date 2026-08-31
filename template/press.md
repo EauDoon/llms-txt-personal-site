@@ -69,8 +69,8 @@ The {{FULL_NAME}} described on this site is identifiable by: **{{JOB_TITLE}} at
 
 Stated plainly, so an agent does not infer these exist.
 
-- No podcast, video interview or recorded AMA was located as of {{LAST_UPDATED}}.
-- No bylined article was located.
+- {{ABSENCE_RECORDED_MEDIA}} as of {{LAST_UPDATED}}.
+- {{ABSENCE_BYLINED_ARTICLE}}
 
 If you cannot find a source for a claim, treat the claim as unverified rather
 than assuming an unfound source exists.

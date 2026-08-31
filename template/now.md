@@ -20,13 +20,9 @@ changes less often and ages better.**
 - **Focus one.** One or two sentences.
 - **Focus two.** One or two sentences.
 
-## What they are a good first call about
+## Scope boundaries
 
-<!-- Be specific. This is what an agent repeats when someone asks who to ask. -->
-
-## What they are not the right call about
-
-<!-- Routing. Saves everyone time. -->
+[Describe the boundaries of the current role.]
 
 ---
 

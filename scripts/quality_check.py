@@ -9,12 +9,13 @@
 # its own false positives. A checker that cries wolf trains you to ignore it,
 # which is worse than having none. Every rule below is therefore scoped to the
 # thing it actually forbids, and the deliberate exceptions are named in code.
-import io, os, re, json, subprocess, sys
+import io, os, re, json, sys
 import xml.etree.ElementTree as ET
 from collections import Counter
 
 from a2a_agent_card import load_agent_card, validate_agent_card
 from build_sitemap import public_urls, validate_last_updated
+from http_client import fetch_url
 from llms_txt import has_link_relation, markdown_alternate, validate_llms_txt
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -53,6 +54,10 @@ def sources(include_generated=False):
 def read(p):
     with io.open(p, encoding="utf-8", errors="ignore") as source:
         return source.read()
+
+def fetch_live(path):
+    """Return status, headers, body, and any transport error for a live path."""
+    return fetch_url("https://" + DOMAIN + path)
 
 def head(msg):
     print("\n" + "=" * 68 + "\n" + msg + "\n" + "=" * 68)
@@ -310,11 +315,9 @@ if LIVE:
     print("  checking %d distinct URLs..." % len(links))
     bad = []
     for u in sorted(links):
-        r = subprocess.run(["curl.exe", "-sS", "-o", os.devnull, "-w", "%{http_code}",
-                            "--max-time", "20", "https://" + DOMAIN + u],
-                           capture_output=True, text=True)
-        if r.stdout.strip() != "200":
-            bad.append((u, r.stdout.strip()))
+        status, _, _, error = fetch_live(u)
+        if status != 200:
+            bad.append((u, str(status) if status else error or "no status"))
     for u, c in bad:
         fails.append("link %s -> %s" % (u, c))
         print("  FAIL %-50s %s" % (u, c))
@@ -324,37 +327,31 @@ if LIVE:
     # ownership proofs: deleting any of these un-verifies the site
     print("\n  ownership proofs:")
     for u in _cfg.get("verification_paths", []):
-        r = subprocess.run(["curl.exe", "-sS", "-o", os.devnull, "-w", "%{http_code}",
-                            "--max-time", "20", "https://" + DOMAIN + u],
-                           capture_output=True, text=True)
-        ok = r.stdout.strip() == "200"
+        status, _, _, _ = fetch_live(u)
+        ok = status == 200
         if not ok:
             fails.append("ownership proof missing: %s" % u)
         print("    %-4s %s" % ("ok" if ok else "FAIL", u))
 
     # markdown must render inline, not download
-    r = subprocess.run(["curl.exe", "-sS", "-o", os.devnull, "-D", "-",
-                        "--max-time", "20", "https://" + DOMAIN + "/profile.md"],
-                       capture_output=True, text=True)
-    inline = "text/markdown" in r.stdout.lower() and "inline" in r.stdout.lower()
+    status, headers, _, _ = fetch_live("/profile.md")
+    content_type = headers.get("Content-Type", "").lower()
+    disposition = headers.get("Content-Disposition", "").lower()
+    inline = status == 200 and "text/markdown" in content_type and "inline" in disposition
     if not inline:
         fails.append("profile.md not served inline: .htaccess may not be applying (check chmod 644)")
     print("\n  %-4s markdown served inline as text/markdown" % ("ok" if inline else "FAIL"))
 
     if os.path.exists(card_path):
-        r = subprocess.run(
-            ["curl.exe", "-sS", "-o", os.devnull, "-D", "-", "--max-time", "20",
-             "https://" + DOMAIN + "/.well-known/agent-card.json"],
-            capture_output=True,
-            text=True,
+        status, headers, remote_bytes, _ = fetch_live("/.well-known/agent-card.json")
+        status_ok = status == 200
+        content_type_ok = (
+            headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+            == "application/a2a+json"
         )
-        status_ok = bool(re.search(r"(?im)^HTTP/\S+\s+200(?:\s|$)", r.stdout))
-        content_type_ok = bool(
-            re.search(r"(?im)^Content-Type:\s*application/a2a\+json(?:\s*;|\s*$)", r.stdout)
-        )
-        cache_ok = bool(re.search(r"(?im)^Cache-Control:.*\bmax-age=\d+", r.stdout))
-        etag_ok = bool(re.search(r"(?im)^ETag:\s*\S+", r.stdout))
-        card_live = r.returncode == 0 and status_ok and content_type_ok
+        cache_ok = bool(re.search(r"\bmax-age=\d+", headers.get("Cache-Control", ""), re.I))
+        etag_ok = bool(headers.get("ETag"))
+        card_live = status_ok and content_type_ok
         if not card_live:
             fails.append("live Agent Card is missing or has the wrong content type")
         if not cache_ok:
@@ -365,29 +362,18 @@ if LIVE:
         print("  %-4s A2A Agent Card has Cache-Control max-age" % ("ok" if cache_ok else "FAIL"))
         print("  %-4s A2A Agent Card has an ETag" % ("ok" if etag_ok else "WARN"))
         if status_ok:
-            remote = subprocess.run(
-                ["curl.exe", "-sS", "--max-time", "20",
-                 "https://" + DOMAIN + "/.well-known/agent-card.json"],
-                capture_output=True,
-            )
             with open(card_path, "rb") as local_card:
-                current_bytes = remote.returncode == 0 and remote.stdout == local_card.read()
+                current_bytes = remote_bytes == local_card.read()
             if not current_bytes:
                 fails.append("live Agent Card bytes differ from the validated local build")
             print("  %-4s live Agent Card matches validated local bytes" % ("ok" if current_bytes else "FAIL"))
     else:
-        remote = subprocess.run(
-            ["curl.exe", "-sS", "-o", os.devnull, "-w", "%{http_code}",
-             "--max-time", "20", "https://" + DOMAIN + "/.well-known/agent-card.json"],
-            capture_output=True,
-            text=True,
-        )
-        remote_status = remote.stdout.strip()
-        card_absent = remote.returncode == 0 and remote_status in {"404", "410"}
+        remote_status, _, _, remote_error = fetch_live("/.well-known/agent-card.json")
+        card_absent = remote_status in {404, 410}
         if not card_absent:
             fails.append(
                 "A2A is disabled locally but the live Agent Card path returned %s"
-                % (remote_status or "no status")
+                % (remote_status or remote_error or "no status")
             )
         print(
             "  %-4s A2A disabled and live discovery is absent (404 or 410)"

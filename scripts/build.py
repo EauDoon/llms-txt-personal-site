@@ -22,6 +22,20 @@ TEMPLATE = os.path.join(ROOT, "template")
 OUT = os.path.join(ROOT, "site")
 CONFIG = os.path.join(ROOT, "site.config.json")
 WINDOWS_REPARSE_POINT = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x0400)
+REQUIRED_CONFIG = (
+    "DOMAIN",
+    "FULL_NAME",
+    "EMAIL",
+    "JOB_TITLE",
+    "EMPLOYER",
+    "EMPLOYER_URL",
+    "LINKEDIN_SLUG",
+    "X_HANDLE",
+    "ABSENCE_EMPLOYMENT_DATES",
+    "ABSENCE_RECORDED_MEDIA",
+    "ABSENCE_BYLINED_ARTICLE",
+    "LAST_UPDATED",
+)
 
 
 def load_config():
@@ -29,7 +43,7 @@ def load_config():
         sys.exit("No site.config.json. Copy site.config.example.json to site.config.json and fill it in.")
     with io.open(CONFIG, encoding="utf-8") as f:
         cfg = json.load(f)
-    missing = [k for k in ("DOMAIN", "FULL_NAME", "EMAIL", "JOB_TITLE", "LAST_UPDATED") if not cfg.get(k)]
+    missing = [key for key in REQUIRED_CONFIG if not cfg.get(key)]
     if missing:
         sys.exit("site.config.json is missing required keys: %s" % ", ".join(missing))
     domain = cfg["DOMAIN"]
@@ -61,9 +75,13 @@ def fill(text, cfg):
 
 def json_block(cfg):
     """Values that go into JSON-LD need JSON encoding, not plain substitution."""
+    same_as = [
+        "https://www.linkedin.com/in/%s" % cfg["LINKEDIN_SLUG"],
+        "https://x.com/%s" % cfg["X_HANDLE"],
+    ]
     return {
         "KNOWS_ABOUT_JSON": json.dumps(cfg.get("KNOWS_ABOUT", []), indent=8)[1:-1].strip(),
-        "SAME_AS_JSON": json.dumps(cfg.get("SAME_AS", []), indent=8)[1:-1].strip(),
+        "SAME_AS_JSON": json.dumps(same_as, indent=8)[1:-1].strip(),
         "ALUMNI_JSON": ",\n        ".join(
             '{ "@type": "Organization", "name": %s, "sameAs": %s }'
             % (json.dumps(a.get("name", "")), json.dumps(a.get("url", "")))

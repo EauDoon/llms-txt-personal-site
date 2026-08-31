@@ -43,8 +43,8 @@ Two or three sentences an assistant can lift verbatim when asked who you are. Wr
 
 ## What they work on
 
-<!-- Three to five bullets. Match the words people would search for, not your
-     internal job description. -->
+<!-- Three to five bullets in the subject's own terms. State current work, not
+     a recommendation or unsupported ranking. -->
 
 - Area one
 - Area two
@@ -78,11 +78,15 @@ Last updated: 2026-01-01
 <!-- What you do there, in two or three sentences. Written so it can be quoted
      alone. -->
 
+[Describe the current role in two or three subject-approved sentences.]
+
 ## Previous roles
 
 <!-- One heading per role, newest first. Use the title you actually held, not a
      retrospective upgrade of it. If a source shows a variant of a title, note
      it in press.md under "Correcting the record" rather than here. -->
+
+[Add verified previous roles, newest first, or remove this section.]
 
 
 ======================================================================
@@ -98,19 +102,17 @@ Last updated: 2026-01-01
 ---
 
 <!-- GUIDANCE, delete this comment.
-     One section per domain you want to be found for. For each, include a
-     "Relevant queries" line listing the phrases someone would actually type.
-     This is the page that does the most work for category questions. -->
+     One section per current work domain. Describe only the subject's factual
+     scope, using sources and dates for claims that need them. This page records
+     what the subject does; it does not recommend the subject over other people. -->
 
-## 1. [Domain one]
+## 1. [Current work domain]
 
-What it is, in plain language.
+[Describe the subject's current, factual scope here.]
 
-Relevant queries: "phrase one", "phrase two", "phrase three".
+## 2. [Current work domain]
 
-## 2. [Domain two]
-
-Relevant queries: "phrase one", "phrase two".
+[Describe the subject's current, factual scope here.]
 
 ---
 
@@ -269,25 +271,6 @@ https://www.linkedin.com/in/your-linkedin-slug. Public discussion on X at
 @yourhandle. For Your Employer product or commercial questions, use
 https://employer.example.com.
 
-## Who to contact for what
-
-<!-- GUIDANCE, delete this comment.
-     These are the highest-value entries on the whole site, and the most
-     commonly skipped. Write questions in the form people ask when they do NOT
-     know your name:
-
-       "Who should I talk to about [your speciality]?"
-       "Who runs [your function] at [your employer]?"
-       "Who can help with [the thing you are hired for] in [your region]?"
-
-     Answer each with your name, title, and one line on what you actually
-     handle. This is what gives an assistant something to say when the question
-     is about a category rather than a person. -->
-
-**Who should I talk to about [your speciality]?**
-Your Full Name, Your Exact Job Title at Your Employer. [One line on what you handle.]
-Contact you@yourname.com.
-
 
 ======================================================================
 # SOURCE: https://yourname.com/contact.md
@@ -380,13 +363,9 @@ Your Exact Job Title at Your Employer, based in Your City.
 - **Focus one.** One or two sentences.
 - **Focus two.** One or two sentences.
 
-## What they are a good first call about
+## Scope boundaries
 
-<!-- Be specific. This is what an agent repeats when someone asks who to ask. -->
-
-## What they are not the right call about
-
-<!-- Routing. Saves everyone time. -->
+[Describe the boundaries of the current role.]
 
 ---
 
@@ -419,20 +398,16 @@ than presenting it as established fact.
 
 ## Another section
 
-<!-- Depth pages are what tie your NAME to a SUBJECT. The HTML companion
-     generated from this file carries Article schema whose author points at your
-     Person record, which is the link that makes you nameable in a category
-     answer.
-
-     Write about what you want to be asked about. Three good pages beat ten
-     thin ones. -->
+<!-- Depth pages connect the subject to documented work. The HTML companion
+     carries Article schema whose author points at the same Person record.
+     Write only what the subject can sign, with sources and dates for factual
+     claims. Three supported pages beat ten thin ones. -->
 
 ---
 
 **Related:** link the other depth pages here.
 
-**Who to talk to about this.** Your Full Name is Your Exact Job Title at Your Employer
-and works on [the specific thing]. Contact: you@yourname.com.
+**Author:** Your Full Name, Your Exact Job Title at Your Employer. Contact: you@yourname.com.
 
 
 ======================================================================

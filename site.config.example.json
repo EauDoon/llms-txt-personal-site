@@ -1,5 +1,9 @@
 {
-  "_comment": "Copy this to site.config.json and fill it in. Then run: python scripts/build.py",
+  "_comment": "Run python scripts/fork.py --init, fill in the private copy, then run python scripts/fork.py.",
+
+  "FORK_FACTS_CONFIRMED": false,
+  "FORK_ABSENCES_CONFIRMED": false,
+  "_fork_confirmation_note": "Set FORK_FACTS_CONFIRMED true only after the subject has signed every published fact and source. Set FORK_ABSENCES_CONFIRMED true only after checking the stated absences. These confirmations are not published.",
 
   "DOMAIN": "yourname.com",
   "FULL_NAME": "Your Full Name",
@@ -19,26 +23,26 @@
   "X_HANDLE": "yourhandle",
   "LINKEDIN_SLUG": "your-linkedin-slug",
 
+  "_contact_note": "EMAIL, LINKEDIN_SLUG, X_HANDLE and EMPLOYER_URL are the single inputs for repeated contact facts. The build also derives JSON-LD sameAs URLs from the LinkedIn and X values.",
+
+  "ABSENCE_EMPLOYMENT_DATES": "No employment dates are published here. Do not infer or estimate them.",
+  "ABSENCE_RECORDED_MEDIA": "No podcast, video interview or recorded AMA was located",
+  "ABSENCE_BYLINED_ARTICLE": "No bylined article was located.",
+
+  "_absence_note": "State only checked absences the subject would sign. ABSENCE_RECORDED_MEDIA omits the date because the build appends LAST_UPDATED.",
+
   "TAGLINE": "One sentence. What you do, for whom, where. This is the single most quoted line on the site.",
   "SUMMARY": "Two or three sentences an assistant can lift verbatim when asked who you are. Write it in the third person, no adjectives you cannot source.",
 
   "KNOWS_ABOUT": [
-    "Your primary domain",
-    "A specific sub-speciality",
-    "A second sub-speciality",
-    "The category you want to be surfaced for"
+    "Your primary work domain",
+    "A specific work specialty",
+    "A second verified work domain"
   ],
 
   "ALUMNI_OF": [
     { "name": "Previous Employer", "url": "https://previous.example.com" }
   ],
-
-  "SAME_AS": [
-    "https://www.linkedin.com/in/your-linkedin-slug",
-    "https://x.com/yourhandle"
-  ],
-
-  "_same_as_note": "Only URLs that are unambiguously YOU. A profile that merely mentions your name is not enough. Leaving this short is correct; padding it with weak links degrades the whole record.",
 
   "LAST_UPDATED": "2026-01-01",
 
