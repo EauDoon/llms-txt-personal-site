@@ -4,6 +4,16 @@
   "trailingSlash": false,
   "headers": [
     {
+      "source": "/.well-known/agent-card.json",
+      "headers": [
+        { "key": "Content-Type", "value": "application/a2a+json; charset=utf-8" },
+        { "key": "Content-Disposition", "value": "inline" },
+        { "key": "X-Robots-Tag", "value": "all" },
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Cache-Control", "value": "public, max-age=3600" }
+      ]
+    },
+    {
       "source": "/(.*).md",
       "headers": [
         { "key": "Content-Type", "value": "text/markdown; charset=utf-8" },
@@ -28,7 +38,8 @@
       "headers": [
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
-        { "key": "Access-Control-Allow-Origin", "value": "*" }
+        { "key": "Access-Control-Allow-Origin", "value": "*" },
+        { "key": "Link", "value": "</llms.txt>; rel=describedby" }
       ]
     }
   ]

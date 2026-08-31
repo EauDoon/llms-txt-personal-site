@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import contextlib
 import io
+import json
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -13,11 +15,54 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from build import build_site_staged, is_link_like
+from build import build_site, build_site_staged, is_link_like, load_config
+from build_llms_full import run as build_llms_full
 from build_sitemap import validate_last_updated
+from build_writing_html import md_to_html, render_page
 
 
 class BuildTests(unittest.TestCase):
+    def test_checked_in_example_has_no_reference_identity(self) -> None:
+        markers = (
+            b"straits" + b"x",
+            b"xsgd",
+            b"xusd",
+            b"daniel" + b"oon",
+            b"eau" + b"doon",
+        )
+        for directory in (ROOT / "template", ROOT / "example"):
+            for path in directory.rglob("*"):
+                if not path.is_file():
+                    continue
+                compact = re.sub(rb"[\s_-]+", b"", path.read_bytes().lower())
+                with self.subTest(path=path.relative_to(ROOT)):
+                    self.assertFalse(any(marker in compact for marker in markers))
+
+    def test_missing_writing_generator_fails_the_build(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            template = root / "template"
+            template.mkdir()
+
+            with patch.dict(sys.modules, {"build_writing_html": None}):
+                with self.assertRaises(ModuleNotFoundError):
+                    build_site(str(template), str(root / "site"), self.config())
+
+    def test_llms_full_includes_custom_top_level_markdown(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            site = Path(directory)
+            (site / "profile.md").write_text("# Profile\n", encoding="utf-8")
+            (site / "custom.md").write_text("# Custom\n", encoding="utf-8")
+            (site / "changelog.md").write_text("# Changelog\n", encoding="utf-8")
+
+            names = build_llms_full(str(site), self.config())
+
+            self.assertEqual(names, ["profile.md", "custom.md", "changelog.md"])
+            self.assertIn(
+                "# Custom",
+                (site / "llms-full.txt").read_text(encoding="utf-8"),
+            )
+
     def config(self, last_updated: str = "2026-08-29") -> dict[str, str]:
         return {
             "DOMAIN": "example.test",
@@ -328,6 +373,49 @@ class BuildTests(unittest.TestCase):
             with self.subTest(value=value):
                 with self.assertRaisesRegex(ValueError, "calendar-valid"):
                     validate_last_updated(value)
+
+    def test_domain_must_be_a_bare_hostname(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = Path(directory) / "site.config.json"
+            for domain in (
+                "HTTPS://example.test",
+                "example.test/path",
+                "user@example.test",
+                "example.test:443",
+                "example..test",
+                "-example.test",
+                "example-.test",
+                "example\\test",
+                'example"test',
+                "café.test",
+                f"{'a' * 64}.test",
+            ):
+                config_path.write_text(json.dumps({**self.config(), "DOMAIN": domain}), encoding="utf-8")
+                with self.subTest(domain=domain), patch("build.CONFIG", str(config_path)):
+                    with self.assertRaisesRegex(SystemExit, "bare hostname"):
+                        load_config()
+            for domain in ("EXAMPLE.TEST", "xn--caf-dma.test"):
+                config_path.write_text(json.dumps({**self.config(), "DOMAIN": domain}), encoding="utf-8")
+                with self.subTest(domain=domain), patch("build.CONFIG", str(config_path)):
+                    self.assertEqual(load_config()["DOMAIN"], domain)
+
+    def test_markdown_link_cannot_inject_html_attributes(self) -> None:
+        rendered = md_to_html(
+            '[safe](https://example.test/" onmouseover="document.body.dataset.pwned=\'yes\')'
+        )
+
+        self.assertNotIn(' onmouseover="', rendered)
+        self.assertIn("&quot;", rendered)
+
+    def test_writing_filename_cannot_inject_html_attributes(self) -> None:
+        rendered = render_page(
+            'bad" onmouseover="alert(1)',
+            "# Test\n",
+            self.config(),
+        )
+
+        self.assertNotIn(' onmouseover="', rendered)
+        self.assertIn("bad%22%20onmouseover%3D%22alert%281%29.html", rendered)
 
 
 if __name__ == "__main__":

@@ -16,6 +16,7 @@ import io
 import os
 import re
 import html
+from urllib.parse import quote, urlsplit
 
 
 def parse_front_matter(md):
@@ -41,11 +42,33 @@ def md_to_html(md):
         if in_ol: out.append("</ol>"); in_ol = False
 
     def inline(s):
-        s = html.escape(s, quote=False)
+        s = html.escape(s, quote=True)
         s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
         s = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
-        s = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", r'<a href="\2">\1</a>', s)
+        inert_links = []
+        def link(match):
+            label, escaped_target = match.groups()
+            target = html.unescape(escaped_target).strip()
+            try:
+                scheme = urlsplit(target).scheme.lower()
+            except ValueError:
+                scheme = "unsafe"
+            unsafe = (
+                not target
+                or target.startswith("//")
+                or "\\" in target
+                or any(ord(character) < 0x20 or ord(character) == 0x7f for character in target)
+                or scheme not in {"", "http", "https", "mailto"}
+            )
+            if unsafe:
+                placeholder = '<span data-inert-markdown-link="%d"></span>' % len(inert_links)
+                inert_links.append((placeholder, "%s (%s)" % (label, escaped_target)))
+                return placeholder
+            return '<a href="%s">%s</a>' % (escaped_target, label)
+        s = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", link, s)
         s = re.sub(r"(?<![\">=/\w])(https?://[^\s<),]+)", r'<a href="\1">\1</a>', s)
+        for placeholder, inert_text in inert_links:
+            s = s.replace(placeholder, inert_text)
         return s
 
     while i < len(lines):
@@ -102,6 +125,11 @@ def md_to_html(md):
         buf = []
         while i < len(lines) and lines[i].strip() and not re.match(r"^(#{1,4}\s|[-*]\s|\d+\.\s|\||>|---$)", lines[i].strip()):
             buf.append(lines[i].strip()); i += 1
+        # A reserved block prefix is not necessarily a valid block. Consume it
+        # as literal paragraph text when none of the block parsers matched so
+        # malformed table or quote-like prose cannot stall the renderer.
+        if not buf:
+            buf.append(s); i += 1
         out.append("<p>%s</p>" % inline(" ".join(buf)))
 
     close()
@@ -119,6 +147,7 @@ SHELL = """<!doctype html>
 <meta name="author" content="{name}">
 <link rel="canonical" href="https://{domain}/writing/{slug}.html">
 <link rel="alternate" type="text/markdown" href="/writing/{slug}.md" title="This page in Markdown">
+<link rel="describedby" href="/llms.txt">
 <meta property="og:type" content="article">
 <meta property="og:title" content="{title}">
 <meta property="og:description" content="{desc}">
@@ -160,8 +189,33 @@ SHELL = """<!doctype html>
 """
 
 
-def run(site_dir, cfg):
+def render_page(slug, source, cfg, style=""):
+    """Render one writing page without requiring its slug to be a local filename."""
     import json as _json
+
+    meta, md = parse_front_matter(source)
+    title = meta.get("title") or slug.replace("-", " ").title()
+    desc = meta.get("desc", "")
+    about = [a.strip() for a in meta.get("about", "").split(",") if a.strip()]
+    return SHELL.format(
+        title=html.escape(title, quote=True),
+        desc=html.escape(desc, quote=True),
+        slug=quote(slug, safe="-._~"),
+        domain=cfg.get("DOMAIN", ""),
+        name=html.escape(cfg.get("FULL_NAME", ""), quote=True),
+        email=cfg.get("EMAIL", ""),
+        date=cfg.get("LAST_UPDATED", ""),
+        title_json=_json.dumps(title),
+        desc_json=_json.dumps(desc),
+        name_json=_json.dumps(cfg.get("FULL_NAME", "")),
+        title_role_json=_json.dumps(cfg.get("JOB_TITLE", "")),
+        about_json=", ".join(_json.dumps(a) for a in about),
+        style=style,
+        content=md_to_html(md),
+    )
+
+
+def run(site_dir, cfg):
     wr = os.path.join(site_dir, "writing")
     if not os.path.isdir(wr):
         return
@@ -177,26 +231,7 @@ def run(site_dir, cfg):
             continue
         slug = f[:-3]
         with io.open(os.path.join(wr, f), encoding="utf-8") as source:
-            meta, md = parse_front_matter(source.read())
-        title = meta.get("title") or slug.replace("-", " ").title()
-        desc = meta.get("desc", "")
-        about = [a.strip() for a in meta.get("about", "").split(",") if a.strip()]
-        page = SHELL.format(
-            title=html.escape(title, quote=True),
-            desc=html.escape(desc, quote=True),
-            slug=slug,
-            domain=cfg.get("DOMAIN", ""),
-            name=html.escape(cfg.get("FULL_NAME", ""), quote=True),
-            email=cfg.get("EMAIL", ""),
-            date=cfg.get("LAST_UPDATED", ""),
-            title_json=_json.dumps(title),
-            desc_json=_json.dumps(desc),
-            name_json=_json.dumps(cfg.get("FULL_NAME", "")),
-            title_role_json=_json.dumps(cfg.get("JOB_TITLE", "")),
-            about_json=", ".join(_json.dumps(a) for a in about),
-            style=style,
-            content=md_to_html(md),
-        )
+            page = render_page(slug, source.read(), cfg, style)
         with io.open(os.path.join(wr, slug + ".html"), "w", encoding="utf-8", newline="") as output:
             output.write(page)
         print("  wrote writing/%s.html" % slug)

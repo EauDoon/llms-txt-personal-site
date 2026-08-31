@@ -1,6 +1,10 @@
 # Your filled config: contains your own details, not the template's.
 site.config.json
 
+# Optional local source for a public A2A Agent Card. It is copied only when
+# site.config.json explicitly names it with A2A_AGENT_CARD_PATH.
+agent-card.local.json
+
 # Build output. Regenerate with: python scripts/build.py
 site/
 

@@ -3,11 +3,13 @@
 
     python scripts/build.py
 
-Runs four steps:
+Runs six steps:
   1. fill placeholders from site.config.json
-  2. generate an HTML companion for every writing/*.md page
-  3. concatenate everything into llms-full.txt
-  4. generate sitemap.xml from the public files that were built
+  2. publish an explicitly configured, validated A2A v1 Agent Card
+  3. index every writing/*.md page in llms.txt
+  4. generate an HTML companion for every writing/*.md page
+  5. concatenate everything into llms-full.txt
+  6. generate sitemap.xml from the public files that were built
 
 Then run scripts/quality_check.py before you deploy.
 """
@@ -30,7 +32,12 @@ def load_config():
     missing = [k for k in ("DOMAIN", "FULL_NAME", "EMAIL", "JOB_TITLE", "LAST_UPDATED") if not cfg.get(k)]
     if missing:
         sys.exit("site.config.json is missing required keys: %s" % ", ".join(missing))
-    if cfg["DOMAIN"].startswith("http"):
+    domain = cfg["DOMAIN"]
+    if (
+        not isinstance(domain, str)
+        or len(domain) > 253
+        or not all(re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?", label) for label in domain.split("."))
+    ):
         sys.exit("DOMAIN should be a bare hostname, e.g. yourname.com (no https://)")
     try:
         validate_last_updated(cfg["LAST_UPDATED"])
@@ -137,13 +144,15 @@ def build_site(template_dir, out_dir, cfg):
     else:
         print("  no unfilled placeholders")
 
-    # steps 2 and 3
+    # steps 2 through 6
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-    try:
-        import build_writing_html
-        build_writing_html.run(out_dir, cfg)
-    except ImportError:
-        print("  (skipped writing/ HTML generation: build_writing_html.py not found)")
+    import a2a_agent_card
+    a2a_agent_card.publish_agent_card(ROOT, out_dir, cfg)
+    import build_llms_index
+    if os.path.isfile(os.path.join(out_dir, "llms.txt")):
+        build_llms_index.run(out_dir, cfg)
+    import build_writing_html
+    build_writing_html.run(out_dir, cfg)
     import build_llms_full
     build_llms_full.run(out_dir, cfg)
     import build_sitemap

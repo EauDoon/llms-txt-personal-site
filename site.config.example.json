@@ -13,7 +13,7 @@
   "EMPLOYER_DESC": "One sentence describing what your employer does.",
 
   "CITY": "Your City",
-  "COUNTRY_CODE": "SG",
+  "COUNTRY_CODE": "XX",
   "COUNTRY_NAME": "Your Country",
 
   "X_HANDLE": "yourhandle",
@@ -41,6 +41,8 @@
   "_same_as_note": "Only URLs that are unambiguously YOU. A profile that merely mentions your name is not enough. Leaving this short is correct; padding it with weak links degrades the whole record.",
 
   "LAST_UPDATED": "2026-01-01",
+
+  "_a2a_note": "A static personal site is not an A2A server. Leave A2A_AGENT_CARD_PATH absent unless this domain fronts a real A2A v1 endpoint. See README.md.",
 
   "_verification_note": "Site-verification tokens are per-domain. Get your own from Google Search Console and Bing Webmaster Tools, then put them in verification below. Never reuse someone else's.",
   "verification": {

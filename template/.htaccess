@@ -28,6 +28,14 @@ AddDefaultCharset UTF-8
 # "always" so the headers are set regardless of response status, not only on
 # 2xx. Matters for the security headers in particular.
 <IfModule mod_headers.c>
+  <Files "agent-card.json">
+    Header always set Content-Type "application/a2a+json; charset=utf-8"
+    Header always set Content-Disposition "inline"
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set X-Robots-Tag "all"
+    Header always set Cache-Control "public, max-age=3600"
+  </Files>
+
   <FilesMatch "\.md$">
     Header always set Content-Type "text/markdown; charset=utf-8"
     Header always set Content-Disposition "inline"
@@ -50,6 +58,7 @@ AddDefaultCharset UTF-8
 
   Header always set X-Content-Type-Options "nosniff"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Link "</llms.txt>; rel=describedby"
 
   # HTTPS is forced unconditionally below, so tell browsers not to try plaintext
   # at all. Remove this line if the site ever needs to be reachable over HTTP.

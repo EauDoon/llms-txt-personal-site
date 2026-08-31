@@ -13,7 +13,9 @@ import io, os, re, json, subprocess, sys
 import xml.etree.ElementTree as ET
 from collections import Counter
 
+from a2a_agent_card import load_agent_card, validate_agent_card
 from build_sitemap import public_urls, validate_last_updated
+from llms_txt import has_link_relation, markdown_alternate, validate_llms_txt
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 R = os.path.join(REPO, "site")
@@ -42,9 +44,10 @@ def sources(include_generated=False):
                 continue
             out.append((f, os.path.join(R, f)))
     w = os.path.join(R, "writing")
-    for f in sorted(os.listdir(w)):
-        if f.endswith((".md", ".html")):
-            out.append(("writing/" + f, os.path.join(w, f)))
+    if os.path.isdir(w):
+        for f in sorted(os.listdir(w)):
+            if f.endswith((".md", ".html")):
+                out.append(("writing/" + f, os.path.join(w, f)))
     return out
 
 def read(p):
@@ -154,7 +157,55 @@ for rel, p in sources():
             fails.append("%s JSON-LD invalid" % rel)
             print("  FAIL %-40s %s" % (rel, e))
 
-head("4. LAST-UPDATED DATES")
+head("4. LLMS.TXT V2")
+llms_path = os.path.join(R, "llms.txt")
+if not os.path.isfile(llms_path):
+    fails.append("llms.txt is missing")
+    print("  FAIL llms.txt is missing")
+else:
+    llms_issues = validate_llms_txt(read(llms_path), DOMAIN, R)
+    if llms_issues:
+        for issue in llms_issues:
+            fails.append("llms.txt: %s" % issue)
+            print("  FAIL %s" % issue)
+    else:
+        print("  ok   llms.txt follows the v2 file-list contract")
+
+for rel, p in sources():
+    if not rel.endswith(".html") or rel == "404.html":
+        continue
+    document = read(p)
+    if not has_link_relation(document, "describedby", "/llms.txt"):
+        fails.append("%s does not advertise /llms.txt" % rel)
+        print("  FAIL %-40s missing rel=describedby" % rel)
+    else:
+        print("  ok   %-40s advertises /llms.txt" % rel)
+    markdown = markdown_alternate(rel)
+    if not has_link_relation(document, "alternate", markdown, "text/markdown"):
+        fails.append("%s does not advertise %s" % (rel, markdown))
+        print("  FAIL %-40s missing Markdown alternate" % rel)
+
+head("5. OPTIONAL A2A V1 AGENT CARD")
+card_path = os.path.join(R, ".well-known", "agent-card.json")
+if not os.path.exists(card_path):
+    print("  ok   disabled; no Agent Card is published for this static site")
+else:
+    try:
+        agent_card = load_agent_card(card_path)
+        card_issues = validate_agent_card(agent_card)
+    except (OSError, ValueError, json.JSONDecodeError) as exc:
+        agent_card = None
+        card_issues = [str(exc)]
+    if card_issues:
+        for issue in card_issues:
+            fails.append("A2A Agent Card: %s" % issue)
+            print("  FAIL %s" % issue)
+    else:
+        print("  ok   /.well-known/agent-card.json has a valid public A2A v1 structure")
+        if agent_card.get("signatures"):
+            print("  note signature fields are present; cryptographic verification is external")
+
+head("6. LAST-UPDATED DATES")
 configured_lastmod = _cfg.get("LAST_UPDATED")
 try:
     expected_lastmod = validate_last_updated(configured_lastmod)
@@ -179,7 +230,7 @@ for rel, p in sources():
         print("  FAIL %-40s invalid Last updated date" % rel)
 print("  (files with a date are not listed)")
 
-head("5. GENERATED FILE IS IN SYNC")
+head("7. GENERATED FILE IS IN SYNC")
 lf = os.path.join(R, "llms-full.txt")
 if os.path.exists(lf):
     t = read(lf)
@@ -192,7 +243,7 @@ if os.path.exists(lf):
     else:
         print("  ok   llms-full.txt contains every .md source")
 
-head("6. SITEMAP MATCHES BUILD OUTPUT")
+head("8. SITEMAP MATCHES BUILD OUTPUT")
 sitemap_path = os.path.join(R, "sitemap.xml")
 try:
     root = ET.parse(sitemap_path).getroot()
@@ -248,7 +299,7 @@ except (ET.ParseError, OSError) as exc:
     print("  FAIL sitemap.xml is missing or invalid: %s" % exc)
 
 if LIVE:
-    head("7. LIVE: LINKS AND SITEMAP")
+    head("9. LIVE: LINKS AND SITEMAP")
     links = set()
     for rel, p in sources():
         for m in re.finditer(r"https://" + re.escape(DOMAIN) + r"(/[^\s)\"'<>\]]*)?", read(p)):
@@ -289,6 +340,59 @@ if LIVE:
     if not inline:
         fails.append("profile.md not served inline: .htaccess may not be applying (check chmod 644)")
     print("\n  %-4s markdown served inline as text/markdown" % ("ok" if inline else "FAIL"))
+
+    if os.path.exists(card_path):
+        r = subprocess.run(
+            ["curl.exe", "-sS", "-o", os.devnull, "-D", "-", "--max-time", "20",
+             "https://" + DOMAIN + "/.well-known/agent-card.json"],
+            capture_output=True,
+            text=True,
+        )
+        status_ok = bool(re.search(r"(?im)^HTTP/\S+\s+200(?:\s|$)", r.stdout))
+        content_type_ok = bool(
+            re.search(r"(?im)^Content-Type:\s*application/a2a\+json(?:\s*;|\s*$)", r.stdout)
+        )
+        cache_ok = bool(re.search(r"(?im)^Cache-Control:.*\bmax-age=\d+", r.stdout))
+        etag_ok = bool(re.search(r"(?im)^ETag:\s*\S+", r.stdout))
+        card_live = r.returncode == 0 and status_ok and content_type_ok
+        if not card_live:
+            fails.append("live Agent Card is missing or has the wrong content type")
+        if not cache_ok:
+            fails.append("live Agent Card has no Cache-Control max-age")
+        if not etag_ok:
+            warns.append("live Agent Card has no ETag for conditional requests")
+        print("  %-4s A2A Agent Card served as application/a2a+json" % ("ok" if card_live else "FAIL"))
+        print("  %-4s A2A Agent Card has Cache-Control max-age" % ("ok" if cache_ok else "FAIL"))
+        print("  %-4s A2A Agent Card has an ETag" % ("ok" if etag_ok else "WARN"))
+        if status_ok:
+            remote = subprocess.run(
+                ["curl.exe", "-sS", "--max-time", "20",
+                 "https://" + DOMAIN + "/.well-known/agent-card.json"],
+                capture_output=True,
+            )
+            with open(card_path, "rb") as local_card:
+                current_bytes = remote.returncode == 0 and remote.stdout == local_card.read()
+            if not current_bytes:
+                fails.append("live Agent Card bytes differ from the validated local build")
+            print("  %-4s live Agent Card matches validated local bytes" % ("ok" if current_bytes else "FAIL"))
+    else:
+        remote = subprocess.run(
+            ["curl.exe", "-sS", "-o", os.devnull, "-w", "%{http_code}",
+             "--max-time", "20", "https://" + DOMAIN + "/.well-known/agent-card.json"],
+            capture_output=True,
+            text=True,
+        )
+        remote_status = remote.stdout.strip()
+        card_absent = remote.returncode == 0 and remote_status in {"404", "410"}
+        if not card_absent:
+            fails.append(
+                "A2A is disabled locally but the live Agent Card path returned %s"
+                % (remote_status or "no status")
+            )
+        print(
+            "  %-4s A2A disabled and live discovery is absent (404 or 410)"
+            % ("ok" if card_absent else "FAIL")
+        )
 
 head("SUMMARY")
 print("  FAILURES: %d" % len(fails))

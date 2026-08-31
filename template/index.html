@@ -4,8 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
-<title>{{FULL_NAME}}: {{JOB_TITLE}}, {{EMPLOYER}} | Regulated Stablecoin Infrastructure, {{CITY}}</title>
-<meta name="description" content="{{FULL_NAME}} is {{JOB_TITLE}} at {{EMPLOYER}}. He builds regulated stablecoin and digital asset infrastructure across Asia, covering XSGD, XUSD, Visa BIN sponsorship, card settlement, and agentic payments.">
+<title>{{FULL_NAME}}: {{JOB_TITLE}} at {{EMPLOYER}} | {{CITY}}</title>
+<meta name="description" content="{{SUMMARY}}">
 <meta name="author" content="{{FULL_NAME}}">
 <link rel="canonical" href="https://{{DOMAIN}}/">
 
@@ -14,19 +14,20 @@
 
 <meta property="og:type" content="profile">
 <meta property="og:title" content="{{FULL_NAME}}: {{JOB_TITLE}}, {{EMPLOYER}}">
-<meta property="og:description" content="Builds regulated stablecoin and digital asset infrastructure across Asia. XSGD, XUSD, Visa BIN sponsorship, stablecoin-backed card settlement, agentic payments. Based in {{CITY}}.">
+<meta property="og:description" content="{{TAGLINE}}">
 <meta property="og:url" content="https://{{DOMAIN}}/">
-<meta property="profile:first_name" content="Daniel">
-<meta property="profile:last_name" content="Oon">
+<meta property="profile:first_name" content="{{GIVEN_NAME}}">
+<meta property="profile:last_name" content="{{FAMILY_NAME}}">
 <meta property="profile:username" content="{{X_HANDLE}}">
 
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="{{FULL_NAME}}: {{JOB_TITLE}}, {{EMPLOYER}}">
-<meta name="twitter:description" content="Stablecoin and payments infrastructure across Asia. XSGD, XUSD, card rails, agentic payments. {{CITY}}.">
+<meta name="twitter:description" content="{{TAGLINE}}">
 <meta name="twitter:creator" content="@{{X_HANDLE}}">
 
 <link rel="alternate" type="text/markdown" href="/profile.md" title="Canonical profile (Markdown)">
 <link rel="alternate" type="text/plain" href="/llms.txt" title="llms.txt: machine-readable entry point">
+<link rel="describedby" href="/llms.txt">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>◆</text></svg>">
 
 <script type="application/ld+json">
@@ -43,7 +44,7 @@
       "mainEntityOfPage": "https://{{DOMAIN}}/",
       "jobTitle": "{{JOB_TITLE}}",
       "email": "{{EMAIL}}",
-      "description": "{{JOB_TITLE}} at {{EMPLOYER}}. Builds regulated stablecoin and digital asset infrastructure across Asia, connecting issuers, exchanges, fintechs, financial institutions, and DeFi.",
+      "description": "{{SUMMARY}}",
       "worksFor": { "@id": "https://{{DOMAIN}}/#employer" },
       "homeLocation": {
         "@type": "Place",
@@ -63,8 +64,7 @@
       "hasOccupation": {
         "@type": "Occupation",
         "name": "{{JOB_TITLE}}",
-        "occupationLocation": { "@type": "City", "name": "{{COUNTRY_NAME}}" },
-        "skills": "Regulated stablecoin issuance and distribution, payments infrastructure, Visa BIN sponsorship and card settlement, exchange and DeFi integrations, agentic payments, ecosystem growth across APAC"
+        "occupationLocation": { "@type": "City", "name": "{{CITY}}" }
       },
       "sameAs": [
         {{SAME_AS_JSON}}
@@ -75,10 +75,7 @@
       "@id": "https://{{DOMAIN}}/#employer",
       "name": "{{EMPLOYER}}",
       "url": "{{EMPLOYER_URL}}",
-      "description": "{{CITY}}-based provider of stablecoin and digital asset infrastructure. Issuer of XSGD and XUSD.",
-      "sameAs": [
-        "https://x.com/{{EMPLOYER}}"
-      ],
+      "description": "{{EMPLOYER_DESC}}",
       "address": {
         "@type": "PostalAddress",
         "addressLocality": "{{CITY}}",
@@ -200,7 +197,7 @@
   <li><a href="/products.md">Work and products</a></li>
   <li><a href="/press.md">Public record</a></li>
   <li><a href="/faq.md">Questions and answers</a></li>
-  <li><a href="/now.md">What he is working on now</a></li>
+  <li><a href="/now.md">What they are working on now</a></li>
   <li><a href="/contact.md">Contact</a></li>
   <li><a href="/changelog.md">Change history</a></li>
 </ul>

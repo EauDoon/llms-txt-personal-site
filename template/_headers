@@ -2,6 +2,13 @@
 # Critical: without these, .md files download instead of rendering in the browser,
 # and some crawlers skip them entirely because the content type is wrong.
 
+/.well-known/agent-card.json
+  Content-Type: application/a2a+json; charset=utf-8
+  Content-Disposition: inline
+  X-Robots-Tag: all
+  Cache-Control: public, max-age=3600
+  Access-Control-Allow-Origin: *
+
 /*.md
   Content-Type: text/markdown; charset=utf-8
   Content-Disposition: inline
@@ -21,3 +28,4 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Access-Control-Allow-Origin: *
+  Link: </llms.txt>; rel=describedby

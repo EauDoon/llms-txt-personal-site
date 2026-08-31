@@ -94,6 +94,22 @@ A wrong identifier can cost someone money. There is no equivalent upside to publ
 
 **Markdown as the primary format, HTML as a companion.** Markdown is what agents parse most reliably. HTML carries the structured data and serves humans. Same facts, two faces.
 
+**`llms.txt` as a router, not a data dump.** Keep the root file small enough to
+search in one pass. Put context and handling instructions before the file
+sections, then use H2 sections containing descriptive Markdown links. The
+detail belongs in the linked Markdown pages. Reserve `Optional` for secondary
+or large-context material such as `llms-full.txt`.
+
+**Advertise machine-readable routes.** Do not require an agent to guess that a
+Markdown version or `llms.txt` exists. HTML pages carry standard `alternate`
+and `describedby` link relations. Hosting configuration supplies the covering
+`llms.txt` relation as an HTTP header for other resources.
+
+**An A2A Agent Card describes a server, not a person.** Publish the permanent
+well-known card only when the domain fronts a real A2A endpoint. Its interfaces,
+protocol versions, skills, modes, and security requirements must describe what
+that server actually implements. A static identity site should omit the card.
+
 **One JSON-LD graph, not scattered fragments.** A single `@graph` with `Person`, `Organization`, `ProfilePage` and `FAQPage`, all cross-referenced by `@id`. Depth pages carry `Article` with `author` pointing at the same `@id`, which is what ties your name to your subject matter.
 
 **`sameAs` should be short.** Only URLs that are unambiguously you. A page that mentions your name is not enough. Two verified profiles beat six uncertain ones.
@@ -107,6 +123,16 @@ A wrong identifier can cost someone money. There is no equivalent upside to publ
 ## Failure modes worth knowing
 
 **The content type trap.** Markdown served as `text/plain` with `Content-Disposition: attachment` downloads instead of rendering. Some crawlers skip it. Fix it in `.htaccess`, `_headers` or `vercel.json`. On LiteSpeed, an `.htaccess` at permissions `600` is **silently ignored** — it must be `644`.
+
+**The discovery trap.** Publishing good Markdown is not enough if a client must
+guess its URL. Keep the HTML link relations, HTTP `Link` header, and `llms.txt`
+file lists in sync. The build and test gates check all three surfaces before
+deploy.
+
+**The false Agent Card trap.** A plausible JSON file at the A2A well-known path
+is an executable interoperability claim. Do not derive one from biography text
+or publish a sample with invented skills. Configure a card explicitly, reject
+legacy fields and credential material, then test the declared server separately.
 
 **The verification-file trap.** Search-engine verification files verify one domain. Never fork someone else's, and never delete your own: removing it un-verifies the site, usually without telling you.
 
