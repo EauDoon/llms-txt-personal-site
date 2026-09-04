@@ -61,7 +61,17 @@ def load_config():
 
 
 def fill(text, cfg):
-    """Replace {{KEY}} with the config value. Scalars only; lists are handled by the caller."""
+    """Replace {{KEY}} with the config value. Scalars only; lists are handled by the caller.
+
+    Values are HTML-escaped because {{KEY}} substitutions land inside
+    HTML attributes and the JSON-LD <script> body. A name or title that
+    contains `"`, `<`, `>`, `&`, or a backslash would otherwise break the
+    surrounding attribute or produce invalid JSON-LD. Trust the html
+    module over a hand-rolled escape; it covers the full set of HTML
+    metacharacters and the apostrophe (which is needed inside attribute
+    values).
+    """
+    import html as _html
     def sub(m):
         key = m.group(1)
         val = cfg.get(key)
@@ -69,7 +79,7 @@ def fill(text, cfg):
             return m.group(0)          # leave unknown tokens visible rather than blanking them
         if isinstance(val, (list, dict)):
             return m.group(0)
-        return str(val)
+        return _html.escape(str(val), quote=True)
     return re.sub(r"\{\{([A-Z0-9_]+)\}\}", sub, text)
 
 
