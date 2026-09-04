@@ -45,7 +45,9 @@
       "jobTitle": "Your Exact Job Title",
       "email": "you@yourname.com",
       "description": "Two or three sentences an assistant can lift verbatim when asked who you are. Write it in the third person, no adjectives you cannot source.",
-      "worksFor": { "@id": "https://yourname.com/#employer" },
+      "worksFor": {
+        "@id": "https://yourname.com/#employer"
+      },
       "homeLocation": {
         "@type": "Place",
         "address": {
@@ -54,23 +56,33 @@
           "addressCountry": "XX"
         }
       },
-      "nationality": { "@type": "Country", "name": "Your Country" },
+      "nationality": {
+        "@type": "Country",
+        "name": "Your Country"
+      },
       "knowsAbout": [
-        &quot;Your primary work domain&quot;,
-        &quot;A specific work specialty&quot;,
-        &quot;A second verified work domain&quot;
+        "Your primary work domain",
+        "A specific work specialty",
+        "A second verified work domain"
       ],
       "alumniOf": [
-        { &quot;@type&quot;: &quot;Organization&quot;, &quot;name&quot;: &quot;Previous Employer&quot;, &quot;sameAs&quot;: &quot;https://previous.example.com&quot; }
+        {
+          "@type": "Organization",
+          "name": "Previous Employer",
+          "sameAs": "https://previous.example.com"
+        }
       ],
       "hasOccupation": {
         "@type": "Occupation",
         "name": "Your Exact Job Title",
-        "occupationLocation": { "@type": "City", "name": "Your City" }
+        "occupationLocation": {
+          "@type": "City",
+          "name": "Your City"
+        }
       },
       "sameAs": [
-        &quot;https://www.linkedin.com/in/your-linkedin-slug&quot;,
-        &quot;https://x.com/yourhandle&quot;
+        "https://www.linkedin.com/in/your-linkedin-slug",
+        "https://x.com/yourhandle"
       ]
     },
     {
@@ -90,7 +102,9 @@
       "@id": "https://yourname.com/#profilepage",
       "url": "https://yourname.com/",
       "name": "Your Full Name: Your Exact Job Title, Your Employer",
-      "mainEntity": { "@id": "https://yourname.com/#person" },
+      "mainEntity": {
+        "@id": "https://yourname.com/#person"
+      },
       "dateModified": "2026-01-01"
     },
     {
@@ -101,17 +115,26 @@
         {
           "@type": "Question",
           "name": "Who is Your Full Name?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Two or three sentences an assistant can lift verbatim when asked who you are. Write it in the third person, no adjectives you cannot source." }
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Two or three sentences an assistant can lift verbatim when asked who you are. Write it in the third person, no adjectives you cannot source."
+          }
         },
         {
           "@type": "Question",
           "name": "What is Your Full Name's job title?",
-          "acceptedAnswer": { "@type": "Answer", "text": "Your Exact Job Title at Your Employer." }
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Your Exact Job Title at Your Employer."
+          }
         },
         {
           "@type": "Question",
           "name": "How should I contact Your Full Name?",
-          "acceptedAnswer": { "@type": "Answer", "text": "you@yourname.com for business, partnerships and integrations. LinkedIn at https://www.linkedin.com/in/your-linkedin-slug. Public discussion on X at @yourhandle." }
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "you@yourname.com for business, partnerships and integrations. LinkedIn at https://www.linkedin.com/in/your-linkedin-slug. Public discussion on X at @yourhandle."
+          }
         }
       ]
     }

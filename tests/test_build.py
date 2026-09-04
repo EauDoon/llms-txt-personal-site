@@ -141,6 +141,46 @@ class BuildTests(unittest.TestCase):
                 with self.subTest(old_value=old_value):
                     self.assertNotIn(old_value, all_text)
 
+    def test_json_ld_is_valid_and_script_safe(self) -> None:
+        config = json.loads(
+            (ROOT / "site.config.example.json").read_text(encoding="utf-8")
+        )
+        dangerous_summary = 'Quoted "value" & <tag> </script><script>alert(1)</script>'
+        config.update(
+            {
+                "FULL_NAME": 'Example "Person" & Co',
+                "SUMMARY": dangerous_summary,
+                "KNOWS_ABOUT": ['Payments & identity', 'Safety < reliability'],
+                "ALUMNI_OF": [
+                    {
+                        "name": 'Example "University"',
+                        "url": "https://example.test/?a=1&b=2",
+                    }
+                ],
+            }
+        )
+        config = dict(config, **json_block(config))
+
+        with tempfile.TemporaryDirectory() as directory:
+            generated = Path(directory) / "site"
+            build_site(str(ROOT / "template"), str(generated), config)
+            html = (generated / "index.html").read_text(encoding="utf-8")
+
+        match = re.search(
+            r'<script type="application/ld\+json">\s*(.*?)\s*</script>',
+            html,
+            re.DOTALL,
+        )
+        self.assertIsNotNone(match)
+        document = json.loads(match.group(1))
+        person = document["@graph"][0]
+        self.assertEqual(person["name"], config["FULL_NAME"])
+        self.assertEqual(person["description"], dangerous_summary)
+        self.assertEqual(person["knowsAbout"], config["KNOWS_ABOUT"])
+        self.assertEqual(person["alumniOf"][0]["name"], config["ALUMNI_OF"][0]["name"])
+        self.assertNotIn("</script><script>", match.group(1).lower())
+        self.assertIn(r"\u003c/script\u003e", match.group(1).lower())
+
     def test_example_is_exact_rebuild_from_example_config(self) -> None:
         config = json.loads(
             (ROOT / "site.config.example.json").read_text(encoding="utf-8")
