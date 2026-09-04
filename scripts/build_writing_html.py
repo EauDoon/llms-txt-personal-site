@@ -36,6 +36,11 @@ def parse_front_matter(md):
 
 
 def md_to_html(md):
+    # Strip HTML comments (including multiline). A comment would otherwise
+    # be collected as a paragraph and rendered as a visible escaped <p>
+    # block, which leaks author guidance to the rendered page and to
+    # agents that fetch the HTML companion.
+    md = re.sub(r"<!--.*?-->", "", md, flags=re.DOTALL)
     lines = md.split("\n")
     out, i = [], 0
     in_ul = in_ol = False
