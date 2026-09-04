@@ -326,7 +326,16 @@ if LIVE:
 
     # ownership proofs: deleting any of these un-verifies the site
     print("\n  ownership proofs:")
-    for u in _cfg.get("verification_paths", []):
+    verification = _cfg.get("verification", {}) if isinstance(_cfg.get("verification", {}), dict) else {}
+    domain = _cfg.get("DOMAIN", "")
+    ownership_targets: list[str] = []
+    google_file = verification.get("google_html_file") or ""
+    if google_file:
+        ownership_targets.append(f"https://{domain}/{google_file}")
+    indexnow_key = verification.get("indexnow_key") or ""
+    if indexnow_key:
+        ownership_targets.append(f"https://{domain}/{indexnow_key}.txt")
+    for u in ownership_targets:
         status, _, _, _ = fetch_live(u)
         ok = status == 200
         if not ok:
