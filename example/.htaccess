@@ -5,7 +5,7 @@
 # WITHOUT THIS FILE, .md requests are served as application/octet-stream and
 # download instead of rendering. Several AI crawlers skip them entirely at that
 # point, which defeats the purpose of the site. Verify after deploy with:
-#   curl -sI https://danieloon.ai/profile.md
+#   curl -sI https://yourname.com/profile.md
 #
 # TWO HOSTINGER GOTCHAS:
 #   1. File Manager hides dotfiles. Enable Settings -> Show hidden files and
@@ -28,6 +28,14 @@ AddDefaultCharset UTF-8
 # "always" so the headers are set regardless of response status, not only on
 # 2xx. Matters for the security headers in particular.
 <IfModule mod_headers.c>
+  <Files "agent-card.json">
+    Header always set Content-Type "application/a2a+json; charset=utf-8"
+    Header always set Content-Disposition "inline"
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set X-Robots-Tag "all"
+    Header always set Cache-Control "public, max-age=3600"
+  </Files>
+
   <FilesMatch "\.md$">
     Header always set Content-Type "text/markdown; charset=utf-8"
     Header always set Content-Disposition "inline"
@@ -50,24 +58,11 @@ AddDefaultCharset UTF-8
 
   Header always set X-Content-Type-Options "nosniff"
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  Header always set Link "</llms.txt>; rel=describedby"
 
   # HTTPS is forced unconditionally below, so tell browsers not to try plaintext
   # at all. Remove this line if the site ever needs to be reachable over HTTP.
   Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
-
-  # Nothing here is framable content: static text, no forms, no auth, no session.
-  # Two lines because they address two generations of browser. The CSP carries
-  # ONLY frame-ancestors on purpose. Do not grow it into a full policy with
-  # default-src or script-src without testing, or index.html stops rendering.
-  Header always set X-Frame-Options "DENY"
-  Header always set Content-Security-Policy "frame-ancestors 'none'"
-
-  # Site-wide CORS, matching what _headers already sets on Cloudflare. The .md
-  # and .txt blocks above repeat it; "set" replaces rather than appends, so the
-  # response still carries exactly one of these. Kept in both places so that
-  # deleting either one cannot silently close the site to cross-origin fetches,
-  # which is how most agent runtimes read it.
-  Header always set Access-Control-Allow-Origin "*"
 </IfModule>
 
 # --- One canonical host: force HTTPS, strip www ------------------------------
@@ -97,23 +92,13 @@ AddDefaultCharset UTF-8
 </IfModule>
 
 # --- Keep deployment plumbing off the served surface -------------------------
-# Belt and braces. These files should not be uploaded at all: deploy-ftps.ps1
-# ships the curated _stage folder, not this source folder. But it ships _stage
-# with -Force -Recurse, so anyone who stages the whole source folder by mistake
-# uploads the three build scripts along with it. This block is the second net.
-#
-# READ BEFORE EDITING: .txt is deliberately NOT in this list and must never be
-# added. llms.txt, llms-full.txt, robots.txt and the IndexNow key file are all
-# .txt and are all load-bearing public surface. Denying the extension takes the
-# site's two primary agent entry points offline.
+# Belt and braces. These files should not be uploaded at all. See README.
 
-<FilesMatch "\.(ps1|sh|bat|cmd|py|pyc|pyo|json|log|env|key|pem|bak|ini|yml|yaml|toml|sql|db)$">
+<FilesMatch "\.(ps1|sh)$">
   Require all denied
 </FilesMatch>
 
-# Exact names. .indexnow-key needs its own entry: the pattern above cannot catch
-# it, because the filename ends in "-key" and not ".key".
-<FilesMatch "^(_headers|vercel\.json|\.indexnow-key)$">
+<FilesMatch "^(_headers|vercel\.json)$">
   Require all denied
 </FilesMatch>
 
@@ -122,10 +107,3 @@ RedirectMatch 404 ^/\.git
 
 # Custom 404. Keeps agents on a page that explains where the canonical facts are.
 ErrorDocument 404 /404.html
-
-# Same page for 403. Two things produce one: "Options -Indexes" on a directory
-# with no index file, which is what /writing/ is, and the deny blocks above.
-# Without this line those return the stock LiteSpeed error page, which tells an
-# agent nothing and looks like a broken site. The status code stays 403; only
-# the body changes. /404.html must never itself be denied or this loops.
-ErrorDocument 403 /404.html
