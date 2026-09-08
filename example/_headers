@@ -1,24 +1,13 @@
 # Cloudflare Pages headers
 # Critical: without these, .md files download instead of rendering in the browser,
 # and some crawlers skip them entirely because the content type is wrong.
-#
-# This file is the standby. The live host is Hostinger, which reads .htaccess and
-# ignores this. The two must stay in agreement, or moving hosts silently changes
-# behavior with nothing failing loudly to warn you. If you edit a header in one,
-# edit it in the other. The one thing this file cannot express is the deny list:
-# Cloudflare Pages has no equivalent of "Require all denied", so on that host the
-# protection is entirely "do not upload the build scripts".
-#
-# THE SET IS THREE, NOT TWO. vercel.json is this same policy a third time, for
-# Vercel, and .htaccess names it as well. A header added to any one of them
-# belongs in all three. That is not hypothetical: on 2026-08-13 vercel.json was
-# found missing Strict-Transport-Security, X-Frame-Options and the
-# frame-ancestors CSP that the other two carry, and it was brought back into
-# line. Drift here is invisible by construction, because two of the three do
-# nothing until the day someone moves hosts, which is the day nobody is looking.
-#
-# Splats span slashes, so /*.md also covers /writing/*.md. Verify after any move:
-#   curl -sI https://danieloon.ai/writing/agentic-payments.md
+
+/.well-known/agent-card.json
+  Content-Type: application/a2a+json; charset=utf-8
+  Content-Disposition: inline
+  X-Robots-Tag: all
+  Cache-Control: public, max-age=3600
+  Access-Control-Allow-Origin: *
 
 /*.md
   Content-Type: text/markdown; charset=utf-8
@@ -39,6 +28,4 @@
   X-Content-Type-Options: nosniff
   Referrer-Policy: strict-origin-when-cross-origin
   Access-Control-Allow-Origin: *
-  Strict-Transport-Security: max-age=31536000; includeSubDomains
-  X-Frame-Options: DENY
-  Content-Security-Policy: frame-ancestors 'none'
+  Link: </llms.txt>; rel=describedby
