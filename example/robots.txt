@@ -1,4 +1,4 @@
-# robots.txt for yourname.com
+# robots.txt for danieloon.ai
 # This site is intended to be crawled, indexed, and cited by AI agents.
 # The canonical machine-readable entry point is /llms.txt
 
@@ -32,6 +32,10 @@ User-agent: Google-Extended
 Allow: /
 
 User-agent: GoogleOther
+Allow: /
+
+# Grounds Gemini API and Vertex AI answers on site content. Documented by Google.
+User-agent: Google-CloudVertexBot
 Allow: /
 
 User-agent: Applebot
@@ -116,4 +120,4 @@ Allow: /
 User-agent: *
 Allow: /
 
-Sitemap: https://yourname.com/sitemap.xml
+Sitemap: https://danieloon.ai/sitemap.xml
