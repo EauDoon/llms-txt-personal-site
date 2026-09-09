@@ -3,6 +3,7 @@ import sys
 import json
 import shutil
 import tempfile
+import subprocess
 import unittest
 from pathlib import Path
 
@@ -11,9 +12,37 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 from build import build_site_staged, json_block
 from build_writing_html import md_to_html
 from email_addresses import contact_values
+from publishing import article_metadata
+from article import create_article
 
 
 class PublishingTests(unittest.TestCase):
+    def test_article_cli_creates_inert_draft_and_refuses_overwrite(self):
+        with tempfile.TemporaryDirectory() as directory:
+            template, site, cfg = self.fixture(directory)
+            repo = Path(directory)
+            shutil.copytree(ROOT / 'scripts', repo / 'scripts', ignore=shutil.ignore_patterns('__pycache__'))
+            title = 'Notes [draft] </script> --> & {{EMAIL}}'
+            command = [sys.executable, str(repo / 'scripts' / 'article.py'), 'new', 'field-notes', '--title', title,
+                       '--description', 'A bounded summary.', '--topic', 'Research']
+            result = subprocess.run(command, capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            path = template / 'writing' / 'field-notes.md'
+            original = path.read_bytes()
+            meta, _ = article_metadata(original.decode())
+            self.assertEqual(meta['title'], title)
+            self.assertEqual(meta['status'], 'draft')
+            self.assertNotIn('published', meta)
+            self.assertNotEqual(subprocess.run(command, capture_output=True).returncode, 0)
+            self.assertEqual(path.read_bytes(), original)
+            build_site_staged(str(template), str(site), cfg)
+            self.assertFalse((site / 'writing' / 'field-notes.md').exists())
+            for slug in ('../escape', 'Uppercase', 'con', '/absolute', 'a--b'):
+                with self.subTest(slug=slug), self.assertRaises(ValueError):
+                    create_article(repo, slug, 'Title')
+            with self.assertRaises(ValueError):
+                create_article(repo, 'other', 'Title\nstatus: published')
+
     def fixture(self, directory):
         template, site = Path(directory) / 'template', Path(directory) / 'site'
         shutil.copytree(ROOT / 'template', template)
