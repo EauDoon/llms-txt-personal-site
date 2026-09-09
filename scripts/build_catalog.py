@@ -4,7 +4,7 @@ import json
 import hashlib
 import unicodedata
 from pathlib import Path
-from urllib.parse import quote
+from urllib.parse import quote, unquote
 from xml.etree import ElementTree as ET
 from build_sitemap import validate_last_updated
 
@@ -70,6 +70,27 @@ def topic_groups(entries):
     return [groups[key] for key in sorted(groups)]
 
 
+def build_related(site_dir, entries):
+    topic_sets = {entry['url']: {topic_key(topic) for topic in entry['topics']} for entry in entries}
+    for entry in entries:
+        topics = topic_sets[entry['url']]
+        candidates = [(len(topics & topic_sets[candidate['url']]), candidate)
+                      for candidate in entries if topics and candidate['url'] != entry['url']]
+        candidates = sorted((pair for pair in candidates if pair[0]), key=lambda pair: -pair[0])[:3]
+        body = '<nav aria-label="Related writing">'
+        if candidates:
+            body += '<p>More writing with shared authored topics:</p><ul>'
+            body += ''.join('<li><a href="%s">%s</a></li>' % (candidate['url'], html.escape(candidate['title']))
+                            for _, candidate in candidates)
+            body += '</ul>'
+        body += '<p><a href="/writing.html">Browse all writing</a></p></nav>'
+        # Decode once to recover the local filename used to create this URL.
+        path = Path(site_dir) / unquote(entry['url']).lstrip('/')
+        if path.is_file():
+            source = path.read_text(encoding='utf-8')
+            path.write_text(source.replace('<!-- GENERATED RELATED WRITING -->', body), encoding='utf-8', newline='')
+
+
 def build_topics(site_dir, cfg, entries):
     groups = topic_groups(entries)
     body = '<p>Browse writing by topics supplied by the author.</p>'
@@ -117,6 +138,7 @@ pre,.table-scroll { overflow-x: auto; max-width: 100%%; } pre { padding: 1rem; b
 
 def run(site_dir, cfg):
     entries = articles(site_dir)
+    build_related(site_dir, entries)
     rows = []
     for entry in entries:
         dates = ' · '.join('%s: <time datetime="%s">%s</time>' % (label, date, date) for label, date in date_labels(entry, cfg))

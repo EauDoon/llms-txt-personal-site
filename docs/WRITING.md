@@ -1,5 +1,7 @@
 # Writing, discovery, and build review
 
+Article HTML links to up to three other published articles sharing authored topics. More shared topics sort first; ties retain archive order. The current article and drafts are excluded. This is transparent topic navigation, not an authority or relevance score inferred from personal data. The writing archive remains available when there are no shared-topic matches.
+
 `topics.html` and `topics.md` group published writing by authored `about` metadata. Up to 12 comma-separated topics of 80 characters each are supported. Grouping normalizes whitespace, Unicode composition and case; topic anchors remain stable when articles are reordered. Labels stay escaped literal text. Draft topics are excluded, and no topics are inferred from prose. The Atom feed exposes the same authored categories.
 
 The writing archive orders articles by their explicit `updated` date, or explicit `published` date when no article update is supplied. Articles with neither date follow in title order. Each row distinguishes declared publication/article-update dates from the configured site-date fallback. No publication date is invented for undated work; the Atom feed uses the same article ordering.

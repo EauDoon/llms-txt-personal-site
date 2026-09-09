@@ -340,9 +340,11 @@ h2, h3, h4 {{ scroll-margin-top: 1rem; }}
 <a class="skip-link" href="#main-content">Skip to content</a>
 <div class="wrap">
 <p><a href="/">{name}</a> / <a href="/writing/{slug}.md">this page in Markdown</a></p>
+<nav aria-label="Writing navigation"><a href="/writing.html">All writing</a> · <a href="/topics.html">Topics</a> · <a href="/search.html">Search</a></nav>
 <main id="main-content">
 {outline}
 {content}
+<!-- GENERATED RELATED WRITING -->
 </main>
 <footer><p>Contact: <a href="mailto:{email_uri}">{email}</a></p></footer>
 </div>

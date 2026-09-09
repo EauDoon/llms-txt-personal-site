@@ -20,6 +20,24 @@ from build_catalog import topic_id
 
 
 class PublishingTests(unittest.TestCase):
+    def test_related_writing_uses_shared_topics_and_excludes_self_and_drafts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            template, site, cfg = self.fixture(directory)
+            for slug, topics, status in (('start', 'Research, Publishing', 'published'),
+                                         ('match', 'research, Publishing', 'published'),
+                                         ('partial', 'Research', 'published'), ('other', 'Cooking', 'published'),
+                                         ('secret', 'Research, Publishing', 'draft')):
+                (template / 'writing' / (slug + '.md')).write_text(
+                    '<!--\ntitle: ' + slug + '\nabout: ' + topics + '\nstatus: ' + status + '\n-->\n# Article', encoding='utf-8')
+            build_site_staged(str(template), str(site), cfg)
+            output = (site / 'writing' / 'start.html').read_text(encoding='utf-8')
+            related = output.split('<nav aria-label="Related writing">', 1)[1].split('</nav>', 1)[0]
+            self.assertLess(related.index('/writing/match.html'), related.index('/writing/partial.html'))
+            for slug in ('start', 'secret', 'other'):
+                self.assertNotIn('/writing/' + slug + '.html', related)
+            self.assertIn('Browse all writing', related)
+            self.assertFalse(audit(site))
+
     def test_topic_directory_is_static_stable_and_uses_only_published_metadata(self):
         with tempfile.TemporaryDirectory() as directory:
             template, site, cfg = self.fixture(directory)
