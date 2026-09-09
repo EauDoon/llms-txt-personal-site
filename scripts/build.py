@@ -14,6 +14,7 @@ Runs six steps:
 Then run scripts/quality_check.py before you deploy.
 """
 import io, json, os, re, shutil, stat, sys, tempfile
+from urllib.parse import urlsplit
 
 from build_sitemap import validate_last_updated
 
@@ -47,7 +48,9 @@ def load_config():
         sys.exit("No site.config.json. Copy site.config.example.json to site.config.json and fill it in.")
     with io.open(CONFIG, encoding="utf-8") as f:
         cfg = json.load(f)
-    missing = [key for key in REQUIRED_CONFIG if not cfg.get(key)]
+    if not isinstance(cfg, dict):
+        sys.exit("site.config.json must contain an object")
+    missing = [key for key in REQUIRED_CONFIG if not isinstance(cfg.get(key), str) or not cfg[key].strip()]
     if missing:
         sys.exit("site.config.json is missing required keys: %s" % ", ".join(missing))
     domain = cfg["DOMAIN"]
@@ -59,9 +62,36 @@ def load_config():
         sys.exit("DOMAIN should be a bare hostname, e.g. yourname.com (no https://)")
     try:
         validate_last_updated(cfg["LAST_UPDATED"])
+        validate_public_contacts(cfg)
     except ValueError as exc:
         sys.exit(str(exc))
     return cfg
+
+
+def validate_public_contacts(cfg):
+    """Reject executable URLs and ambiguous contact routes before publishing."""
+    for key, pattern in (("EMAIL", r"[A-Za-z0-9.!#$%&'*+/=_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63}"),
+                         ("LINKEDIN_SLUG", r"[A-Za-z0-9_-]+"),
+                         ("X_HANDLE", r"[A-Za-z0-9_]+")):
+        if not re.fullmatch(pattern, cfg.get(key, "")):
+            raise ValueError("%s must be a plain public contact identifier" % key)
+    urls = [("EMPLOYER_URL", cfg.get("EMPLOYER_URL"))]
+    alumni = cfg.get("ALUMNI_OF", [])
+    if not isinstance(alumni, list) or any(not isinstance(item, dict) for item in alumni):
+        raise ValueError("ALUMNI_OF must be an array of objects")
+    urls.extend(("ALUMNI_OF url", item.get("url")) for item in alumni)
+    for key, value in urls:
+        try:
+            parsed = urlsplit(value) if isinstance(value, str) else None
+            valid = (parsed and parsed.scheme in {"https", "http"} and parsed.hostname
+                     and not parsed.username and not parsed.password and not parsed.fragment
+                     and not any(c.isspace() or ord(c) < 32 or c in '\\<>"' for c in value))
+            if parsed:
+                parsed.port
+        except ValueError:
+            valid = False
+        if not valid:
+            raise ValueError("%s must be an absolute HTTP(S) URL without credentials or fragment" % key)
 
 
 def fill(text, cfg):
