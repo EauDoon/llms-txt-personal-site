@@ -7,7 +7,7 @@ from urllib.parse import quote
 from xml.etree import ElementTree as ET
 from build_sitemap import validate_last_updated
 
-from build_writing_html import parse_front_matter
+from build_writing_html import parse_front_matter, strip_guidance_comments
 
 
 def articles(site_dir):
@@ -101,7 +101,7 @@ def build_search(site_dir, cfg, entries):
     for path in paths:
         source = "/" + quote(path.relative_to(site_dir).as_posix(), safe="/-._~")
         meta, body = parse_front_matter(path.read_text(encoding="utf-8"))
-        body = re.sub(r"<!--.*?-->", "", body, flags=re.S)
+        body = strip_guidance_comments(body)
         heading = re.search(r"^#\s+(.+)$", body, re.M)
         article = writing.get(source, {})
         records.append({"title": article.get("title") or (heading[1] if heading else path.stem.title()),

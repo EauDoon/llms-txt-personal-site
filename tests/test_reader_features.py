@@ -20,6 +20,20 @@ CFG = {"DOMAIN": "example.test", "FULL_NAME": "Example Person", "EMAIL": "person
 
 
 class ReaderFeatures(unittest.TestCase):
+    def test_search_preserves_closed_and_unclosed_fenced_html_comments(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'writing').mkdir()
+            source = '# Examples\n````html\n```\n<!-- closed literal -->\n<!-- unclosed literal\n````\nVisible afterward\n<!-- hidden guidance -->'
+            (root / 'writing' / 'comments.md').write_text(source, encoding='utf-8')
+            build_catalog(root, CFG)
+            records = json.loads((root / 'search-index.json').read_text(encoding='utf-8'))
+            text = records[0]['text']
+            self.assertIn('<!-- closed literal -->', text)
+            self.assertIn('<!-- unclosed literal', text)
+            self.assertIn('Visible afterward', text)
+            self.assertNotIn('hidden guidance', text)
+
     def test_shorter_inner_fence_keeps_literal_comments_and_hides_guidance(self):
         source = '````markdown\n```\n<!-- literal after shorter fence -->\n````\n<!-- author guidance should be omitted -->\n'
         self.assertEqual(md_to_html(source), '<pre><code class="language-markdown">```\n&lt;!-- literal after shorter fence --&gt;</code></pre>')
