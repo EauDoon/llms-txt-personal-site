@@ -124,8 +124,12 @@ def page(title, body, cfg, source=None, heading=True):
 body { max-width: 48rem; padding: 2rem 1.25rem; margin: auto; overflow-wrap: anywhere; }
 a { color: light-dark(#1646ad,#94bbff); } :focus-visible { outline: 3px solid currentColor; outline-offset: 4px; }
 li { margin-block: 1.25rem; } p { margin-block: .5rem; }
-input,button { font: inherit; padding: .6rem; max-width: 100%%; box-sizing: border-box; }
+input,button,select { font: inherit; padding: .6rem; max-width: 100%%; min-height: 44px; box-sizing: border-box; }
 input { width: 100%%; } .skip { position: absolute; top: -5rem; } .skip:focus { top: .5rem; }
+form { display: grid; gap: .75rem; } label { display: block; } select { width: 100%%; }
+.search-filters { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.search-actions { display: flex; flex-wrap: wrap; gap: .75rem; }
+@media (max-width: 480px) { .search-filters { grid-template-columns: 1fr; } }
 pre,.table-scroll { overflow-x: auto; max-width: 100%%; } pre { padding: 1rem; border: 1px solid currentColor; }
 .outline { border-left: 2px solid currentColor; padding-left: 1rem; margin-block: 2rem; }
 @media print { nav,.skip { display: none; } body { max-width: none; padding: 0; } }
@@ -209,13 +213,22 @@ def build_search(site_dir, cfg, entries):
         readable = '/' + quote(companion.name, safe='-._~') if (path.parent == Path(site_dir) and companion.is_file()
                     and has_link_relation(companion.read_text(encoding='utf-8'), 'alternate', source, 'text/markdown')) else source
         records.append({"title": article.get("title") or heading or path.stem.title(),
-                        "url": article.get("url", readable), "text": body[:100000]})
+                        "url": article.get("url", readable), "text": body[:100000],
+                        "type": "article" if article else "page",
+                        "topic_keys": sorted({topic_key(topic) for topic in article.get('topics', [])})})
     (Path(site_dir) / "search-index.json").write_text(json.dumps(records, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="")
     links = ''.join('<li><a href="%s">%s</a></li>' % (r["url"], html.escape(r["title"])) for r in records)
-    body = '''<form role="search"><label for="query">Search published pages</label>
-<input id="query" type="search" maxlength="200" autocomplete="off" placeholder="Title, topic, or phrase">
-<button type="reset">Clear search</button></form><p id="search-status" role="status" aria-live="polite">All published pages. Search requires JavaScript.</p>
-<ul id="search-results">%s</ul><script src="/search.js" defer></script>''' % links
+    options = ''.join('<option value="%s">%s</option>' % (html.escape(topic_key(group['label']), quote=True), html.escape(group['label']))
+                      for group in topic_groups(entries))
+    body = '''<p>Search runs in this browser. The page URL stores your query and filters for sharing or reloading.</p>
+<form role="search"><div><label for="query">Search published pages</label>
+<input id="query" name="q" type="search" maxlength="200" autocomplete="off" placeholder="Title, topic, or phrase"></div>
+<div class="search-filters"><div><label for="page-type">Page type</label><select id="page-type" name="type"><option value="">All pages</option><option value="article">Writing</option><option value="page">Core pages</option></select></div>
+<div><label for="topic">Topic</label><select id="topic" name="topic"><option value="">All topics</option>%s</select></div></div>
+<div class="search-actions"><button type="submit">Search pages</button><button type="reset">Clear search</button></div></form>
+<p id="search-status" role="status" aria-live="polite">All published pages. Search requires JavaScript.</p>
+<button id="search-retry" type="button" hidden>Retry search</button>
+<ul id="search-results">%s</ul><script src="/search.js" defer></script>''' % (options, links)
     (Path(site_dir) / "search.html").write_text(page("Search", body, cfg), encoding="utf-8", newline="")
     markdown = "# Search and page directory\n\nLast updated: %s\n\nSearch runs locally in the browser at /search.html. Published pages:\n\n" % cfg["LAST_UPDATED"]
     markdown += "\n".join("- [%s](%s)" % (markdown_label(record["title"]), record["url"]) for record in records)

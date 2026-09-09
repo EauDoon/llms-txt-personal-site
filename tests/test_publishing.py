@@ -20,6 +20,23 @@ from build_catalog import topic_id
 
 
 class PublishingTests(unittest.TestCase):
+    def test_search_records_offer_bounded_author_topic_and_page_type_filters(self):
+        with tempfile.TemporaryDirectory() as directory:
+            template, site, cfg = self.fixture(directory)
+            (template / 'writing' / 'topic.md').write_text('<!--\ntitle: Topic article\nabout: Research\n-->\n# Topic', encoding='utf-8')
+            build_site_staged(str(template), str(site), cfg)
+            rows = json.loads((site / 'search-index.json').read_text(encoding='utf-8'))
+            article = next(row for row in rows if row['url'] == '/writing/topic.html')
+            self.assertEqual(article['type'], 'article')
+            self.assertEqual(article['topic_keys'], ['research'])
+            core = next(row for row in rows if row['url'] == '/profile.html')
+            self.assertEqual(core['type'], 'page')
+            self.assertEqual(core['topic_keys'], [])
+            page = (site / 'search.html').read_text(encoding='utf-8')
+            for text in ('id="topic"', 'value="research"', 'id="page-type"', 'id="search-retry"', '/profile.html'):
+                self.assertIn(text, page)
+            self.assertFalse(audit(site))
+
     def test_related_writing_uses_shared_topics_and_excludes_self_and_drafts(self):
         with tempfile.TemporaryDirectory() as directory:
             template, site, cfg = self.fixture(directory)

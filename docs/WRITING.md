@@ -1,5 +1,7 @@
 # Writing, discovery, and build review
 
+Search supports page-type and authored-topic filters, literal text snippets, and shareable `q`, `type`, and `topic` URL parameters. Typing updates the current URL; filter changes and clearing create navigation history, and Back/Forward restore it. Query text remains client-side search input, but a shared or reloaded URL contains that text and may appear in ordinary hosting logs. No analytics service is added. If loading fails or exceeds ten seconds, the original complete page list stays available and Retry fetches fresh data; successful retry restores the chosen filters. Without JavaScript, use that static directory.
+
 Article HTML links to up to three other published articles sharing authored topics. More shared topics sort first; ties retain archive order. The current article and drafts are excluded. This is transparent topic navigation, not an authority or relevance score inferred from personal data. The writing archive remains available when there are no shared-topic matches.
 
 `topics.html` and `topics.md` group published writing by authored `about` metadata. Up to 12 comma-separated topics of 80 characters each are supported. Grouping normalizes whitespace, Unicode composition and case; topic anchors remain stable when articles are reordered. Labels stay escaped literal text. Draft topics are excluded, and no topics are inferred from prose. The Atom feed exposes the same authored categories.
