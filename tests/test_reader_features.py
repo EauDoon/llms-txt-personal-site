@@ -15,6 +15,17 @@ CFG = {"DOMAIN": "example.test", "FULL_NAME": "Example Person", "EMAIL": "person
 
 
 class ReaderFeatures(unittest.TestCase):
+    def test_publication_dates_are_explicit_and_calendar_valid(self):
+        page = render_page('test', '# Example', CFG)
+        self.assertNotIn('datePublished', page)
+        page = render_page('test', '<!--\npublished: 2025-12-01\nupdated: 2025-12-20\n-->\n# Example', CFG)
+        self.assertIn('"datePublished": "2025-12-01"', page)
+        self.assertIn('"dateModified": "2025-12-20"', page)
+        with self.assertRaises(ValueError):
+            render_page('test', '<!--\npublished: 2026-02-30\n-->\n# Example', CFG)
+        with self.assertRaises(ValueError):
+            render_page('test', '<!--\npublished: 2026-02-01\n-->\n# Example', CFG)
+
     def test_search_indexes_published_text_without_author_guidance(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

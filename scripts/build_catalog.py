@@ -4,6 +4,8 @@ import json
 import re
 from pathlib import Path
 from urllib.parse import quote
+from xml.etree import ElementTree as ET
+from build_sitemap import validate_last_updated
 
 from build_writing_html import parse_front_matter
 
@@ -50,6 +52,42 @@ def run(site_dir, cfg):
     body += '<ul>%s</ul>' % "".join(rows) if rows else '<p>No writing pages have been published.</p>'
     (Path(site_dir) / "writing.html").write_text(page("Writing", body, cfg), encoding="utf-8", newline="")
     build_search(site_dir, cfg, entries)
+    build_feed(site_dir, cfg, entries)
+
+
+def build_feed(site_dir, cfg, entries):
+    """Atom uses declared article dates, falling back to the site's review date."""
+    namespace = "http://www.w3.org/2005/Atom"
+    ET.register_namespace("", namespace)
+    def node(parent, tag, value=None, **attributes):
+        element = ET.SubElement(parent, "{%s}%s" % (namespace, tag), attributes)
+        element.text = value
+        return element
+    base = "https://" + cfg["DOMAIN"]
+    feed = ET.Element("{%s}feed" % namespace)
+    node(feed, "id", base + "/feed.xml")
+    node(feed, "title", cfg["FULL_NAME"] + " writing")
+    node(feed, "link", href=base + "/feed.xml", rel="self")
+    node(feed, "link", href=base + "/writing.html")
+    author = node(feed, "author")
+    node(author, "name", cfg["FULL_NAME"])
+    dates = [validate_last_updated(cfg["LAST_UPDATED"])]
+    for entry in entries:
+        updated = validate_last_updated(entry["meta"].get("updated") or cfg["LAST_UPDATED"])
+        dates.append(updated)
+        item = node(feed, "entry")
+        node(item, "id", base + entry["url"])
+        node(item, "title", entry["title"])
+        node(item, "link", href=base + entry["url"])
+        node(item, "summary", entry["description"])
+        node(item, "updated", updated + "T00:00:00Z")
+        if entry["meta"].get("published"):
+            published = validate_last_updated(entry["meta"]["published"])
+            if published > updated:
+                raise ValueError("article published date cannot follow updated date")
+            node(item, "published", published + "T00:00:00Z")
+    node(feed, "updated", max(dates) + "T00:00:00Z")
+    (Path(site_dir) / "feed.xml").write_bytes(ET.tostring(feed, encoding="utf-8", xml_declaration=True) + b"\n")
 
 
 def build_search(site_dir, cfg, entries):

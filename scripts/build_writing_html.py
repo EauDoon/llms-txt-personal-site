@@ -18,6 +18,7 @@ import re
 import html
 import json
 from urllib.parse import quote, urlsplit
+from build_sitemap import validate_last_updated
 
 
 WRITING_INDEX_BEGIN = "<!-- BEGIN GENERATED WRITING INDEX -->"
@@ -197,7 +198,7 @@ SHELL = """<!doctype html>
   "url": "https://{domain}/writing/{slug}.html",
   "mainEntityOfPage": "https://{domain}/writing/{slug}.html",
   "inLanguage": "en",
-  "datePublished": "{date}",
+  {published_line}
   "dateModified": "{date}",
   "author": {{
     "@type": "Person",
@@ -268,6 +269,10 @@ def render_page(slug, source, cfg, style=""):
     title = meta.get("title") or slug.replace("-", " ").title()
     desc = meta.get("desc", "")
     about = [a.strip() for a in meta.get("about", "").split(",") if a.strip()]
+    modified = validate_last_updated(meta.get("updated") or cfg.get("LAST_UPDATED"))
+    published = validate_last_updated(meta["published"]) if meta.get("published") else None
+    if published and published > modified:
+        raise ValueError("article published date cannot follow updated date")
     content, outline = article_outline(md_to_html(md))
     return SHELL.format(
         title=html.escape(title, quote=True),
@@ -276,7 +281,8 @@ def render_page(slug, source, cfg, style=""):
         domain=html.escape(cfg.get("DOMAIN", ""), quote=True),
         name=html.escape(cfg.get("FULL_NAME", ""), quote=True),
         email=html.escape(cfg.get("EMAIL", ""), quote=True),
-        date=html.escape(cfg.get("LAST_UPDATED", ""), quote=True),
+        date=modified,
+        published_line='"datePublished": %s,' % script_json(published) if published else "",
         title_json=script_json(title),
         desc_json=script_json(desc),
         name_json=script_json(cfg.get("FULL_NAME", "")),
