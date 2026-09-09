@@ -9,7 +9,10 @@
 # its own false positives. A checker that cries wolf trains you to ignore it,
 # which is worse than having none. Every rule below is therefore scoped to the
 # thing it actually forbids, and the deliberate exceptions are named in code.
-import io, os, re, json, sys
+import json
+import os
+import re
+import sys
 import xml.etree.ElementTree as ET
 from collections import Counter
 
@@ -23,7 +26,7 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 R = os.path.join(REPO, "site")
 _cfg_path = os.path.join(REPO, "site.config.json")
 if os.path.exists(_cfg_path):
-    with io.open(_cfg_path, encoding="utf-8") as config_file:
+    with open(_cfg_path, encoding="utf-8") as config_file:
         _cfg = json.load(config_file)
 else:
     _cfg = {}
@@ -53,7 +56,7 @@ def sources(include_generated=False):
     return out
 
 def read(p):
-    with io.open(p, encoding="utf-8", errors="ignore") as source:
+    with open(p, encoding="utf-8", errors="ignore") as source:
         return source.read()
 
 def fetch_live(path):
@@ -385,7 +388,7 @@ if LIVE:
             headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
             == "application/a2a+json"
         )
-        cache_ok = bool(re.search(r"\bmax-age=\d+", headers.get("Cache-Control", ""), re.I))
+        cache_ok = bool(re.search(r"\bmax-age=\d+", headers.get("Cache-Control", ""), re.IGNORECASE))
         etag_ok = bool(headers.get("ETag"))
         card_live = status_ok and content_type_ok
         if not card_live:

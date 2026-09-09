@@ -9,7 +9,6 @@ import re
 import sys
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATA = ROOT / "eval" / "identity_questions.json"
 SCORING_NOTE = (

@@ -5,12 +5,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from llms_txt import has_link_relation, markdown_alternate, validate_llms_txt
 from build_writing_html import render_page
+from llms_txt import has_link_relation, markdown_alternate, validate_llms_txt
 
 
 class LlmsTxtTests(unittest.TestCase):

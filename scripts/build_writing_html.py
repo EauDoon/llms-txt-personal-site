@@ -12,15 +12,13 @@ Front matter is read from the top of each Markdown file:
     about: Topic one, Topic two, Topic three
     -->
 """
-import io
-import os
-import re
 import html
 import json
+import os
+import re
 from html.parser import HTMLParser
 from urllib.parse import quote, urlsplit
 from build_sitemap import validate_last_updated
-
 
 WRITING_INDEX_BEGIN = "<!-- BEGIN GENERATED WRITING INDEX -->"
 WRITING_INDEX_END = "<!-- END GENERATED WRITING INDEX -->"
@@ -44,7 +42,7 @@ def script_json(value):
 
 
 def parse_front_matter(md):
-    m = re.match(r"\s*<!--(.*?)-->", md, re.S)
+    m = re.match(r"\s*<!--(.*?)-->", md, re.DOTALL)
     meta = {}
     if m:
         for line in m.group(1).strip().split("\n"):
@@ -398,13 +396,13 @@ def update_writing_index(site_dir, entries):
     index_path = os.path.join(site_dir, "index.html")
     if not os.path.isfile(index_path):
         return
-    with io.open(index_path, encoding="utf-8") as source:
+    with open(index_path, encoding="utf-8") as source:
         document = source.read()
     pattern = re.compile(
         re.escape(WRITING_INDEX_BEGIN)
         + r".*?"
         + re.escape(WRITING_INDEX_END),
-        re.S,
+        re.DOTALL,
     )
     if not pattern.search(document):
         return
@@ -416,7 +414,7 @@ def update_writing_index(site_dir, entries):
         )
     lines.extend(("</ul>", WRITING_INDEX_END))
     document = pattern.sub(lambda match: "\n".join(lines), document, count=1)
-    with io.open(index_path, "w", encoding="utf-8", newline="") as output:
+    with open(index_path, "w", encoding="utf-8", newline="") as output:
         output.write(document)
 
 
@@ -425,8 +423,8 @@ def run(site_dir, cfg):
     idx = os.path.join(site_dir, "index.html")
     style = ""
     if os.path.exists(idx):
-        with io.open(idx, encoding="utf-8") as index:
-            m = re.search(r"<style>.*?</style>", index.read(), re.S)
+        with open(idx, encoding="utf-8") as index:
+            m = re.search(r"<style>.*?</style>", index.read(), re.DOTALL)
         style = m.group(0) if m else ""
 
     entries = []
@@ -435,13 +433,13 @@ def run(site_dir, cfg):
             if not f.endswith(".md"):
                 continue
             slug = f[:-3]
-            with io.open(os.path.join(wr, f), encoding="utf-8") as source:
+            with open(os.path.join(wr, f), encoding="utf-8") as source:
                 markdown = source.read()
             meta, _ = parse_front_matter(markdown)
             title = meta.get("title") or slug.replace("-", " ").title()
             entries.append((slug, title))
             page = render_page(slug, markdown, cfg, style)
-            with io.open(os.path.join(wr, slug + ".html"), "w", encoding="utf-8", newline="") as output:
+            with open(os.path.join(wr, slug + ".html"), "w", encoding="utf-8", newline="") as output:
                 output.write(page)
             print("  wrote writing/%s.html" % slug)
     update_writing_index(site_dir, entries)
