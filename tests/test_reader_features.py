@@ -11,6 +11,7 @@ from build_catalog import run as build_catalog
 from build_inventory import run as build_inventory, inventory
 from build import build_site_staged
 from unittest.mock import patch
+from check_artifacts import audit
 
 CFG = {"DOMAIN": "example.test", "FULL_NAME": "Example Person", "EMAIL": "person@example.test",
        "EMPLOYER_URL": "https://example.test", "LINKEDIN_SLUG": "example-person",
@@ -18,6 +19,19 @@ CFG = {"DOMAIN": "example.test", "FULL_NAME": "Example Person", "EMAIL": "person
 
 
 class ReaderFeatures(unittest.TestCase):
+    def test_artifact_audit_checks_fragments_links_and_current_bytes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = root / 'index.html'
+            path.write_text('<h1 id="hello">Hello</h1><a href="#hello">Jump</a>', encoding='utf-8')
+            build_inventory(root, CFG)
+            self.assertEqual(audit(root), [])
+            path.write_text('<a href="/missing.html">Broken</a><a href="#absent">Jump</a>', encoding='utf-8')
+            errors = '\n'.join(audit(root))
+            self.assertIn('inventory differs', errors)
+            self.assertIn('missing local target', errors)
+            self.assertIn('missing local fragment', errors)
+
     def test_inventory_is_deterministic_and_detects_byte_changes(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
