@@ -28,6 +28,7 @@ def page(title, body, cfg):
     return '''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>%s | %s</title><link rel="describedby" href="/llms.txt">
+<link rel="alternate" type="text/markdown" href="/%s.md" title="Page index in Markdown">
 <style>
 :root { color-scheme: light dark; font: 17px/1.65 system-ui,sans-serif; }
 body { max-width: 48rem; padding: 2rem 1.25rem; margin: auto; overflow-wrap: anywhere; }
@@ -38,7 +39,7 @@ input { width: 100%%; } .skip { position: absolute; top: -5rem; } .skip:focus { 
 </style></head><body><a class="skip" href="#main-content">Skip to content</a>
 <nav aria-label="Site"><a href="/">%s</a> · <a href="/writing.html">Writing</a> · <a href="/llms.txt">Machine-readable index</a></nav>
 <main id="main-content"><h1>%s</h1>%s</main></body></html>
-''' % (esc(title), esc(cfg["FULL_NAME"]), esc(cfg["FULL_NAME"]), esc(title), body)
+''' % (esc(title), esc(cfg["FULL_NAME"]), title.lower(), esc(cfg["FULL_NAME"]), esc(title), body)
 
 
 def run(site_dir, cfg):
@@ -51,6 +52,9 @@ def run(site_dir, cfg):
     body = '<p>Browse %d writing page%s, with original Markdown sources.</p>' % (len(rows), "" if len(rows) == 1 else "s")
     body += '<ul>%s</ul>' % "".join(rows) if rows else '<p>No writing pages have been published.</p>'
     (Path(site_dir) / "writing.html").write_text(page("Writing", body, cfg), encoding="utf-8", newline="")
+    markdown = "# Writing\n\nLast updated: %s\n\n" % cfg["LAST_UPDATED"]
+    markdown += "\n".join(("- [%s](%s)" % (entry["title"].replace("[", "").replace("]", ""), entry["source"])) + (": " + entry["description"] if entry["description"] else "") for entry in entries)
+    (Path(site_dir) / "writing.md").write_text(markdown + "\n", encoding="utf-8", newline="")
     build_search(site_dir, cfg, entries)
     build_feed(site_dir, cfg, entries)
 
@@ -93,7 +97,7 @@ def build_feed(site_dir, cfg, entries):
 def build_search(site_dir, cfg, entries):
     records = []
     writing = {entry["source"]: entry for entry in entries}
-    paths = sorted(Path(site_dir).glob("*.md")) + sorted((Path(site_dir) / "writing").glob("*.md"))
+    paths = [path for path in sorted(Path(site_dir).glob("*.md")) if path.name not in {"search.md", "writing.md"}] + sorted((Path(site_dir) / "writing").glob("*.md"))
     for path in paths:
         source = "/" + quote(path.relative_to(site_dir).as_posix(), safe="/-._~")
         meta, body = parse_front_matter(path.read_text(encoding="utf-8"))
@@ -109,3 +113,6 @@ def build_search(site_dir, cfg, entries):
 <button type="reset">Clear search</button></form><p id="search-status" role="status" aria-live="polite">All published pages. Search requires JavaScript.</p>
 <ul id="search-results">%s</ul><script src="/search.js" defer></script>''' % links
     (Path(site_dir) / "search.html").write_text(page("Search", body, cfg), encoding="utf-8", newline="")
+    markdown = "# Search and page directory\n\nLast updated: %s\n\nSearch runs locally in the browser at /search.html. Published pages:\n\n" % cfg["LAST_UPDATED"]
+    markdown += "\n".join("- [%s](%s)" % (record["title"].replace("[", "").replace("]", ""), record["url"]) for record in records)
+    (Path(site_dir) / "search.md").write_text(markdown + "\n", encoding="utf-8", newline="")

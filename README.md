@@ -21,8 +21,12 @@ The goal is to make accurate information easier to retrieve and cite. Publishing
 | [`contact.md`](example/contact.md), [`now.md`](example/now.md), [`changelog.md`](example/changelog.md) | Contact routing, current work, and a record of updates and corrections. |
 | [`writing/`](example/writing/) | Longer Markdown articles with generated HTML companions. |
 | [`index.html`](example/index.html), [`sitemap.xml`](example/sitemap.xml) | A human-readable homepage with JSON-LD and a sitemap generated from the build. |
+| [`writing.html`](example/writing.html), [`search.html`](example/search.html) | A generated writing directory and local full-text search with static page-list fallback. |
+| [`feed.xml`](example/feed.xml), [`content-manifest.json`](example/content-manifest.json) | An Atom writing feed and a deterministic inventory of exact output bytes. |
 
 The example is generic starter content, not a verified biography or a site ready to publish as your own.
+
+See [writing and build review](docs/WRITING.md) for article dates, supported Markdown, search limits, offline link audits, and reproducible builds.
 
 ## Build your own site
 

@@ -12,6 +12,7 @@ from build_inventory import run as build_inventory, inventory
 from build import build_site_staged
 from unittest.mock import patch
 from check_artifacts import audit
+from xml.etree import ElementTree as ET
 
 CFG = {"DOMAIN": "example.test", "FULL_NAME": "Example Person", "EMAIL": "person@example.test",
        "EMPLOYER_URL": "https://example.test", "LINKEDIN_SLUG": "example-person",
@@ -19,6 +20,29 @@ CFG = {"DOMAIN": "example.test", "FULL_NAME": "Example Person", "EMAIL": "person
 
 
 class ReaderFeatures(unittest.TestCase):
+    def test_feed_escapes_metadata_and_omits_unknown_publication_date(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'writing').mkdir()
+            (root / 'writing' / 'article.md').write_text('<!--\ntitle: <Sample> & notes\nupdated: 2025-12-20\n-->\n# Article', encoding='utf-8')
+            build_catalog(root, CFG)
+            feed = ET.fromstring((root / 'feed.xml').read_bytes())
+            ns = {'a': 'http://www.w3.org/2005/Atom'}
+            self.assertEqual(feed.find('a:entry/a:title', ns).text, '<Sample> & notes')
+            self.assertEqual(feed.find('a:entry/a:updated', ns).text, '2025-12-20T00:00:00Z')
+            self.assertIsNone(feed.find('a:entry/a:published', ns))
+
+    def test_artifact_audit_rejects_active_html_and_malformed_manifest(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'index.html').write_text('<script src="data:text/javascript,alert(1)"></script><p onclick="evil">Text</p>', encoding='utf-8')
+            build_inventory(root, CFG)
+            errors = '\n'.join(audit(root))
+            self.assertIn('data URL', errors)
+            self.assertIn('event-handler', errors)
+            (root / 'content-manifest.json').write_text('[]', encoding='utf-8')
+            self.assertIn('must be an object', audit(root)[0])
+
     def test_artifact_audit_checks_fragments_links_and_current_bytes(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

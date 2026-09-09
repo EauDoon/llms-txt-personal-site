@@ -16,6 +16,8 @@ class Document(HTMLParser):
 
     def handle_starttag(self, tag, attrs):
         values = dict(attrs)
+        if any(key.lower().startswith("on") for key in values):
+            self.errors.append("inline event-handler attribute")
         identifier = values.get("id")
         if identifier:
             if identifier in self.ids:
@@ -24,6 +26,8 @@ class Document(HTMLParser):
         for key in ("href", "src"):
             if values.get(key):
                 self.links.append(values[key])
+                if values[key].lower().startswith("data:") and not (tag == "link" and values.get("rel") == "icon" and values[key].lower().startswith("data:image/")):
+                    self.errors.append("data URL is permitted only for an image favicon")
         if tag == "script" and values.get("type") == "application/ld+json":
             self.json_text = ""
 
@@ -43,6 +47,8 @@ class Document(HTMLParser):
 def audit(site_dir):
     root = Path(site_dir).resolve()
     manifest = json.loads((root / "content-manifest.json").read_text(encoding="utf-8"))
+    if not isinstance(manifest, dict):
+        return ["content manifest must be an object"]
     errors = []
     if manifest.get("version") != 1 or manifest.get("files") != inventory(root):
         errors.append("content inventory differs from current output bytes")

@@ -24,3 +24,8 @@ jobs:
 
       - name: Run the quality gate
         run: python scripts/quality_check.py
+
+      - name: Audit output and verify reproducible builds
+        run: |
+          python scripts/check_artifacts.py
+          python scripts/verify_build.py

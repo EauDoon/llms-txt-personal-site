@@ -198,7 +198,7 @@ SHELL = """<!doctype html>
   "url": "https://{domain}/writing/{slug}.html",
   "mainEntityOfPage": "https://{domain}/writing/{slug}.html",
   "inLanguage": "en",
-  {published_line}
+{published_line}
   "dateModified": "{date}",
   "author": {{
     "@type": "Person",

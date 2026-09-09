@@ -53,6 +53,22 @@
     <lastmod>2026-01-01</lastmod>
   </url>
   <url>
+    <loc>https://yourname.com/search.html</loc>
+    <lastmod>2026-01-01</lastmod>
+  </url>
+  <url>
+    <loc>https://yourname.com/search.md</loc>
+    <lastmod>2026-01-01</lastmod>
+  </url>
+  <url>
+    <loc>https://yourname.com/writing.html</loc>
+    <lastmod>2026-01-01</lastmod>
+  </url>
+  <url>
+    <loc>https://yourname.com/writing.md</loc>
+    <lastmod>2026-01-01</lastmod>
+  </url>
+  <url>
     <loc>https://yourname.com/writing/example-depth-page.html</loc>
     <lastmod>2026-01-01</lastmod>
   </url>

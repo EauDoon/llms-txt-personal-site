@@ -14,7 +14,7 @@ def inventory(site_dir):
     for path in sorted(root.rglob("*")):
         if path.is_symlink() or (hasattr(path, "is_junction") and path.is_junction()):
             raise ValueError("inventory refuses link-like paths")
-        if not path.is_file() or path.name == "content-manifest.json":
+        if not path.is_file() or path == root / "content-manifest.json":
             continue
         size = path.stat().st_size
         total += size
