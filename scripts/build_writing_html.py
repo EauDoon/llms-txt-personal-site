@@ -43,15 +43,52 @@ def parse_front_matter(md):
     return meta, md
 
 
+def opening_fence(line):
+    return re.fullmatch(r"(`{3,})([^`]*)", line.strip())
+
+
+def closes_fence(line, marker):
+    candidate = line.strip()
+    return len(candidate) >= len(marker) and candidate.strip("`") == ""
+
+
+def strip_guidance_comments(md):
+    """Keep fenced examples literal and omit only comments outside them."""
+    output, marker, in_comment = [], None, False
+    for line in md.split("\n"):
+        if marker is not None:
+            output.append(line)
+            if closes_fence(line, marker):
+                marker = None
+            continue
+        fence = opening_fence(line) if not in_comment else None
+        if fence:
+            marker = fence[1]
+            output.append(line)
+            continue
+        visible, position = [], 0
+        while position < len(line):
+            token = "-->" if in_comment else "<!--"
+            boundary = line.find(token, position)
+            if boundary < 0:
+                if not in_comment:
+                    visible.append(line[position:])
+                break
+            if not in_comment:
+                visible.append(line[position:boundary])
+            in_comment = not in_comment
+            position = boundary + len(token)
+        clean = "".join(visible)
+        # A comment can precede a fence on the same source line.
+        fence = opening_fence(clean)
+        if fence and not in_comment:
+            marker = fence[1]
+        output.append(clean)
+    return "\n".join(output)
+
+
 def md_to_html(md):
-    # Strip HTML comments (including multiline). A comment would otherwise
-    # be collected as a paragraph and rendered as a visible escaped <p>
-    # block, which leaks author guidance to the rendered page and to
-    # agents that fetch the HTML companion.
-    # Preserve literal comments inside fenced examples while removing guidance.
-    segments = re.split(r"(^[ \t]*`{3,}[^\n]*\n.*?(?:^[ \t]*`{3,}[ \t]*$|\Z))", md, flags=re.M | re.S)
-    md = "".join(part if i % 2 else re.sub(r"<!--.*?-->", "", part, flags=re.S)
-                 for i, part in enumerate(segments))
+    md = strip_guidance_comments(md)
     lines = md.split("\n")
     out, i = [], 0
     in_ul = in_ol = False
@@ -98,14 +135,14 @@ def md_to_html(md):
         if not s:
             close(); i += 1; continue
 
-        fence = re.fullmatch(r"(`{3,})([^`]*)", s)
+        fence = opening_fence(s)
         if fence:
             close()
             marker, language = fence.groups()
             language = language.strip()
             i += 1
             code = []
-            while i < len(lines) and not re.fullmatch(r"`{%d,}\s*" % len(marker), lines[i].strip()):
+            while i < len(lines) and not closes_fence(lines[i], marker):
                 code.append(lines[i]); i += 1
             if i < len(lines):
                 i += 1

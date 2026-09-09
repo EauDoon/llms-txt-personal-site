@@ -20,6 +20,20 @@ CFG = {"DOMAIN": "example.test", "FULL_NAME": "Example Person", "EMAIL": "person
 
 
 class ReaderFeatures(unittest.TestCase):
+    def test_shorter_inner_fence_keeps_literal_comments_and_hides_guidance(self):
+        source = '````markdown\n```\n<!-- literal after shorter fence -->\n````\n<!-- author guidance should be omitted -->\n'
+        self.assertEqual(md_to_html(source), '<pre><code class="language-markdown">```\n&lt;!-- literal after shorter fence --&gt;</code></pre>')
+
+    def test_comment_removal_and_renderer_share_fence_boundaries(self):
+        for ending in ('````', '`````'):
+            with self.subTest(ending=ending):
+                source = '<!-- guidance\n```\n-->\n````html\n<!-- literal\n```\n-->\n' + ending + '\n<!-- hidden -->\n# Visible'
+                result = md_to_html(source)
+                self.assertIn('&lt;!-- literal\n```\n--&gt;', result)
+                self.assertNotIn('guidance', result)
+                self.assertNotIn('hidden', result)
+                self.assertTrue(result.endswith('<h1>Visible</h1>'))
+
     def test_feed_escapes_metadata_and_omits_unknown_publication_date(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
