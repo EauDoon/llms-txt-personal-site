@@ -21,6 +21,33 @@ CFG = {"DOMAIN": "example.test", "FULL_NAME": "Example Person", "EMAIL": "person
 
 
 class ReaderFeatures(unittest.TestCase):
+    def test_artifact_audit_rejects_truncated_json_ld(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for data in ('{"name":', '{"name":"Example"}'):
+                with self.subTest(data=data):
+                    (root / 'index.html').write_text('<script type="application/ld+json">' + data, encoding='utf-8')
+                    build_inventory(root, CFG)
+                    self.assertIn('unterminated JSON-LD', '\n'.join(audit(root)))
+            (root / 'index.html').write_text('<script type="application/ld+json">{"name":"Example"}</script>', encoding='utf-8')
+            build_inventory(root, CFG)
+            self.assertEqual(audit(root), [])
+
+    def test_artifact_audit_normalizes_same_origin_hosts_and_ports(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for url in ('https://EXAMPLE.TEST/missing.html', 'https://EXAMPLE.TEST:443/missing.html'):
+                with self.subTest(url=url):
+                    (root / 'index.html').write_text('<a href="' + url + '">Missing</a>', encoding='utf-8')
+                    build_inventory(root, CFG)
+                    self.assertIn('missing local target', '\n'.join(audit(root)))
+            (root / 'index.html').write_text('<a href="https://EXAMPLE.TEST:444/missing.html">Other service</a>', encoding='utf-8')
+            build_inventory(root, CFG)
+            self.assertEqual(audit(root), [])
+            (root / 'index.html').write_text('<h1 id="exists">Title</h1><a href="https://EXAMPLE.TEST:443/#missing">Missing fragment</a>', encoding='utf-8')
+            build_inventory(root, CFG)
+            self.assertIn('missing local fragment', '\n'.join(audit(root)))
+
     def test_windows_overlap_guard_allows_separate_drives(self):
         self.assertFalse(paths_overlap(r'C:\repo\template', r'D:\temp\site', ntpath))
         self.assertFalse(paths_overlap(r'C:\repo\template', r'C:\repo\site', ntpath))

@@ -43,6 +43,20 @@ class Document(HTMLParser):
                 self.errors.append("invalid JSON-LD")
             self.json_text = None
 
+    def close(self):
+        super().close()
+        if self.json_text is not None:
+            self.errors.append("unterminated JSON-LD script block")
+            self.json_text = None
+
+
+def origin(parsed):
+    """Normalize hostname case and implicit ports before classifying links."""
+    if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username is not None or parsed.password is not None:
+        raise ValueError("invalid HTTP(S) origin")
+    port = parsed.port
+    return parsed.scheme, parsed.hostname.lower(), port if port is not None else {"http": 80, "https": 443}[parsed.scheme]
+
 
 def audit(site_dir):
     root = Path(site_dir).resolve()
@@ -53,12 +67,17 @@ def audit(site_dir):
     if manifest.get("version") != 1 or manifest.get("files") != inventory(root):
         errors.append("content inventory differs from current output bytes")
     base = manifest.get("site", "")
-    if urlsplit(base).scheme != "https" or not urlsplit(base).hostname:
+    try:
+        site_origin = origin(urlsplit(base))
+    except (ValueError, TypeError):
+        return errors + ["invalid manifest site URL"]
+    if site_origin[0] != "https":
         return errors + ["invalid manifest site URL"]
     documents = {}
     for path in sorted(root.rglob("*.html")):
         document = Document()
         document.feed(path.read_text(encoding="utf-8"))
+        document.close()
         documents[path] = document
         errors.extend("%s: %s" % (path.relative_to(root), error) for error in document.errors)
     for path, document in documents.items():
@@ -70,7 +89,7 @@ def audit(site_dir):
                     continue
                 if parsed.scheme not in {"http", "https"} or "\\" in link:
                     raise ValueError("unsafe link")
-                if parsed.netloc != urlsplit(base).netloc:
+                if origin(parsed) != site_origin:
                     continue
                 decoded = unquote(parsed.path)
                 if "\\" in decoded or ":" in decoded or "\x00" in decoded:
