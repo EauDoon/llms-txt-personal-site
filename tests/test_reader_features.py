@@ -8,6 +8,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from build import validate_public_contacts
 from build_writing_html import render_page, md_to_html
 from build_catalog import run as build_catalog
+from build_inventory import run as build_inventory, inventory
+from build import build_site_staged
+from unittest.mock import patch
 
 CFG = {"DOMAIN": "example.test", "FULL_NAME": "Example Person", "EMAIL": "person@example.test",
        "EMPLOYER_URL": "https://example.test", "LINKEDIN_SLUG": "example-person",
@@ -15,6 +18,26 @@ CFG = {"DOMAIN": "example.test", "FULL_NAME": "Example Person", "EMAIL": "person
 
 
 class ReaderFeatures(unittest.TestCase):
+    def test_inventory_is_deterministic_and_detects_byte_changes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'index.html').write_text('Example', encoding='utf-8')
+            build_inventory(root, CFG)
+            first = (root / 'content-manifest.json').read_bytes()
+            build_inventory(root, CFG)
+            self.assertEqual(first, (root / 'content-manifest.json').read_bytes())
+            (root / 'index.html').write_text('Changed', encoding='utf-8')
+            self.assertNotEqual(json.loads(first)['files'], inventory(root))
+            with patch('build_inventory.MAX_FILE_BYTES', 1), self.assertRaises(ValueError):
+                inventory(root)
+
+    def test_build_cannot_replace_or_publish_its_template(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for output in (root, root / 'site'):
+                with self.assertRaisesRegex(ValueError, 'overlap'):
+                    build_site_staged(str(root), str(output), CFG)
+
     def test_publication_dates_are_explicit_and_calendar_valid(self):
         page = render_page('test', '# Example', CFG)
         self.assertNotIn('datePublished', page)

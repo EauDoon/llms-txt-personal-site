@@ -258,7 +258,8 @@ def build_site(template_dir, out_dir, cfg):
     if not os.path.isdir(template_dir):
         raise OSError("template path is not a directory: %s" % template_dir)
 
-    n = 0
+    from build_inventory import MAX_FILES, MAX_FILE_BYTES, MAX_TOTAL_BYTES
+    n, total_bytes = 0, 0
     for dirpath, dirs, files in os.walk(template_dir):
         for dirname in dirs:
             path = os.path.join(dirpath, dirname)
@@ -282,6 +283,10 @@ def build_site(template_dir, out_dir, cfg):
                 raise OSError(
                     "refusing to build from non-regular template path: %s" % relative
                 )
+            size = os.path.getsize(src)
+            total_bytes += size
+            if n >= MAX_FILES or size > MAX_FILE_BYTES or total_bytes > MAX_TOTAL_BYTES:
+                raise ValueError("template exceeds the file count or byte budget")
             if f.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".ico", ".webp", ".pdf")):
                 with open(src, "rb") as a, open(dst, "wb") as b:
                     b.write(a.read())
@@ -325,6 +330,8 @@ def build_site(template_dir, out_dir, cfg):
     build_llms_full.run(out_dir, cfg)
     import build_sitemap
     build_sitemap.run(out_dir, cfg)
+    import build_inventory
+    build_inventory.run(out_dir, cfg)
 
 
 def replace_output(staging_dir, output_dir):
@@ -382,6 +389,9 @@ def replace_output(staging_dir, output_dir):
 
 def build_site_staged(template_dir, output_dir, cfg):
     """Generate in a sibling staging directory, then promote completed output."""
+    template_real, output_real = os.path.realpath(template_dir), os.path.realpath(output_dir)
+    if os.path.commonpath([template_real, output_real]) in {template_real, output_real}:
+        raise ValueError("template and output directories must not overlap")
     parent = os.path.dirname(output_dir)
     os.makedirs(parent, exist_ok=True)
     staging = tempfile.mkdtemp(prefix=".site-build-", dir=parent)
