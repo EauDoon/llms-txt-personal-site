@@ -387,10 +387,21 @@ def replace_output(staging_dir, output_dir):
             )
 
 
+def paths_overlap(first, second, path_module=os.path):
+    """Compare resolved directories, allowing disjoint Windows drives."""
+    first, second = path_module.normcase(first), path_module.normcase(second)
+    try:
+        common = path_module.commonpath([first, second])
+    except ValueError:
+        # Resolved paths are absolute; different drives have no common path.
+        return False
+    return common in {first, second}
+
+
 def build_site_staged(template_dir, output_dir, cfg):
     """Generate in a sibling staging directory, then promote completed output."""
     template_real, output_real = os.path.realpath(template_dir), os.path.realpath(output_dir)
-    if os.path.commonpath([template_real, output_real]) in {template_real, output_real}:
+    if paths_overlap(template_real, output_real):
         raise ValueError("template and output directories must not overlap")
     parent = os.path.dirname(output_dir)
     os.makedirs(parent, exist_ok=True)

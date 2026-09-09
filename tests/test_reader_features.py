@@ -9,7 +9,8 @@ from build import validate_public_contacts
 from build_writing_html import render_page, md_to_html
 from build_catalog import run as build_catalog
 from build_inventory import run as build_inventory, inventory
-from build import build_site_staged
+from build import build_site_staged, paths_overlap
+import ntpath
 from unittest.mock import patch
 from check_artifacts import audit
 from xml.etree import ElementTree as ET
@@ -20,6 +21,16 @@ CFG = {"DOMAIN": "example.test", "FULL_NAME": "Example Person", "EMAIL": "person
 
 
 class ReaderFeatures(unittest.TestCase):
+    def test_windows_overlap_guard_allows_separate_drives(self):
+        self.assertFalse(paths_overlap(r'C:\repo\template', r'D:\temp\site', ntpath))
+        self.assertFalse(paths_overlap(r'C:\repo\template', r'C:\repo\site', ntpath))
+        for template, output in ((r'C:\repo\template', r'C:\repo\template'),
+                                 (r'C:\repo\template', r'C:\repo\template\site'),
+                                 (r'C:\repo\template', r'C:\repo'),
+                                 (r'C:\REPO\template', r'c:\repo\TEMPLATE\site')):
+            with self.subTest(template=template, output=output):
+                self.assertTrue(paths_overlap(template, output, ntpath))
+
     def test_search_preserves_closed_and_unclosed_fenced_html_comments(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
