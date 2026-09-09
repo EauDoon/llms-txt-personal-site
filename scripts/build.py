@@ -13,7 +13,13 @@ Runs six steps:
 
 Then run scripts/quality_check.py before you deploy.
 """
-import io, json, os, re, shutil, stat, sys, tempfile
+import json
+import os
+import re
+import shutil
+import stat
+import sys
+import tempfile
 
 from build_sitemap import validate_last_updated
 
@@ -45,7 +51,7 @@ class ScriptSafeJson(str):
 def load_config():
     if not os.path.exists(CONFIG):
         sys.exit("No site.config.json. Copy site.config.example.json to site.config.json and fill it in.")
-    with io.open(CONFIG, encoding="utf-8") as f:
+    with open(CONFIG, encoding="utf-8") as f:
         cfg = json.load(f)
     missing = [key for key in REQUIRED_CONFIG if not cfg.get(key)]
     if missing:
@@ -256,9 +262,9 @@ def build_site(template_dir, out_dir, cfg):
                 with open(src, "rb") as a, open(dst, "wb") as b:
                     b.write(a.read())
             else:
-                with io.open(src, encoding="utf-8") as source:
+                with open(src, encoding="utf-8") as source:
                     t = source.read()
-                with io.open(dst, "w", encoding="utf-8", newline="") as output:
+                with open(dst, "w", encoding="utf-8", newline="") as output:
                     output.write(fill(t, cfg))
             n += 1
 
@@ -269,7 +275,7 @@ def build_site(template_dir, out_dir, cfg):
         for f in files:
             if not f.endswith((".md", ".txt", ".html", ".xml", ".json")):
                 continue
-            with io.open(os.path.join(dirpath, f), encoding="utf-8", errors="ignore") as source:
+            with open(os.path.join(dirpath, f), encoding="utf-8", errors="ignore") as source:
                 t = source.read()
             for m in re.finditer(r"\{\{([A-Z0-9_]+)\}\}", t):
                 leftover.setdefault(m.group(1), set()).add(f)

@@ -7,7 +7,6 @@ import sys
 import unittest
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "eval" / "identity_questions.json"
 SCRIPT = ROOT / "scripts" / "score_identity_eval.py"

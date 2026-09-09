@@ -6,7 +6,6 @@ the whole picture. llms.txt is the index; llms-full.txt is the entire record.
 Order matters. Identity first, then depth, then the changelog last, so a reader
 that stops early still has the facts it came for.
 """
-import io
 import os
 from urllib.parse import quote
 
@@ -55,11 +54,11 @@ def run(site_dir, cfg):
         parts.append("\n\n" + "=" * 70 + "\n")
         parts.append("# SOURCE: https://%s/%s\n" % (domain, quote(rel, safe="/-._~")))
         parts.append("=" * 70 + "\n\n")
-        with io.open(path, encoding="utf-8") as source:
+        with open(path, encoding="utf-8") as source:
             parts.append(source.read())
 
     out = "".join(parts)
-    with io.open(os.path.join(site_dir, "llms-full.txt"), "w", encoding="utf-8", newline="") as output:
+    with open(os.path.join(site_dir, "llms-full.txt"), "w", encoding="utf-8", newline="") as output:
         output.write(out)
     print("  wrote llms-full.txt from %d files (%d bytes)" % (len(names), len(out)))
     return names

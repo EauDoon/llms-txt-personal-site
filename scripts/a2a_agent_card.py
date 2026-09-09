@@ -2,13 +2,11 @@
 
 from __future__ import annotations
 
-import io
 import json
 import os
 import re
 from pathlib import Path
 from urllib.parse import parse_qsl, urlsplit
-
 
 CARD_PATH = Path(".well-known") / "agent-card.json"
 REQUIRED_FIELDS = {
@@ -76,7 +74,7 @@ def _unique_object(pairs):
 
 
 def load_agent_card(path):
-    with io.open(path, encoding="utf-8") as source:
+    with open(path, encoding="utf-8") as source:
         card = parse_agent_card(source.read())
     return card
 

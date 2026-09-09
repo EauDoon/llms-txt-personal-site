@@ -1,12 +1,10 @@
 """Generate a sitemap from the public files that exist in a built site."""
 
-import io
 import os
 import re
 from datetime import date
 from urllib.parse import quote
 from xml.sax.saxutils import escape
-
 
 PUBLIC_SUFFIXES = (".html", ".md", ".txt")
 EXCLUDED_FILES = {"404.html", "robots.txt"}
@@ -54,6 +52,6 @@ def run(site_dir, cfg):
         lines.append("  </url>")
     lines.append("</urlset>")
     output = "\n".join(lines) + "\n"
-    with io.open(os.path.join(site_dir, "sitemap.xml"), "w", encoding="utf-8", newline="") as sitemap:
+    with open(os.path.join(site_dir, "sitemap.xml"), "w", encoding="utf-8", newline="") as sitemap:
         sitemap.write(output)
     print("  wrote sitemap.xml from %d public files" % len(urls))

@@ -8,7 +8,6 @@ from html.parser import HTMLParser
 from pathlib import Path, PurePosixPath
 from urllib.parse import quote, unquote, urlsplit
 
-
 FILE_LINK = re.compile(
     r"^\s*[-*]\s+\[([^\]]+)\]\((\S+)\)(?:\s*:\s*(.+))?\s*$"
 )
@@ -70,8 +69,7 @@ def validate_llms_txt(
     linked URL to use HTTPS and every same-site link to name an existing
     Markdown or text build artifact.
     """
-    if text.startswith("\ufeff"):
-        text = text[1:]
+    text = text.removeprefix("\ufeff")
     lines = text.splitlines()
     issues: list[str] = []
     first = next((line for line in lines if line.strip()), "")
