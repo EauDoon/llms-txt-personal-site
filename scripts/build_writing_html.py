@@ -415,7 +415,7 @@ def update_writing_index(site_dir, entries):
             % (quote(slug, safe="-._~"), html.escape(title, quote=True))
         )
     lines.extend(("</ul>", WRITING_INDEX_END))
-    document = pattern.sub("\n".join(lines), document, count=1)
+    document = pattern.sub(lambda match: "\n".join(lines), document, count=1)
     with io.open(index_path, "w", encoding="utf-8", newline="") as output:
         output.write(document)
 

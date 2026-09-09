@@ -20,7 +20,8 @@ def _one_line(value):
 
 def _safe_label(value):
     """Keep a generated Markdown link label on one unambiguous line."""
-    return html.escape(_one_line(value), quote=False).replace("[", "&#91;").replace("]", "&#93;")
+    escaped = html.escape(_one_line(value), quote=False)
+    return re.sub(r"[\[\]*_`~\\]", lambda match: "&#%d;" % ord(match[0]), escaped)
 
 
 def run(site_dir, cfg):

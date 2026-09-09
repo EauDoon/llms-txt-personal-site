@@ -1,4 +1,7 @@
 import json
+import html
+import re
+import shutil
 import sys
 import tempfile
 import unittest
@@ -33,6 +36,44 @@ class TextCollector(HTMLParser):
 
 
 class ReaderFeatures(unittest.TestCase):
+    def test_generated_markdown_labels_preserve_inert_metadata(self):
+        repo = Path(__file__).resolve().parents[1]
+        cfg = json.loads((repo / 'site.config.example.json').read_text(encoding='utf-8'))
+        titles = ('Guide [draft]', '[Nested [deep [label]]]',
+                  '**Bold** _text_ `code` ~~literal~~ \\literal',
+                  '[<img src=x onerror=alert(1)>] & [click](javascript:alert(1))')
+        with tempfile.TemporaryDirectory() as directory:
+            template = Path(directory) / 'template'
+            site = Path(directory) / 'site'
+            shutil.copytree(repo / 'template', template)
+            for number, title in enumerate(titles):
+                (template / 'writing' / ('label-%d.md' % number)).write_text(
+                    '<!--\ntitle: ' + title + '\n-->\n# Article\n', encoding='utf-8')
+            build_site_staged(str(template), str(site), dict(cfg, **json_block(cfg)))
+            for filename in ('writing.md', 'search.md', 'llms.txt'):
+                source = (site / filename).read_text(encoding='utf-8')
+                for number, title in enumerate(titles):
+                    with self.subTest(filename=filename, title=title):
+                        line = next(line for line in source.splitlines() if '/writing/label-%d.' % number in line)
+                        match = re.match(r'- \[([^\[\]]*)\]\(([^)]+)\)', line)
+                        self.assertIsNotNone(match, line)
+                        self.assertEqual(html.unescape(match[1]), title)
+                        self.assertFalse(any(mark in match[1] for mark in '*_`~\\<>'))
+                        extension = 'html' if filename == 'search.md' else 'md'
+                        self.assertTrue(match[2].endswith('/writing/label-%d.%s' % (number, extension)), line)
+            records = json.loads((site / 'search-index.json').read_text(encoding='utf-8'))
+            indexed = {entry['title'] for entry in records}
+            feed = ET.parse(site / 'feed.xml')
+            feed_titles = {node.text for node in feed.findall('.//{http://www.w3.org/2005/Atom}entry/{http://www.w3.org/2005/Atom}title')}
+            for filename in ('writing.html', 'search.html'):
+                parsed = TextCollector()
+                parsed.feed((site / filename).read_text(encoding='utf-8'))
+                self.assertNotIn('img', parsed.tags)
+                for title in titles:
+                    self.assertIn(title, ''.join(parsed.text))
+                    self.assertIn(title, indexed)
+                    self.assertIn(title, feed_titles)
+
     def test_root_search_titles_come_from_first_rendered_h1(self):
         sources = {
             'formatted.md': ('# **Alice &amp; Bob** [reference](https://example.test) `&lt;raw&gt;`',

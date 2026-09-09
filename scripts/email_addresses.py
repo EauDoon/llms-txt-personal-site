@@ -10,7 +10,7 @@ ATOM_CHARACTERS = r"A-Za-z0-9!#$%&'*+/=?^_`{|}~\-"
 ATOM = "[" + ATOM_CHARACTERS + "]+"
 DNS_LABEL = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
 CANDIDATE = re.compile(r"[" + ATOM_CHARACTERS + r".]+@[A-Za-z0-9.-]+")
-MAILTO = re.compile(r"(?i)(?<![A-Za-z0-9])mailto:[^\s<>\"')\]]+")
+MAILTO = re.compile(r"(?i)(?<![A-Za-z0-9])mailto:[^\s<>\")\]]+")
 
 
 def validate_email_address(value):
@@ -130,10 +130,13 @@ def contact_values(source, suffix):
     addresses = []
     for text in prose:
         def route(match):
+            # A raw apostrophe is valid before @. After the domain, a trailing
+            # apostrophe can only delimit surrounding prose, not the address.
+            target = match[0].rstrip("'")
             try:
-                explicit.append(unquote(urlsplit(match[0]).path))
+                explicit.append(unquote(urlsplit(target).path))
             except ValueError:
-                explicit.append(match[0])
+                explicit.append(target)
             return " "
         # Markdown/text links are URI contexts too. Never decode other prose.
         addresses.extend(text_addresses(MAILTO.sub(route, text)))

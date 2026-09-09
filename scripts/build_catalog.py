@@ -7,11 +7,12 @@ from xml.etree import ElementTree as ET
 from build_sitemap import validate_last_updated
 
 from build_writing_html import parse_front_matter, markdown_display
+from build_llms_index import _safe_label
 
 
 def markdown_label(value):
     """Keep discovery labels inert when a consumer renders the Markdown index."""
-    return html.escape(value.replace("[", "").replace("]", ""), quote=False)
+    return _safe_label(value)
 
 
 def articles(site_dir):

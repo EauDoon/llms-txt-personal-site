@@ -15,6 +15,36 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class QualityCheckTests(unittest.TestCase):
+    def test_apostrophe_routes_pass_full_build_and_gate_with_prose_quotes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            shutil.copytree(ROOT / 'scripts', repo / 'scripts', ignore=shutil.ignore_patterns('__pycache__'))
+            shutil.copytree(ROOT / 'template', repo / 'template')
+            cfg = json.loads((ROOT / 'site.config.example.json').read_text(encoding='utf-8'))
+            command = [sys.executable, str(repo / 'scripts' / 'quality_check.py')]
+            for local in ("o'hara", "'first", "last'", "o'%2Fhara"):
+                email = local + '@yourname.com'
+                cfg['EMAIL'] = email
+                (repo / 'site.config.json').write_text(json.dumps(cfg), encoding='utf-8')
+                build = subprocess.run([sys.executable, str(repo / 'scripts' / 'build.py')], cwd=repo,
+                                       capture_output=True, text=True, check=False)
+                self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
+                path = repo / 'site' / 'contact.md'
+                original = path.read_text(encoding='utf-8')
+                for address in (quote(email, safe="@'"), quote(email, safe='@')):
+                    for pattern in ('mailto:%s', "'mailto:%s'", '"mailto:%s"',
+                                    '[Contact](mailto:%s)', '<mailto:%s>'):
+                        with self.subTest(email=email, address=address, pattern=pattern):
+                            path.write_text(original + '\n' + pattern % address + '\n', encoding='utf-8')
+                            result = subprocess.run(command, cwd=repo, capture_output=True, text=True, check=False)
+                            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                for address in ("other'hara@unrelated.example", 'other%27hara@unrelated.example'):
+                    with self.subTest(divergent=address):
+                        path.write_text(original + "\n'mailto:" + address + "'\n", encoding='utf-8')
+                        result = subprocess.run(command, cwd=repo, capture_output=True, text=True, check=False)
+                        self.assertNotEqual(result.returncode, 0, result.stdout)
+                        self.assertIn('email:', result.stdout)
+
     def test_supported_email_matrix_passes_full_build_and_required_gate(self):
         punctuation = "!#$%&'*+-/=?^_`{|}~"
         addresses = ["a" + mark + "tag@yourname.com" for mark in punctuation]
