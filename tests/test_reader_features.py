@@ -7,6 +7,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from build import validate_public_contacts
 from build_writing_html import render_page, md_to_html
+from build_catalog import run as build_catalog
 
 CFG = {"DOMAIN": "example.test", "FULL_NAME": "Example Person", "EMAIL": "person@example.test",
        "EMPLOYER_URL": "https://example.test", "LINKEDIN_SLUG": "example-person",
@@ -14,6 +15,19 @@ CFG = {"DOMAIN": "example.test", "FULL_NAME": "Example Person", "EMAIL": "person
 
 
 class ReaderFeatures(unittest.TestCase):
+    def test_writing_directory_tracks_sources_and_empty_state(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            build_catalog(root, CFG)
+            self.assertIn('No writing pages', (root / 'writing.html').read_text())
+            (root / 'writing').mkdir()
+            (root / 'writing' / 'a & b.md').write_text('<!--\ntitle: <New>\ndesc: Real description\nabout: Topic\n-->\n# Article', encoding='utf-8')
+            build_catalog(root, CFG)
+            page = (root / 'writing.html').read_text(encoding='utf-8')
+            self.assertIn('a%20%26%20b.html', page)
+            self.assertIn('&lt;New&gt;', page)
+            self.assertIn('Real description', page)
+
     def test_outline_has_unique_working_fragments(self):
         page = render_page('test', '# Test\n## Evidence\n## Evidence\n## Main content\n```\n## Hidden\n```', CFG)
         for identifier in ('evidence', 'evidence-2', 'main-content-2'):

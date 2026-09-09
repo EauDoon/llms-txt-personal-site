@@ -319,6 +319,8 @@ def build_site(template_dir, out_dir, cfg):
         build_llms_index.run(out_dir, cfg)
     import build_writing_html
     build_writing_html.run(out_dir, cfg)
+    import build_catalog
+    build_catalog.run(out_dir, cfg)
     import build_llms_full
     build_llms_full.run(out_dir, cfg)
     import build_sitemap
