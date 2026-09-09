@@ -73,6 +73,9 @@ class QualityCheckTests(unittest.TestCase):
                                  for left, right in (("'", "'"), ('"', '"'), ("('", "')"), ("['", "']"))
                                  for punctuation in ('', ',', '.', ';', ':', '!', '?', ').')]
                     patterns += ["'mailto:%s?subject=Hello#draft',"]
+                    patterns += [marks + quoted + marks[::-1]
+                                 for marks in ('**', '_', '`', '``', '**_')
+                                 for quoted in ("'mailto:%s'", '"mailto:%s"')]
                     with self.subTest(email=email, address=address):
                         routes = '\n'.join(pattern % address for pattern in patterns)
                         routes += "\n'mailto:" + address + "','mailto:" + address + "'\n"
