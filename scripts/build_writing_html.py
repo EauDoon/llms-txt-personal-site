@@ -16,11 +16,18 @@ import io
 import os
 import re
 import html
+import json
 from urllib.parse import quote, urlsplit
 
 
 WRITING_INDEX_BEGIN = "<!-- BEGIN GENERATED WRITING INDEX -->"
 WRITING_INDEX_END = "<!-- END GENERATED WRITING INDEX -->"
+
+
+def script_json(value):
+    """Serialize data without allowing HTML script termination."""
+    return (json.dumps(value, ensure_ascii=True).replace("<", "\\u003c")
+            .replace(">", "\\u003e").replace("&", "\\u0026"))
 
 
 def parse_front_matter(md):
@@ -210,15 +217,15 @@ def render_page(slug, source, cfg, style=""):
         title=html.escape(title, quote=True),
         desc=html.escape(desc, quote=True),
         slug=quote(slug, safe="-._~"),
-        domain=cfg.get("DOMAIN", ""),
+        domain=html.escape(cfg.get("DOMAIN", ""), quote=True),
         name=html.escape(cfg.get("FULL_NAME", ""), quote=True),
-        email=cfg.get("EMAIL", ""),
-        date=cfg.get("LAST_UPDATED", ""),
-        title_json=_json.dumps(title),
-        desc_json=_json.dumps(desc),
-        name_json=_json.dumps(cfg.get("FULL_NAME", "")),
-        title_role_json=_json.dumps(cfg.get("JOB_TITLE", "")),
-        about_json=", ".join(_json.dumps(a) for a in about),
+        email=html.escape(cfg.get("EMAIL", ""), quote=True),
+        date=html.escape(cfg.get("LAST_UPDATED", ""), quote=True),
+        title_json=script_json(title),
+        desc_json=script_json(desc),
+        name_json=script_json(cfg.get("FULL_NAME", "")),
+        title_role_json=script_json(cfg.get("JOB_TITLE", "")),
+        about_json=", ".join(script_json(a) for a in about),
         style=style,
         content=md_to_html(md),
     )
