@@ -323,7 +323,7 @@ h2, h3, h4 {{ scroll-margin-top: 1rem; }}
 {outline}
 {content}
 </main>
-<footer><p>Contact: <a href="mailto:{email}">{email}</a></p></footer>
+<footer><p>Contact: <a href="mailto:{email_uri}">{email}</a></p></footer>
 </div>
 </body>
 </html>
@@ -372,6 +372,7 @@ def render_page(slug, source, cfg, style=""):
         domain=html.escape(cfg.get("DOMAIN", ""), quote=True),
         name=html.escape(cfg.get("FULL_NAME", ""), quote=True),
         email=html.escape(cfg.get("EMAIL", ""), quote=True),
+        email_uri=quote(cfg.get("EMAIL", ""), safe="@"),
         date=modified,
         published_line='"datePublished": %s,' % script_json(published) if published else "",
         title_json=script_json(title),

@@ -5,14 +5,15 @@ import unittest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
-from build import validate_public_contacts
+from build import validate_public_contacts, validate_email_address, json_block
 from build_writing_html import render_page, md_to_html
 from build_catalog import run as build_catalog
 from build_inventory import run as build_inventory, inventory
 from build import build_site_staged, paths_overlap
 import ntpath
 from unittest.mock import patch
-from check_artifacts import audit
+from check_artifacts import audit, Document
+from urllib.parse import unquote, urlsplit
 from xml.etree import ElementTree as ET
 from html.parser import HTMLParser
 
@@ -32,6 +33,46 @@ class TextCollector(HTMLParser):
 
 
 class ReaderFeatures(unittest.TestCase):
+    def test_ascii_email_structure_and_length_matrix(self):
+        longest_domain = '.'.join(('a' * 63, 'b' * 63, 'c' * 63, 'd' * 60))
+        accepted = ('alice@example.com', "O'Neil+news@example-domain.com",
+                    "!#$%&'*+-/=?^_`{|}~@example.test", 'first.last@sub.example.test',
+                    'User@EXAMPLE.COM', 'user@xn--bcher-kva.example',
+                    'user@example.xn--p1ai', 'a' * 64 + '@example.test',
+                    'a@' + longest_domain)
+        rejected = ('', 'a@..com', '.a@example.com', 'a.@example.com',
+                    'a..b@example.com', 'a@example..com', 'a@-example.com',
+                    'a@example-.com', 'a@example.com.', 'a@.example.com',
+                    'a@example_com.test', 'a@localhost', 'a@[127.0.0.1]',
+                    'a b@example.com', ' a@example.com', 'a@example.com\n',
+                    'a@b@example.com', 'a@', '@example.com', 'a@café.test',
+                    'café@example.test', '"a b"@example.com',
+                    'a' * 65 + '@example.test', 'a@' + 'b' * 64 + '.test',
+                    'aa@' + longest_domain, None, 42)
+        for value in accepted:
+            with self.subTest(accepted=value):
+                validate_email_address(value)
+        for value in rejected:
+            with self.subTest(rejected=value), self.assertRaises(ValueError):
+                validate_email_address(value)
+
+    def test_supported_email_punctuation_is_encoded_in_actual_contact_links(self):
+        repo = Path(__file__).resolve().parents[1]
+        cfg = json.loads((repo / 'site.config.example.json').read_text(encoding='utf-8'))
+        cfg['EMAIL'] = "a?tag#literal%+x@example.test"
+        validate_public_contacts(cfg)
+        with tempfile.TemporaryDirectory() as directory:
+            site = Path(directory) / 'site'
+            build_site_staged(str(repo / 'template'), str(site), dict(cfg, **json_block(cfg)))
+            for filename in ('index.html', '404.html', 'writing/example-depth-page.html'):
+                document = Document()
+                document.feed((site / filename).read_text(encoding='utf-8'))
+                links = [urlsplit(link) for link in document.links if link.startswith('mailto:')]
+                self.assertEqual(len(links), 1)
+                self.assertEqual(unquote(links[0].path), cfg['EMAIL'])
+                self.assertEqual(links[0].query, '')
+                self.assertEqual(links[0].fragment, '')
+
     def test_article_and_search_share_authored_and_configured_entity_policy(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

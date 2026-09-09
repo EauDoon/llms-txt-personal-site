@@ -14,7 +14,7 @@ Runs six steps:
 Then run scripts/quality_check.py before you deploy.
 """
 import io, json, os, re, shutil, stat, sys, tempfile
-from urllib.parse import urlsplit
+from urllib.parse import urlsplit, quote
 
 from build_sitemap import validate_last_updated
 
@@ -68,12 +68,26 @@ def load_config():
     return cfg
 
 
+def validate_email_address(value):
+    """Validate the supported ASCII dot-atom address, not deliverability."""
+    if not isinstance(value, str) or not value.isascii() or len(value) > 254 or value.count("@") != 1:
+        raise ValueError("EMAIL must be an ASCII address of at most 254 characters")
+    local, domain = value.split("@")
+    atom = r"[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+"
+    if len(local) > 64 or not re.fullmatch(atom + r"(?:\." + atom + r")*", local):
+        raise ValueError("EMAIL local part must be a dot-atom of at most 64 characters")
+    labels = domain.split(".")
+    label_pattern = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
+    if len(domain) > 253 or len(labels) < 2 or not all(re.fullmatch(label_pattern, label) for label in labels):
+        raise ValueError("EMAIL domain must contain nonempty DNS labels of at most 63 characters without edge hyphens")
+
+
 def validate_public_contacts(cfg):
     """Reject executable URLs and ambiguous contact routes before publishing."""
-    for key, pattern in (("EMAIL", r"[A-Za-z0-9.!#$%&'*+/=_`{|}~-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,63}"),
-                         ("LINKEDIN_SLUG", r"[A-Za-z0-9_-]+"),
+    validate_email_address(cfg.get("EMAIL"))
+    for key, pattern in (("LINKEDIN_SLUG", r"[A-Za-z0-9_-]+"),
                          ("X_HANDLE", r"[A-Za-z0-9_]+")):
-        if not re.fullmatch(pattern, cfg.get(key, "")):
+        if not isinstance(cfg.get(key), str) or not re.fullmatch(pattern, cfg[key]):
             raise ValueError("%s must be a plain public contact identifier" % key)
     urls = [("EMPLOYER_URL", cfg.get("EMPLOYER_URL"))]
     alumni = cfg.get("ALUMNI_OF", [])
@@ -251,6 +265,7 @@ def is_link_like(path):
 
 def build_site(template_dir, out_dir, cfg):
     """Build a complete site into an empty staging directory."""
+    cfg = dict(cfg, EMAIL_URI=quote(cfg.get("EMAIL", ""), safe="@"))
     if not os.path.lexists(template_dir):
         raise OSError("template path does not exist: %s" % template_dir)
     if is_link_like(template_dir):

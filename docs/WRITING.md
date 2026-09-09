@@ -1,5 +1,7 @@
 # Writing, discovery, and build review
 
+The configured email supports a plain ASCII dot-atom address: nonempty atoms separated by single dots, a local part of at most 64 characters, and a dotted domain with nonempty DNS-style labels of 1 to 63 ASCII letters, digits, or internal hyphens. Leading/trailing local dots, repeated dots, edge-hyphen labels, quoted local parts, Unicode addresses, single-label hosts, and bracketed address literals are rejected. ASCII punycode domain labels are supported. The complete address is limited to 254 characters (the domain also has a 253-character limit). These are syntax checks only; no DNS lookup, mailbox ownership, or deliverability check is performed. Supported local-part punctuation is percent-encoded in the generated `mailto:` URI so characters such as `?` and `#` remain part of the address. `EMAIL_URI` is derived by the builder and should not be configured separately.
+
 Write articles in `template/writing/*.md`. The builder creates an HTML companion, a writing directory at `/writing.html`, a local search at `/search.html`, and an Atom feed at `/feed.xml`. The directory and search both have Markdown companion indexes. Removing an article removes it from the next complete build.
 
 Article metadata is optional and appears in a leading HTML comment:
