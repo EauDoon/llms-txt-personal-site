@@ -31,16 +31,24 @@ class QualityCheckTests(unittest.TestCase):
                 self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
                 path = repo / 'site' / 'contact.md'
                 original = path.read_text(encoding='utf-8')
-                for address in (quote(email, safe="@'"), quote(email, safe='@')):
-                    for pattern in ('mailto:%s', "'mailto:%s'", '"mailto:%s"',
-                                    '[Contact](mailto:%s)', '<mailto:%s>'):
-                        with self.subTest(email=email, address=address, pattern=pattern):
-                            path.write_text(original + '\n' + pattern % address + '\n', encoding='utf-8')
-                            result = subprocess.run(command, cwd=repo, capture_output=True, text=True, check=False)
-                            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-                for address in ("other'hara@unrelated.example", 'other%27hara@unrelated.example'):
+                for address in (quote(email, safe="@'"), quote(email, safe='@'), quote(email, safe="'")):
+                    patterns = ['mailto:%s', '[Contact](mailto:%s)', '<mailto:%s>']
+                    patterns += [left + 'mailto:%s' + right + punctuation
+                                 for left, right in (("'", "'"), ('"', '"'), ("('", "')"), ("['", "']"))
+                                 for punctuation in ('', ',', '.', ';', ':', '!', '?', ').')]
+                    patterns += ["'mailto:%s?subject=Hello#draft',"]
+                    with self.subTest(email=email, address=address):
+                        routes = '\n'.join(pattern % address for pattern in patterns)
+                        path.write_text(original + '\n' + routes + '\n', encoding='utf-8')
+                        result = subprocess.run(command, cwd=repo, capture_output=True, text=True, check=False)
+                        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                encoded = quote(email, safe='@')
+                for address in ("other'hara@unrelated.example", 'other%27hara@unrelated.example',
+                                encoded + '.', encoded + ',', encoded + '.evil',
+                                encoded + ',other@unrelated.example',
+                                encoded + "', 'mailto:other@unrelated.example"):
                     with self.subTest(divergent=address):
-                        path.write_text(original + "\n'mailto:" + address + "'\n", encoding='utf-8')
+                        path.write_text(original + "\n'mailto:" + address + "',\n", encoding='utf-8')
                         result = subprocess.run(command, cwd=repo, capture_output=True, text=True, check=False)
                         self.assertNotEqual(result.returncode, 0, result.stdout)
                         self.assertIn('email:', result.stdout)
@@ -89,6 +97,7 @@ class QualityCheckTests(unittest.TestCase):
                 'contact.md': '\nIncorrect contact: other?tag@contacts.example\n',
                 'profile.md': '\nIncorrect contact: other^tag@yourname.com\n',
                 'writing.html': '<p>Incorrect contact: other<span>^tag</span>@contacts.example</p>',
+                'search.html': '<p><a href="mailto:a%252Ftag@contacts.example\',">Contact</a></p>',
             }
             for filename, addition in mutations.items():
                 with self.subTest(filename=filename):
@@ -101,11 +110,13 @@ class QualityCheckTests(unittest.TestCase):
                     path.write_text(original, encoding='utf-8')
             index = repo / 'site' / 'index.html'
             original = index.read_text(encoding='utf-8')
-            index.write_text(original.replace('"email": "a%2Ftag@contacts.example"',
-                                              '"email": "other@example.invalid"'), encoding='utf-8')
-            result = subprocess.run(command, cwd=repo, capture_output=True, text=True, check=False)
-            self.assertNotEqual(result.returncode, 0, result.stdout)
-            self.assertIn('email:', result.stdout)
+            for email in ('other@example.invalid', "a%2Ftag@contacts.example',"):
+                with self.subTest(structured=email):
+                    index.write_text(original.replace('"email": "a%2Ftag@contacts.example"',
+                                                      '"email": ' + json.dumps(email)), encoding='utf-8')
+                    result = subprocess.run(command, cwd=repo, capture_output=True, text=True, check=False)
+                    self.assertNotEqual(result.returncode, 0, result.stdout)
+                    self.assertIn('email:', result.stdout)
             index.write_text(original, encoding='utf-8')
             article = repo / 'site' / 'writing' / 'example-depth-page.md'
             article.write_text(article.read_text(encoding='utf-8') + '\nThird-party example: other@yourname.com.evil\n', encoding='utf-8')
