@@ -20,8 +20,10 @@ import shutil
 import stat
 import sys
 import tempfile
+from urllib.parse import quote, urlsplit
 
 from build_sitemap import validate_last_updated
+from email_addresses import validate_email_address
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATE = os.path.join(ROOT, "template")
@@ -53,7 +55,9 @@ def load_config():
         sys.exit("No site.config.json. Copy site.config.example.json to site.config.json and fill it in.")
     with open(CONFIG, encoding="utf-8") as f:
         cfg = json.load(f)
-    missing = [key for key in REQUIRED_CONFIG if not cfg.get(key)]
+    if not isinstance(cfg, dict):
+        sys.exit("site.config.json must contain an object")
+    missing = [key for key in REQUIRED_CONFIG if not isinstance(cfg.get(key), str) or not cfg[key].strip()]
     if missing:
         sys.exit("site.config.json is missing required keys: %s" % ", ".join(missing))
     domain = cfg["DOMAIN"]
@@ -65,9 +69,36 @@ def load_config():
         sys.exit("DOMAIN should be a bare hostname, e.g. yourname.com (no https://)")
     try:
         validate_last_updated(cfg["LAST_UPDATED"])
+        validate_public_contacts(cfg)
     except ValueError as exc:
         sys.exit(str(exc))
     return cfg
+
+
+def validate_public_contacts(cfg):
+    """Reject executable URLs and ambiguous contact routes before publishing."""
+    validate_email_address(cfg.get("EMAIL"))
+    for key, pattern in (("LINKEDIN_SLUG", r"[A-Za-z0-9_-]+"),
+                         ("X_HANDLE", r"[A-Za-z0-9_]+")):
+        if not isinstance(cfg.get(key), str) or not re.fullmatch(pattern, cfg[key]):
+            raise ValueError("%s must be a plain public contact identifier" % key)
+    urls = [("EMPLOYER_URL", cfg.get("EMPLOYER_URL"))]
+    alumni = cfg.get("ALUMNI_OF", [])
+    if not isinstance(alumni, list) or any(not isinstance(item, dict) for item in alumni):
+        raise ValueError("ALUMNI_OF must be an array of objects")
+    urls.extend(("ALUMNI_OF url", item.get("url")) for item in alumni)
+    for key, value in urls:
+        try:
+            parsed = urlsplit(value) if isinstance(value, str) else None
+            valid = (parsed and parsed.scheme in {"https", "http"} and parsed.hostname
+                     and not parsed.username and not parsed.password and not parsed.fragment
+                     and not any(c.isspace() or ord(c) < 32 or c in '\\<>"' for c in value))
+            if parsed:
+                parsed.port
+        except ValueError:
+            valid = False
+        if not valid:
+            raise ValueError("%s must be an absolute HTTP(S) URL without credentials or fragment" % key)
 
 
 def fill(text, cfg):
@@ -227,6 +258,7 @@ def is_link_like(path):
 
 def build_site(template_dir, out_dir, cfg):
     """Build a complete site into an empty staging directory."""
+    cfg = dict(cfg, EMAIL_URI=quote(cfg.get("EMAIL", ""), safe="@"))
     if not os.path.lexists(template_dir):
         raise OSError("template path does not exist: %s" % template_dir)
     if is_link_like(template_dir):
@@ -234,7 +266,8 @@ def build_site(template_dir, out_dir, cfg):
     if not os.path.isdir(template_dir):
         raise OSError("template path is not a directory: %s" % template_dir)
 
-    n = 0
+    from build_inventory import MAX_FILES, MAX_FILE_BYTES, MAX_TOTAL_BYTES
+    n, total_bytes = 0, 0
     for dirpath, dirs, files in os.walk(template_dir):
         for dirname in dirs:
             path = os.path.join(dirpath, dirname)
@@ -258,6 +291,10 @@ def build_site(template_dir, out_dir, cfg):
                 raise OSError(
                     "refusing to build from non-regular template path: %s" % relative
                 )
+            size = os.path.getsize(src)
+            total_bytes += size
+            if n >= MAX_FILES or size > MAX_FILE_BYTES or total_bytes > MAX_TOTAL_BYTES:
+                raise ValueError("template exceeds the file count or byte budget")
             if f.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".ico", ".webp", ".pdf")):
                 with open(src, "rb") as a, open(dst, "wb") as b:
                     b.write(a.read())
@@ -295,10 +332,14 @@ def build_site(template_dir, out_dir, cfg):
         build_llms_index.run(out_dir, cfg)
     import build_writing_html
     build_writing_html.run(out_dir, cfg)
+    import build_catalog
+    build_catalog.run(out_dir, cfg)
     import build_llms_full
     build_llms_full.run(out_dir, cfg)
     import build_sitemap
     build_sitemap.run(out_dir, cfg)
+    import build_inventory
+    build_inventory.run(out_dir, cfg)
 
 
 def replace_output(staging_dir, output_dir):
@@ -354,8 +395,22 @@ def replace_output(staging_dir, output_dir):
             )
 
 
+def paths_overlap(first, second, path_module=os.path):
+    """Compare resolved directories, allowing disjoint Windows drives."""
+    first, second = path_module.normcase(first), path_module.normcase(second)
+    try:
+        common = path_module.commonpath([first, second])
+    except ValueError:
+        # Resolved paths are absolute; different drives have no common path.
+        return False
+    return common in {first, second}
+
+
 def build_site_staged(template_dir, output_dir, cfg):
     """Generate in a sibling staging directory, then promote completed output."""
+    template_real, output_real = os.path.realpath(template_dir), os.path.realpath(output_dir)
+    if paths_overlap(template_real, output_real):
+        raise ValueError("template and output directories must not overlap")
     parent = os.path.dirname(output_dir)
     os.makedirs(parent, exist_ok=True)
     staging = tempfile.mkdtemp(prefix=".site-build-", dir=parent)

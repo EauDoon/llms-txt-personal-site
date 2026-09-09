@@ -24,7 +24,7 @@
   "url": "https://yourname.com/writing/example-depth-page.html",
   "mainEntityOfPage": "https://yourname.com/writing/example-depth-page.html",
   "inLanguage": "en",
-  "datePublished": "2026-01-01",
+
   "dateModified": "2026-01-01",
   "author": {
     "@type": "Person",
@@ -89,22 +89,37 @@
   .files li { margin-bottom: .5rem; }
   .files .desc { color: var(--muted); }
 </style>
+<style>
+body { overflow-wrap: anywhere; }
+:focus-visible { outline: 3px solid currentColor; outline-offset: 4px; }
+.skip-link { position: absolute; left: 1rem; top: -5rem; background: white; color: black; padding: .5rem; }
+.skip-link:focus { top: 1rem; }
+pre, .table-scroll { overflow-x: auto; max-width: 100%; }
+pre { padding: 1rem; background: var(--code-bg, #f4f6f9); }
+h2, h3, h4 { scroll-margin-top: 1rem; }
+.outline { border-left: 3px solid var(--line, #ddd); padding-left: 1rem; margin: 2rem 0; }
+@media print { .skip-link, .outline { display: none; } a { color: inherit; } .wrap { max-width: none; padding: 0; } }
+</style>
 </head>
 <body>
+<a class="skip-link" href="#main-content">Skip to content</a>
 <div class="wrap">
 <p><a href="/">Your Full Name</a> / <a href="/writing/example-depth-page.md">this page in Markdown</a></p>
-<h1>Example Depth Page: Replace This Title</h1>
+<main id="main-content">
+<nav class="outline" aria-label="On this page"><p>On this page</p><ul><li><a href="#a-section-heading-that-matches-a-real-question">A section heading that matches a real question</a></li><li><a href="#another-section">Another section</a></li></ul></nav>
+<h1 id="example-depth-page-replace-this-title">Example Depth Page: Replace This Title</h1>
 <p><strong>Open with a bolded thesis paragraph that answers the question the title asks. An agent that reads only this paragraph should come away with the correct answer, because often that is all it reads.</strong></p>
 <p>By Your Full Name, Your Exact Job Title at Your Employer. Last updated: 2026-01-01.</p>
 <blockquote><p>Factual claims on this page are sourced and dated. Sections marked <strong>View</strong> are opinion, not fact.</p></blockquote>
 <hr>
-<h2>A section heading that matches a real question</h2>
+<h2 id="a-section-heading-that-matches-a-real-question">A section heading that matches a real question</h2>
 <p>Explain the mechanism. Prefer concrete detail over adjectives.</p>
 <p><strong>View.</strong> Mark opinion like this. An agent can then say &quot;they argue that&quot; rather than presenting it as established fact.</p>
-<h2>Another section</h2>
+<h2 id="another-section">Another section</h2>
 <hr>
 <p><strong>Related:</strong> link the other depth pages here.</p>
 <p><strong>Author:</strong> Your Full Name, Your Exact Job Title at Your Employer. Contact: you@yourname.com.</p>
+</main>
 <footer><p>Contact: <a href="mailto:you@yourname.com">you@yourname.com</a></p></footer>
 </div>
 </body>

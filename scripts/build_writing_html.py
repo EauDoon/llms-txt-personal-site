@@ -13,12 +13,32 @@ Front matter is read from the top of each Markdown file:
     -->
 """
 import html
+import json
 import os
 import re
+from html.parser import HTMLParser
 from urllib.parse import quote, urlsplit
+from build_sitemap import validate_last_updated
 
 WRITING_INDEX_BEGIN = "<!-- BEGIN GENERATED WRITING INDEX -->"
 WRITING_INDEX_END = "<!-- END GENERATED WRITING INDEX -->"
+INLINE_CODE = re.compile(r"(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)")
+
+
+def inline_parts(text):
+    """Yield prose and literal code using matching backtick-run lengths."""
+    position = 0
+    for match in INLINE_CODE.finditer(text):
+        yield False, text[position:match.start()]
+        yield True, match[2]
+        position = match.end()
+    yield False, text[position:]
+
+
+def script_json(value):
+    """Serialize data without allowing HTML script termination."""
+    return (json.dumps(value, ensure_ascii=True).replace("<", "\\u003c")
+            .replace(">", "\\u003e").replace("&", "\\u0026"))
 
 
 def parse_front_matter(md):
@@ -28,17 +48,62 @@ def parse_front_matter(md):
         for line in m.group(1).strip().split("\n"):
             if ":" in line:
                 k, v = line.split(":", 1)
-                meta[k.strip().lower()] = v.strip()
+                meta[k.strip().lower()] = html.unescape(v.strip())
         md = md[m.end():].lstrip()
     return meta, md
 
 
+def opening_fence(line):
+    return re.fullmatch(r"(`{3,})([^`]*)", line.strip())
+
+
+def closes_fence(line, marker):
+    candidate = line.strip()
+    return len(candidate) >= len(marker) and candidate.strip("`") == ""
+
+
+def strip_guidance_comments(md):
+    """Keep fenced examples literal and omit only comments outside them."""
+    output, marker, in_comment = [], None, False
+    for line in md.split("\n"):
+        if marker is not None:
+            output.append(line)
+            if closes_fence(line, marker):
+                marker = None
+            continue
+        fence = opening_fence(line) if not in_comment else None
+        if fence:
+            marker = fence[1]
+            output.append(line)
+            continue
+        visible, position = [], 0
+        while position < len(line):
+            token = "-->" if in_comment else "<!--"
+            boundary = line.find(token, position)
+            code = INLINE_CODE.search(line, position) if not in_comment else None
+            if code and (boundary < 0 or code.start() < boundary):
+                visible.append(line[position:code.end()])
+                position = code.end()
+                continue
+            if boundary < 0:
+                if not in_comment:
+                    visible.append(line[position:])
+                break
+            if not in_comment:
+                visible.append(line[position:boundary])
+            in_comment = not in_comment
+            position = boundary + len(token)
+        clean = "".join(visible)
+        # A comment can precede a fence on the same source line.
+        fence = opening_fence(clean)
+        if fence and not in_comment:
+            marker = fence[1]
+        output.append(clean)
+    return "\n".join(output)
+
+
 def md_to_html(md):
-    # Strip HTML comments (including multiline). A comment would otherwise
-    # be collected as a paragraph and rendered as a visible escaped <p>
-    # block, which leaks author guidance to the rendered page and to
-    # agents that fetch the HTML companion.
-    md = re.sub(r"<!--.*?-->", "", md, flags=re.DOTALL)
+    md = strip_guidance_comments(md)
     lines = md.split("\n")
     out, i = [], 0
     in_ul = in_ol = False
@@ -49,8 +114,15 @@ def md_to_html(md):
         if in_ol: out.append("</ol>"); in_ol = False
 
     def inline(s):
-        s = html.escape(s, quote=True)
-        s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
+        literal_code, parts = [], []
+        for code, value in inline_parts(s):
+            if code:
+                marker = '<span data-literal-code="%d"></span>' % len(literal_code)
+                literal_code.append((marker, '<code>%s</code>' % html.escape(value, quote=True)))
+                parts.append(marker)
+            else:
+                parts.append(html.escape(html.unescape(value), quote=True))
+        s = "".join(parts)
         s = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
         inert_links = []
         def link(match):
@@ -76,6 +148,8 @@ def md_to_html(md):
         s = re.sub(r"(?<![\">=/\w])(https?://[^\s<),]+)", r'<a href="\1">\1</a>', s)
         for placeholder, inert_text in inert_links:
             s = s.replace(placeholder, inert_text)
+        for marker, code in literal_code:
+            s = s.replace(marker, code)
         return s
 
     while i < len(lines):
@@ -84,6 +158,21 @@ def md_to_html(md):
 
         if not s:
             close(); i += 1; continue
+
+        fence = opening_fence(s)
+        if fence:
+            close()
+            marker, language = fence.groups()
+            language = language.strip()
+            i += 1
+            code = []
+            while i < len(lines) and not closes_fence(lines[i], marker):
+                code.append(lines[i]); i += 1
+            if i < len(lines):
+                i += 1
+            css = ' class="language-%s"' % language if re.fullmatch(r"[A-Za-z0-9_-]{1,32}", language) else ""
+            out.append("<pre><code%s>%s</code></pre>" % (css, html.escape("\n".join(code))))
+            continue
 
         if s == "---":
             close(); out.append("<hr>"); i += 1; continue
@@ -130,7 +219,7 @@ def md_to_html(md):
 
         close()
         buf = []
-        while i < len(lines) and lines[i].strip() and not re.match(r"^(#{1,4}\s|[-*]\s|\d+\.\s|\||>|---$)", lines[i].strip()):
+        while i < len(lines) and lines[i].strip() and not re.match(r"^(#{1,4}\s|[-*]\s|\d+\.\s|\||>|`{3,}|---$)", lines[i].strip()):
             buf.append(lines[i].strip()); i += 1
         # A reserved block prefix is not necessarily a valid block. Consume it
         # as literal paragraph text when none of the block parsers matched so
@@ -141,6 +230,41 @@ def md_to_html(md):
 
     close()
     return "\n".join(out)
+
+
+def markdown_display(md):
+    """Return rendered text and the first real H1's text from one HTML parse."""
+    class Text(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.parts = []
+            self.heading, self.in_heading, self.heading_done = [], False, False
+
+        def handle_starttag(self, tag, attrs):
+            if tag == "h1" and not self.heading_done:
+                self.in_heading = True
+
+        def handle_data(self, value):
+            self.parts.append(value)
+            if self.in_heading:
+                self.heading.append(value)
+
+        def handle_endtag(self, tag):
+            if tag == "h1" and self.in_heading:
+                self.in_heading, self.heading_done = False, True
+            if tag in {"h1", "h2", "h3", "h4", "p", "li", "pre", "tr"}:
+                self.parts.append("\n")
+            elif tag in {"td", "th"}:
+                self.parts.append("\t")
+
+    text = Text()
+    text.feed(md_to_html(md))
+    text.close()
+    return "".join(text.parts).strip(), "".join(text.heading).strip()
+
+
+def visible_markdown_text(md):
+    return markdown_display(md)[0]
 
 
 
@@ -170,7 +294,7 @@ SHELL = """<!doctype html>
   "url": "https://{domain}/writing/{slug}.html",
   "mainEntityOfPage": "https://{domain}/writing/{slug}.html",
   "inLanguage": "en",
-  "datePublished": "{date}",
+{published_line}
   "dateModified": "{date}",
   "author": {{
     "@type": "Person",
@@ -184,16 +308,53 @@ SHELL = """<!doctype html>
 }}
 </script>
 {style}
+<style>
+body {{ overflow-wrap: anywhere; }}
+:focus-visible {{ outline: 3px solid currentColor; outline-offset: 4px; }}
+.skip-link {{ position: absolute; left: 1rem; top: -5rem; background: white; color: black; padding: .5rem; }}
+.skip-link:focus {{ top: 1rem; }}
+pre, .table-scroll {{ overflow-x: auto; max-width: 100%; }}
+pre {{ padding: 1rem; background: var(--code-bg, #f4f6f9); }}
+h2, h3, h4 {{ scroll-margin-top: 1rem; }}
+.outline {{ border-left: 3px solid var(--line, #ddd); padding-left: 1rem; margin: 2rem 0; }}
+@media print {{ .skip-link, .outline {{ display: none; }} a {{ color: inherit; }} .wrap {{ max-width: none; padding: 0; }} }}
+</style>
 </head>
 <body>
+<a class="skip-link" href="#main-content">Skip to content</a>
 <div class="wrap">
 <p><a href="/">{name}</a> / <a href="/writing/{slug}.md">this page in Markdown</a></p>
+<main id="main-content">
+{outline}
 {content}
-<footer><p>Contact: <a href="mailto:{email}">{email}</a></p></footer>
+</main>
+<footer><p>Contact: <a href="mailto:{email_uri}">{email}</a></p></footer>
 </div>
 </body>
 </html>
 """
+
+
+def article_outline(content):
+    """Add stable unique fragment IDs to rendered headings, excluding code."""
+    used = {"main-content"}
+    entries = []
+    def heading(match):
+        level, label = match.groups()
+        plain = html.unescape(re.sub(r"<[^>]+>", "", label))
+        base = re.sub(r"[^a-z0-9]+", "-", plain.lower()).strip("-") or "section"
+        identifier, suffix = base, 2
+        while identifier in used:
+            identifier = "%s-%d" % (base, suffix); suffix += 1
+        used.add(identifier)
+        if level != "1":
+            entries.append('<li><a href="#%s">%s</a></li>' % (identifier, html.escape(plain)))
+        return '<h%s id="%s">%s</h%s>' % (level, identifier, label, level)
+    content = re.sub(r"<h([1-4])>(.*?)</h\1>", heading, content)
+    content = content.replace("<table>", '<div class="table-scroll" role="region" aria-label="Article table" tabindex="0"><table>')
+    content = content.replace("</table>", "</table></div>")
+    outline = '<nav class="outline" aria-label="On this page"><p>On this page</p><ul>%s</ul></nav>' % "".join(entries) if entries else ""
+    return content, outline
 
 
 def render_page(slug, source, cfg, style=""):
@@ -204,21 +365,29 @@ def render_page(slug, source, cfg, style=""):
     title = meta.get("title") or slug.replace("-", " ").title()
     desc = meta.get("desc", "")
     about = [a.strip() for a in meta.get("about", "").split(",") if a.strip()]
+    modified = validate_last_updated(meta.get("updated") or cfg.get("LAST_UPDATED"))
+    published = validate_last_updated(meta["published"]) if meta.get("published") else None
+    if published and published > modified:
+        raise ValueError("article published date cannot follow updated date")
+    content, outline = article_outline(md_to_html(md))
     return SHELL.format(
         title=html.escape(title, quote=True),
         desc=html.escape(desc, quote=True),
         slug=quote(slug, safe="-._~"),
-        domain=cfg.get("DOMAIN", ""),
+        domain=html.escape(cfg.get("DOMAIN", ""), quote=True),
         name=html.escape(cfg.get("FULL_NAME", ""), quote=True),
-        email=cfg.get("EMAIL", ""),
-        date=cfg.get("LAST_UPDATED", ""),
-        title_json=_json.dumps(title),
-        desc_json=_json.dumps(desc),
-        name_json=_json.dumps(cfg.get("FULL_NAME", "")),
-        title_role_json=_json.dumps(cfg.get("JOB_TITLE", "")),
-        about_json=", ".join(_json.dumps(a) for a in about),
+        email=html.escape(cfg.get("EMAIL", ""), quote=True),
+        email_uri=quote(cfg.get("EMAIL", ""), safe="@"),
+        date=modified,
+        published_line='"datePublished": %s,' % script_json(published) if published else "",
+        title_json=script_json(title),
+        desc_json=script_json(desc),
+        name_json=script_json(cfg.get("FULL_NAME", "")),
+        title_role_json=script_json(cfg.get("JOB_TITLE", "")),
+        about_json=", ".join(script_json(a) for a in about),
         style=style,
-        content=md_to_html(md),
+        content=content,
+        outline=outline,
     )
 
 
@@ -244,7 +413,7 @@ def update_writing_index(site_dir, entries):
             % (quote(slug, safe="-._~"), html.escape(title, quote=True))
         )
     lines.extend(("</ul>", WRITING_INDEX_END))
-    document = pattern.sub("\n".join(lines), document, count=1)
+    document = pattern.sub(lambda match: "\n".join(lines), document, count=1)
     with open(index_path, "w", encoding="utf-8", newline="") as output:
         output.write(document)
 

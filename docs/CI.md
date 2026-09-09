@@ -4,6 +4,10 @@ CI is **enabled** in this repository. `.github/workflows/quality-check.yml`
 builds the site from the template and runs the quality gate on every push and
 pull request. A failing gate fails the build.
 
+CI also runs `check_artifacts.py` to validate current bytes and local HTML links,
+and `verify_build.py` to compare two temporary builds. See [Writing and build
+review](WRITING.md) for the exact scope and local commands.
+
 A copy of the workflow is kept here as `github-actions-quality-check.yml` so it
 can be restored if the live one is deleted.
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import html
 from urllib.parse import quote
 
 from build_writing_html import parse_front_matter
@@ -17,7 +18,8 @@ def _one_line(value):
 
 def _safe_label(value):
     """Keep a generated Markdown link label on one unambiguous line."""
-    return _one_line(value).replace("[", "&#91;").replace("]", "&#93;")
+    escaped = html.escape(_one_line(value), quote=False)
+    return re.sub(r"[\[\]*_`~\\]", lambda match: "&#%d;" % ord(match[0]), escaped)
 
 
 def run(site_dir, cfg):
@@ -39,7 +41,7 @@ def run(site_dir, cfg):
             with open(os.path.join(writing_dir, filename), encoding="utf-8") as source:
                 metadata, _ = parse_front_matter(source.read())
             title = _safe_label(metadata.get("title") or slug.replace("-", " ").title())
-            description = _one_line(metadata.get("desc", ""))
+            description = html.escape(_one_line(metadata.get("desc", "")), quote=False)
             url = "https://%s/writing/%s.md" % (
                 cfg.get("DOMAIN", ""),
                 quote(slug, safe="-._~"),

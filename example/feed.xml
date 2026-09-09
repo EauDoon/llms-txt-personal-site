@@ -1,0 +1,2 @@
+<?xml version='1.0' encoding='utf-8'?>
+<feed xmlns="http://www.w3.org/2005/Atom"><id>https://yourname.com/feed.xml</id><title>Your Full Name writing</title><link href="https://yourname.com/feed.xml" rel="self" /><link href="https://yourname.com/writing.html" /><author><name>Your Full Name</name></author><entry><id>https://yourname.com/writing/example-depth-page.html</id><title>Example Depth Page</title><link href="https://yourname.com/writing/example-depth-page.html" /><summary /><updated>2026-01-01T00:00:00Z</updated></entry><updated>2026-01-01T00:00:00Z</updated></feed>

@@ -1,0 +1,148 @@
+{
+  "version": 1,
+  "site": "https://yourname.com/",
+  "reviewed_date": "2026-01-01",
+  "scope": "Built public files, excluding this manifest. Hashes establish byte identity, not factual verification or authorship.",
+  "files": [
+    {
+      "path": ".htaccess",
+      "bytes": 4467,
+      "sha256": "a52933c27576d276fb03b04b491a44c4c4128413201e8833e2cfad5d9bcce193"
+    },
+    {
+      "path": "404.html",
+      "bytes": 3623,
+      "sha256": "9461ee8d17e960c8b31842488c3e18c0a3d647a06b2714985ecc3c53338abb41"
+    },
+    {
+      "path": "_headers",
+      "bytes": 885,
+      "sha256": "feefa51bbda26af844b659cc619bf219f808c7c2b5a45f6a06f42bce2cd498ad"
+    },
+    {
+      "path": "about.md",
+      "bytes": 867,
+      "sha256": "0c387c197786266b8e9f963d1281d4b840c361bc049007018da6c4a7ac9ff865"
+    },
+    {
+      "path": "changelog.md",
+      "bytes": 773,
+      "sha256": "318cae6701883cb5fe7f682b3f2fdd434fa9f8f0453c3918a3ce99dfaad7908f"
+    },
+    {
+      "path": "contact.md",
+      "bytes": 922,
+      "sha256": "0e8601040a56d2078329b4822268316bc416591ae8bfa5303c0b7e7a0578a9c6"
+    },
+    {
+      "path": "experience.md",
+      "bytes": 709,
+      "sha256": "26e1c5058455e2a642142bde4a5d686cde857546991dc9f3bb6cdd611b12bdcb"
+    },
+    {
+      "path": "faq.md",
+      "bytes": 882,
+      "sha256": "bbf7bde56c78c7a0605c487587bf286ed6ddca4d056dfeee245ab996bdc7e00e"
+    },
+    {
+      "path": "feed.xml",
+      "bytes": 579,
+      "sha256": "027ed200fb8a6a3ffe6432319554c569330bbc31196562b7759a47288440f358"
+    },
+    {
+      "path": "focus.md",
+      "bytes": 727,
+      "sha256": "079fe8eaa8d81a179e169a8791689518f1ee483a78fc8ec40abca76db11b8d5d"
+    },
+    {
+      "path": "index.html",
+      "bytes": 9697,
+      "sha256": "f6bc12c12cfca8df52c2a47b42f02e1cf7254789fa6caf26c36d396788506156"
+    },
+    {
+      "path": "llms-full.txt",
+      "bytes": 15370,
+      "sha256": "48c8bb72774f7bfc6f448b62f75860e97ef7a4921b0880cabb5c1adc6a0c46e7"
+    },
+    {
+      "path": "llms.txt",
+      "bytes": 2482,
+      "sha256": "ab157ce719d7095263b3e32fda1a8bfe69ee373303d4f5b6df113c2be03da04a"
+    },
+    {
+      "path": "now.md",
+      "bytes": 768,
+      "sha256": "36f9c31aebd75340da53e6cb0553cb96ecc5413f642831594c52c13a748d9f45"
+    },
+    {
+      "path": "press.md",
+      "bytes": 2837,
+      "sha256": "3d4cbccbb0268dab57828ef755f1df737d03ac3620b129cc3b71ee9ad857106e"
+    },
+    {
+      "path": "products.md",
+      "bytes": 1031,
+      "sha256": "5a91dfc82bc69b152662f5238b82ab047af008f75d525fe0a95b7a15290628cc"
+    },
+    {
+      "path": "profile.md",
+      "bytes": 1471,
+      "sha256": "4771532a7ec9ea76f5e7758d1acd1f70761bf5e071980b8f7806ea9e6f2013e8"
+    },
+    {
+      "path": "robots.txt",
+      "bytes": 1698,
+      "sha256": "890b20bb6e797a5b8e150d9a5f571801e2ca3ed0ca6764eaf2e9bac74d95de1d"
+    },
+    {
+      "path": "search-index.json",
+      "bytes": 9492,
+      "sha256": "e7b26e82669a6256eff73b9daef70cc93f2c0ce3d7fbd0b95e98618811c21094"
+    },
+    {
+      "path": "search.html",
+      "bytes": 2105,
+      "sha256": "b13241bf8ab993d9e9d409fab55406c5ca0ad8241e2b229ac33fb62bd5b989b7"
+    },
+    {
+      "path": "search.js",
+      "bytes": 1868,
+      "sha256": "03cf6bdb0b673b235c6633ea22f4fbd2677229e80070ab7bfc724ca061d29126"
+    },
+    {
+      "path": "search.md",
+      "bytes": 526,
+      "sha256": "1bf9861374c4289114adb8774749c380e5c03c1b78cbf076ba8eb670906bab2c"
+    },
+    {
+      "path": "sitemap.xml",
+      "bytes": 1997,
+      "sha256": "52b6f1d92c496161999120c354cfb3de19123d9728b749d04a923453289652c2"
+    },
+    {
+      "path": "vercel.json",
+      "bytes": 1655,
+      "sha256": "c23f25344aa1560d78d91689cdf35eeaff743cd954aba54391ee198df35c6eea"
+    },
+    {
+      "path": "writing/example-depth-page.html",
+      "bytes": 6387,
+      "sha256": "24d037848b0fb4ee6b8506abca55e3a4ed459604979d0b17d4cdf9dc37de32c1"
+    },
+    {
+      "path": "writing/example-depth-page.md",
+      "bytes": 1129,
+      "sha256": "4208c7ccad799211607f78f6ef5339adf225b94ee7e133bb29ad9b755be56363"
+    },
+    {
+      "path": "writing.html",
+      "bytes": 1345,
+      "sha256": "23442900a6cc33e2027323f1e7dd8b1478db28b37ff44534067434532dd59197"
+    },
+    {
+      "path": "writing.md",
+      "bytes": 92,
+      "sha256": "6f8e8371b18dd2bc57bfcddc402effbd66790abe4ac95fdc69da56c094c06b29"
+    }
+  ]
+}
