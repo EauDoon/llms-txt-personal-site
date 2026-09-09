@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from urllib.parse import quote
 from pathlib import Path
 
 
@@ -14,6 +15,73 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class QualityCheckTests(unittest.TestCase):
+    def test_supported_email_matrix_passes_full_build_and_required_gate(self):
+        punctuation = "!#$%&'*+-/=?^_`{|}~"
+        addresses = ["a" + mark + "tag@yourname.com" for mark in punctuation]
+        addresses += ["a" + punctuation + "tag@yourname.com", "a%2Ftag@yourname.com",
+                      "a%252Ftag@yourname.com", "a**tag@yourname.com",
+                      "a?tag@contacts.example", "a^tag@yourname.com.evil"]
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            shutil.copytree(ROOT / 'scripts', repo / 'scripts', ignore=shutil.ignore_patterns('__pycache__'))
+            shutil.copytree(ROOT / 'template', repo / 'template')
+            cfg = json.loads((ROOT / 'site.config.example.json').read_text(encoding='utf-8'))
+            for email in addresses:
+                with self.subTest(email=email):
+                    cfg['EMAIL'] = email
+                    (repo / 'site.config.json').write_text(json.dumps(cfg), encoding='utf-8')
+                    for script in ('build.py', 'quality_check.py'):
+                        result = subprocess.run([sys.executable, str(repo / 'scripts' / script)], cwd=repo,
+                                                capture_output=True, text=True, check=False)
+                        self.assertEqual(result.returncode, 0, email + ': ' + script + '\n' + result.stdout + result.stderr)
+                    contact = repo / 'site' / 'contact.md'
+                    contact.write_text(contact.read_text(encoding='utf-8') + '\n[Contact](mailto:' + quote(email, safe='@') + ')\n', encoding='utf-8')
+                    result = subprocess.run([sys.executable, str(repo / 'scripts' / 'quality_check.py')], cwd=repo,
+                                            capture_output=True, text=True, check=False)
+                    self.assertEqual(result.returncode, 0, email + ': Markdown mailto\n' + result.stdout + result.stderr)
+
+    def test_required_gate_rejects_divergent_routes_and_contact_facts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            shutil.copytree(ROOT / 'scripts', repo / 'scripts', ignore=shutil.ignore_patterns('__pycache__'))
+            shutil.copytree(ROOT / 'template', repo / 'template')
+            cfg = json.loads((ROOT / 'site.config.example.json').read_text(encoding='utf-8'))
+            cfg['EMAIL'] = 'a%2Ftag@contacts.example'
+            (repo / 'site.config.json').write_text(json.dumps(cfg), encoding='utf-8')
+            build = subprocess.run([sys.executable, str(repo / 'scripts' / 'build.py')], cwd=repo,
+                                   capture_output=True, text=True, check=False)
+            self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
+            command = [sys.executable, str(repo / 'scripts' / 'quality_check.py')]
+            mutations = {
+                'index.html': '<p><a href="mailto:other@unrelated.example">Contact</a></p>',
+                '404.html': '<p><a href="mailto:other@contacts.example">Contact</a></p>',
+                'writing/example-depth-page.html': '<p><a href="mailto:other%3Ftag@contacts.example">Contact</a></p>',
+                'contact.md': '\nIncorrect contact: other?tag@contacts.example\n',
+                'profile.md': '\nIncorrect contact: other^tag@yourname.com\n',
+                'writing.html': '<p>Incorrect contact: other<span>^tag</span>@contacts.example</p>',
+            }
+            for filename, addition in mutations.items():
+                with self.subTest(filename=filename):
+                    path = repo / 'site' / filename
+                    original = path.read_text(encoding='utf-8')
+                    path.write_text(original + addition, encoding='utf-8')
+                    result = subprocess.run(command, cwd=repo, capture_output=True, text=True, check=False)
+                    self.assertNotEqual(result.returncode, 0, result.stdout)
+                    self.assertIn('email:', result.stdout)
+                    path.write_text(original, encoding='utf-8')
+            index = repo / 'site' / 'index.html'
+            original = index.read_text(encoding='utf-8')
+            index.write_text(original.replace('"email": "a%2Ftag@contacts.example"',
+                                              '"email": "other@example.invalid"'), encoding='utf-8')
+            result = subprocess.run(command, cwd=repo, capture_output=True, text=True, check=False)
+            self.assertNotEqual(result.returncode, 0, result.stdout)
+            self.assertIn('email:', result.stdout)
+            index.write_text(original, encoding='utf-8')
+            article = repo / 'site' / 'writing' / 'example-depth-page.md'
+            article.write_text(article.read_text(encoding='utf-8') + '\nThird-party example: other@yourname.com.evil\n', encoding='utf-8')
+            result = subprocess.run(command, cwd=repo, capture_output=True, text=True, check=False)
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+
     def run_quality_check(
         self,
         writing_as_file: bool = False,
@@ -30,6 +98,7 @@ class QualityCheckTests(unittest.TestCase):
             shutil.copy2(ROOT / "scripts" / "http_client.py", scripts)
             shutil.copy2(ROOT / "scripts" / "llms_txt.py", scripts)
             shutil.copy2(ROOT / "scripts" / "quality_check.py", scripts)
+            shutil.copy2(ROOT / "scripts" / "email_addresses.py", scripts)
 
             site = repo / "site"
             site.mkdir()

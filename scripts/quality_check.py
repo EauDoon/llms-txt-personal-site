@@ -17,6 +17,7 @@ from a2a_agent_card import load_agent_card, validate_agent_card
 from build_sitemap import public_urls, validate_last_updated
 from http_client import fetch_url
 from llms_txt import has_link_relation, markdown_alternate, validate_llms_txt
+from email_addresses import address_key, contact_values, validate_email_address
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 R = os.path.join(REPO, "site")
@@ -127,7 +128,6 @@ for name, pat in RULES:
 head("2. CROSS-FILE FACT CONSISTENCY")
 FACTS = [
     ("job title", r"(?i)\b(%s)\b" % re.escape(JOB_TITLE) if JOB_TITLE else r"(?!x)x", {JOB_TITLE.lower()}),
-    ("email", r"[a-zA-Z0-9._%%+-]+@" + re.escape(DOMAIN), {EMAIL}),
 ]
 for name, pat, allowed in FACTS:
     found = {}
@@ -143,6 +143,33 @@ for name, pat, allowed in FACTS:
         print("  FAIL %-18s unexpected: %s" % (name, bad))
     else:
         print("  ok   %-18s %s" % (name, sorted(found)))
+
+if EMAIL:
+    try:
+        validate_email_address(EMAIL)
+        expected_email = address_key(EMAIL)
+    except ValueError as exc:
+        expected_email = None
+        fails.append(str(exc))
+    found, bad = {}, {}
+    domains = {DOMAIN.lower(), EMAIL.rsplit("@", 1)[-1].lower()}
+    for rel, path in sources():
+        prose, routes = contact_values(read(path), os.path.splitext(rel)[1].lower())
+        candidates = routes + [value for value in prose if value.rsplit("@", 1)[-1].lower() in domains]
+        for value in candidates:
+            found.setdefault(value, []).append(rel)
+            try:
+                validate_email_address(value)
+                consistent = address_key(value) == expected_email
+            except ValueError:
+                consistent = False
+            if not consistent:
+                bad.setdefault(value, []).append(rel)
+    if bad:
+        fails.append("email: %s" % list(bad))
+        print("  FAIL email unexpected: %s" % bad)
+    else:
+        print("  ok   email %s" % sorted(found))
 
 head("3. STRUCTURED DATA")
 for rel, p in sources():

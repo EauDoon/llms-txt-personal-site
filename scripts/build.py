@@ -17,6 +17,7 @@ import io, json, os, re, shutil, stat, sys, tempfile
 from urllib.parse import urlsplit, quote
 
 from build_sitemap import validate_last_updated
+from email_addresses import validate_email_address
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATE = os.path.join(ROOT, "template")
@@ -66,20 +67,6 @@ def load_config():
     except ValueError as exc:
         sys.exit(str(exc))
     return cfg
-
-
-def validate_email_address(value):
-    """Validate the supported ASCII dot-atom address, not deliverability."""
-    if not isinstance(value, str) or not value.isascii() or len(value) > 254 or value.count("@") != 1:
-        raise ValueError("EMAIL must be an ASCII address of at most 254 characters")
-    local, domain = value.split("@")
-    atom = r"[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+"
-    if len(local) > 64 or not re.fullmatch(atom + r"(?:\." + atom + r")*", local):
-        raise ValueError("EMAIL local part must be a dot-atom of at most 64 characters")
-    labels = domain.split(".")
-    label_pattern = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
-    if len(domain) > 253 or len(labels) < 2 or not all(re.fullmatch(label_pattern, label) for label in labels):
-        raise ValueError("EMAIL domain must contain nonempty DNS labels of at most 63 characters without edge hyphens")
 
 
 def validate_public_contacts(cfg):
