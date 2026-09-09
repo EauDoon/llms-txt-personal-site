@@ -1,13 +1,11 @@
 """Fail-closed, one-sitting setup for a new identity-site fork."""
 
 import argparse
-import io
 import json
 import shutil
 import subprocess
 import sys
 from pathlib import Path
-
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -84,7 +82,7 @@ CATEGORY_QUERY_PHRASES = (
 
 
 def load_json(path):
-    with io.open(path, encoding="utf-8") as source:
+    with open(path, encoding="utf-8") as source:
         return json.load(source)
 
 
