@@ -19,7 +19,7 @@ Use only dates you can support. Dates must be real calendar dates in `YYYY-MM-DD
 
 Headings receive unique section links and an on-page outline. Fenced code blocks preserve literal text, including HTML examples. Raw HTML in Markdown is escaped. This is a deliberately small Markdown renderer, not a complete CommonMark implementation. Backtick fences, headings, simple lists, links, quotes, and simple tables are supported. Article tables scroll horizontally, keyboard users can skip navigation, and printing removes the outline.
 
-Search matches a literal phrase against titles and the first 100,000 characters of each published Markdown page. It runs in the browser without analytics or an external search service. The generated index is public, like the source pages. Guidance comments are omitted. Without JavaScript or if the index fails to load, the page still lists links to all indexed pages. Clear search restores all results. Search does not establish factual accuracy or rank authority.
+Search matches a literal phrase against titles and the first 100,000 characters of each published Markdown page. Configured prose and metadata use their visible characters in discovery, so names with ampersands and apostrophes remain searchable. Fenced code retains literal entity text and comments. It runs in the browser without analytics or an external search service. The generated index is public, like the source pages. Guidance comments are omitted. Without JavaScript or if the index fails to load, the page still lists links to all indexed pages. Clear search restores all results. Search does not establish factual accuracy or rank authority.
 
 After building, run:
 

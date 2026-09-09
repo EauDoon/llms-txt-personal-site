@@ -14,6 +14,7 @@ import ntpath
 from unittest.mock import patch
 from check_artifacts import audit
 from xml.etree import ElementTree as ET
+from html.parser import HTMLParser
 
 CFG = {"DOMAIN": "example.test", "FULL_NAME": "Example Person", "EMAIL": "person@example.test",
        "EMPLOYER_URL": "https://example.test", "LINKEDIN_SLUG": "example-person",
@@ -21,6 +22,56 @@ CFG = {"DOMAIN": "example.test", "FULL_NAME": "Example Person", "EMAIL": "person
 
 
 class ReaderFeatures(unittest.TestCase):
+    def test_configured_discovery_text_is_readable_searchable_and_inert(self):
+        class TextCollector(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.text, self.tags = [], []
+            def handle_data(self, value):
+                self.text.append(value)
+            def handle_starttag(self, tag, attrs):
+                self.tags.append(tag)
+
+        name = "Alice & Bob's <img src=x onerror=alert(1)>"
+        topic = "Research & development's </script><script>alert(1)</script>"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            template = root / 'template'
+            (template / 'writing').mkdir(parents=True)
+            (template / 'profile.md').write_text('# {{FULL_NAME}}\n\n{{FULL_NAME}} works in {{JOB_TITLE}}.', encoding='utf-8')
+            (template / 'writing' / 'article.md').write_text(
+                '<!--\ntitle: {{FULL_NAME}}\ndesc: About {{FULL_NAME}}\nabout: {{JOB_TITLE}}\n-->\n'
+                '# {{FULL_NAME}}\n\n{{FULL_NAME}}\n\n````html\n```\n&lt;literal&gt; &amp; &#x27;\n<!-- literal comment -->\n````\n'
+                '<!-- hidden guidance -->', encoding='utf-8')
+            site = root / 'site'
+            build_site_staged(str(template), str(site), {**CFG, 'FULL_NAME': name, 'JOB_TITLE': topic})
+            records = json.loads((site / 'search-index.json').read_text(encoding='utf-8'))
+            for record in records:
+                self.assertEqual(record['title'], name)
+                self.assertIn(name, record['text'])
+                self.assertIn("alice & bob's", (record['title'] + record['text']).lower())
+            article = next(record for record in records if record['url'].endswith('article.html'))
+            self.assertIn('&lt;literal&gt; &amp; &#x27;', article['text'])
+            self.assertIn('<!-- literal comment -->', article['text'])
+            self.assertNotIn('hidden guidance', article['text'])
+            for filename in ('writing.html', 'search.html'):
+                content = (site / filename).read_text(encoding='utf-8')
+                parsed = TextCollector()
+                parsed.feed(content)
+                self.assertIn(name, ''.join(parsed.text))
+                self.assertNotIn('img', parsed.tags)
+                self.assertNotIn('onerror="', content)
+                self.assertEqual(parsed.tags.count('script'), 1 if filename == 'search.html' else 0)
+                self.assertNotIn('Alice &amp;amp;', content)
+            feed = ET.fromstring((site / 'feed.xml').read_bytes())
+            ns = {'a': 'http://www.w3.org/2005/Atom'}
+            self.assertEqual(feed.find('a:entry/a:title', ns).text, name)
+            self.assertEqual(feed.find('a:entry/a:summary', ns).text, 'About ' + name)
+            self.assertEqual(feed.find('a:author/a:name', ns).text, name)
+            self.assertIsNone(feed.find('.//img'))
+            for filename in ('writing.md', 'search.md'):
+                self.assertNotIn('<img', (site / filename).read_text(encoding='utf-8'))
+
     def test_artifact_audit_rejects_truncated_json_ld(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

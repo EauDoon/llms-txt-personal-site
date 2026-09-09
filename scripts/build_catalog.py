@@ -7,13 +7,43 @@ from urllib.parse import quote
 from xml.etree import ElementTree as ET
 from build_sitemap import validate_last_updated
 
-from build_writing_html import parse_front_matter, strip_guidance_comments
+from build_writing_html import (parse_front_matter, strip_guidance_comments,
+                                opening_fence, closes_fence)
+
+
+def visible_markdown_text(body):
+    """Decode prose entities once while preserving literal fenced code bytes.
+
+    The template filler escapes configured values for HTML, including values
+    inserted into Markdown. Discovery stores visible text and escapes it again
+    only at its eventual HTML/XML/JSON output boundary.
+    """
+    marker, lines = None, []
+    for line in strip_guidance_comments(body).split("\n"):
+        if marker is not None:
+            lines.append(line)
+            if closes_fence(line, marker):
+                marker = None
+        else:
+            fence = opening_fence(line)
+            if fence:
+                marker = fence[1]
+                lines.append(line)
+            else:
+                lines.append(html.unescape(line))
+    return "\n".join(lines)
+
+
+def markdown_label(value):
+    """Keep discovery labels inert when a consumer renders the Markdown index."""
+    return html.escape(value.replace("[", "").replace("]", ""), quote=False)
 
 
 def articles(site_dir):
     entries = []
     for path in sorted((Path(site_dir) / "writing").glob("*.md")):
         meta, body = parse_front_matter(path.read_text(encoding="utf-8"))
+        meta = {key: html.unescape(value) for key, value in meta.items()}
         entries.append({"title": meta.get("title") or path.stem.replace("-", " ").title(),
                         "description": meta.get("desc", ""),
                         "topics": [s.strip() for s in meta.get("about", "").split(",") if s.strip()],
@@ -53,7 +83,7 @@ def run(site_dir, cfg):
     body += '<ul>%s</ul>' % "".join(rows) if rows else '<p>No writing pages have been published.</p>'
     (Path(site_dir) / "writing.html").write_text(page("Writing", body, cfg), encoding="utf-8", newline="")
     markdown = "# Writing\n\nLast updated: %s\n\n" % cfg["LAST_UPDATED"]
-    markdown += "\n".join(("- [%s](%s)" % (entry["title"].replace("[", "").replace("]", ""), entry["source"])) + (": " + entry["description"] if entry["description"] else "") for entry in entries)
+    markdown += "\n".join(("- [%s](%s)" % (markdown_label(entry["title"]), entry["source"])) + (": " + html.escape(entry["description"], quote=False) if entry["description"] else "") for entry in entries)
     (Path(site_dir) / "writing.md").write_text(markdown + "\n", encoding="utf-8", newline="")
     build_search(site_dir, cfg, entries)
     build_feed(site_dir, cfg, entries)
@@ -101,7 +131,7 @@ def build_search(site_dir, cfg, entries):
     for path in paths:
         source = "/" + quote(path.relative_to(site_dir).as_posix(), safe="/-._~")
         meta, body = parse_front_matter(path.read_text(encoding="utf-8"))
-        body = strip_guidance_comments(body)
+        body = visible_markdown_text(body)
         heading = re.search(r"^#\s+(.+)$", body, re.M)
         article = writing.get(source, {})
         records.append({"title": article.get("title") or (heading[1] if heading else path.stem.title()),
@@ -114,5 +144,5 @@ def build_search(site_dir, cfg, entries):
 <ul id="search-results">%s</ul><script src="/search.js" defer></script>''' % links
     (Path(site_dir) / "search.html").write_text(page("Search", body, cfg), encoding="utf-8", newline="")
     markdown = "# Search and page directory\n\nLast updated: %s\n\nSearch runs locally in the browser at /search.html. Published pages:\n\n" % cfg["LAST_UPDATED"]
-    markdown += "\n".join("- [%s](%s)" % (record["title"].replace("[", "").replace("]", ""), record["url"]) for record in records)
+    markdown += "\n".join("- [%s](%s)" % (markdown_label(record["title"]), record["url"]) for record in records)
     (Path(site_dir) / "search.md").write_text(markdown + "\n", encoding="utf-8", newline="")
