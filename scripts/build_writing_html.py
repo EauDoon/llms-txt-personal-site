@@ -211,16 +211,53 @@ SHELL = """<!doctype html>
 }}
 </script>
 {style}
+<style>
+body {{ overflow-wrap: anywhere; }}
+:focus-visible {{ outline: 3px solid currentColor; outline-offset: 4px; }}
+.skip-link {{ position: absolute; left: 1rem; top: -5rem; background: white; color: black; padding: .5rem; }}
+.skip-link:focus {{ top: 1rem; }}
+pre, .table-scroll {{ overflow-x: auto; max-width: 100%; }}
+pre {{ padding: 1rem; background: var(--code-bg, #f4f6f9); }}
+h2, h3, h4 {{ scroll-margin-top: 1rem; }}
+.outline {{ border-left: 3px solid var(--line, #ddd); padding-left: 1rem; margin: 2rem 0; }}
+@media print {{ .skip-link, .outline {{ display: none; }} a {{ color: inherit; }} .wrap {{ max-width: none; padding: 0; }} }}
+</style>
 </head>
 <body>
+<a class="skip-link" href="#main-content">Skip to content</a>
 <div class="wrap">
 <p><a href="/">{name}</a> / <a href="/writing/{slug}.md">this page in Markdown</a></p>
+<main id="main-content">
+{outline}
 {content}
+</main>
 <footer><p>Contact: <a href="mailto:{email}">{email}</a></p></footer>
 </div>
 </body>
 </html>
 """
+
+
+def article_outline(content):
+    """Add stable unique fragment IDs to rendered headings, excluding code."""
+    used = {"main-content"}
+    entries = []
+    def heading(match):
+        level, label = match.groups()
+        plain = html.unescape(re.sub(r"<[^>]+>", "", label))
+        base = re.sub(r"[^a-z0-9]+", "-", plain.lower()).strip("-") or "section"
+        identifier, suffix = base, 2
+        while identifier in used:
+            identifier = "%s-%d" % (base, suffix); suffix += 1
+        used.add(identifier)
+        if level != "1":
+            entries.append('<li><a href="#%s">%s</a></li>' % (identifier, html.escape(plain)))
+        return '<h%s id="%s">%s</h%s>' % (level, identifier, label, level)
+    content = re.sub(r"<h([1-4])>(.*?)</h\1>", heading, content)
+    content = content.replace("<table>", '<div class="table-scroll" role="region" aria-label="Article table" tabindex="0"><table>')
+    content = content.replace("</table>", "</table></div>")
+    outline = '<nav class="outline" aria-label="On this page"><p>On this page</p><ul>%s</ul></nav>' % "".join(entries) if entries else ""
+    return content, outline
 
 
 def render_page(slug, source, cfg, style=""):
@@ -231,6 +268,7 @@ def render_page(slug, source, cfg, style=""):
     title = meta.get("title") or slug.replace("-", " ").title()
     desc = meta.get("desc", "")
     about = [a.strip() for a in meta.get("about", "").split(",") if a.strip()]
+    content, outline = article_outline(md_to_html(md))
     return SHELL.format(
         title=html.escape(title, quote=True),
         desc=html.escape(desc, quote=True),
@@ -245,7 +283,8 @@ def render_page(slug, source, cfg, style=""):
         title_role_json=script_json(cfg.get("JOB_TITLE", "")),
         about_json=", ".join(script_json(a) for a in about),
         style=style,
-        content=md_to_html(md),
+        content=content,
+        outline=outline,
     )
 
 

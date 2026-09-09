@@ -14,6 +14,14 @@ CFG = {"DOMAIN": "example.test", "FULL_NAME": "Example Person", "EMAIL": "person
 
 
 class ReaderFeatures(unittest.TestCase):
+    def test_outline_has_unique_working_fragments(self):
+        page = render_page('test', '# Test\n## Evidence\n## Evidence\n## Main content\n```\n## Hidden\n```', CFG)
+        for identifier in ('evidence', 'evidence-2', 'main-content-2'):
+            self.assertIn('href="#%s"' % identifier, page)
+            self.assertIn('id="%s"' % identifier, page)
+        self.assertNotIn('href="#hidden"', page)
+        self.assertIn('<main id="main-content">', page)
+
     def test_fences_are_literal_and_unclosed_fences_terminate(self):
         source = '```html\n<!-- visible -->\n<script>bad()</script>\n[link](https://example.test)\n```\n<!-- hidden -->'
         page = md_to_html(source)
