@@ -10,9 +10,10 @@ ATOM_CHARACTERS = r"A-Za-z0-9!#$%&'*+/=?^_`{|}~\-"
 ATOM = "[" + ATOM_CHARACTERS + "]+"
 DNS_LABEL = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
 CANDIDATE = re.compile(r"[" + ATOM_CHARACTERS + r".]+@[A-Za-z0-9.-]+")
-# Apostrophes can belong to the local part, but delimit prose after @ (or
-# its URI encoding). Keep malformed routes in the fallback for validation.
-MAILTO = re.compile(r"(?i)(?<![A-Za-z0-9])mailto:(?:[^\s<>\")\]]*?(?:@|%40)[^\s<>\"')\]]*|[^\s<>\")\]]+)")
+MAILTO = re.compile(r"(?i)(?<![A-Za-z0-9])mailto:[^\s<>)\]]+")
+# Only paired prose quotes delimit a route. The closing quote must end the
+# token, allowing outside punctuation or another route, never trailing letters.
+QUOTED_MAILTO = re.compile(r'''(?i)(['"])(mailto:[^\s<>]*?)\1(?=[.,;:!?()[\]{}]*(?:\s|$|['"]?mailto:))''')
 
 
 def validate_email_address(value):
@@ -131,13 +132,20 @@ def contact_values(source, suffix):
         prose.append(html.unescape(source))
     addresses = []
     for text in prose:
-        def route(match):
+        position = 0
+        while match := MAILTO.search(text, position):
+            addresses.extend(text_addresses(text[position:match.start()]))
             target = match[0]
+            position = match.end()
+            if match.start() > 0 and text[match.start() - 1] in "'\"":
+                quoted = QUOTED_MAILTO.match(text, match.start() - 1)
+                if quoted:
+                    target = quoted[2]
+                    position = quoted.end()
             try:
                 explicit.append(unquote(urlsplit(target).path))
             except ValueError:
                 explicit.append(target)
-            return " "
         # Markdown/text links are URI contexts too. Never decode other prose.
-        addresses.extend(text_addresses(MAILTO.sub(route, text)))
+        addresses.extend(text_addresses(text[position:]))
     return addresses, explicit

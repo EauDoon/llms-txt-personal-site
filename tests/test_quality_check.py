@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import html
 import os
 import shutil
 import subprocess
@@ -15,6 +16,42 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 class QualityCheckTests(unittest.TestCase):
+    def test_malformed_routes_retain_suffixes_in_source_and_rendered_contexts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            shutil.copytree(ROOT / 'scripts', repo / 'scripts', ignore=shutil.ignore_patterns('__pycache__'))
+            shutil.copytree(ROOT / 'template', repo / 'template')
+            cfg = json.loads((ROOT / 'site.config.example.json').read_text(encoding='utf-8'))
+            cfg['EMAIL'] = "o'hara@yourname.com"
+            (repo / 'site.config.json').write_text(json.dumps(cfg), encoding='utf-8')
+            address = 'o%27hara%40yourname.com'
+            route = 'mailto:' + address
+            malformed = [
+                '[Contact](' + route + "'evil)", '<' + route + "'evil>",
+                route + "'evil", route + "'", "'" + route + "'evil",
+                "'" + route + "'evil'", "'" + route + "'.evil'",
+                '"' + route + '"evil', '"' + route + '"evil"',
+                '[Contact](' + route + '%27evil)',
+            ]
+            for filename in ('contact.md', 'writing/example-depth-page.md'):
+                path = repo / 'template' / filename
+                original = path.read_text(encoding='utf-8')
+                for addition in malformed:
+                    with self.subTest(filename=filename, addition=addition):
+                        path.write_text(original + '\n' + addition + '\n', encoding='utf-8')
+                        build = subprocess.run([sys.executable, str(repo / 'scripts' / 'build.py')], cwd=repo,
+                                               capture_output=True, text=True, check=False)
+                        self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
+                        self.assertIn(addition, (repo / 'site' / filename).read_text(encoding='utf-8'))
+                        if filename.startswith('writing/') and addition.startswith('[Contact]('):
+                            rendered = html.unescape((repo / 'site' / filename).with_suffix('.html').read_text(encoding='utf-8'))
+                            self.assertIn(addition[len('[Contact]('):-1], rendered)
+                        result = subprocess.run([sys.executable, str(repo / 'scripts' / 'quality_check.py')],
+                                                cwd=repo, capture_output=True, text=True, check=False)
+                        self.assertNotEqual(result.returncode, 0, result.stdout)
+                        self.assertIn('email:', result.stdout)
+                path.write_text(original, encoding='utf-8')
+
     def test_apostrophe_routes_pass_full_build_and_gate_with_prose_quotes(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
@@ -39,6 +76,7 @@ class QualityCheckTests(unittest.TestCase):
                     patterns += ["'mailto:%s?subject=Hello#draft',"]
                     with self.subTest(email=email, address=address):
                         routes = '\n'.join(pattern % address for pattern in patterns)
+                        routes += "\n'mailto:" + address + "','mailto:" + address + "'\n"
                         path.write_text(original + '\n' + routes + '\n', encoding='utf-8')
                         result = subprocess.run(command, cwd=repo, capture_output=True, text=True, check=False)
                         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
