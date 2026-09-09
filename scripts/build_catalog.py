@@ -25,7 +25,21 @@ def articles(site_dir):
                         "url": "/writing/" + quote(path.stem, safe="-._~") + ".html",
                         "source": "/writing/" + quote(path.name, safe="-._~"),
                         "body": body, "meta": meta})
+    entries.sort(key=lambda entry: (entry['title'].casefold(), entry['url']))
+    entries.sort(key=lambda entry: entry['meta'].get('updated') or entry['meta'].get('published') or '', reverse=True)
     return entries
+
+
+def date_labels(entry, cfg):
+    meta = entry['meta']
+    labels = []
+    if meta.get('published'):
+        labels.append(('Published', validate_last_updated(meta['published'])))
+    if meta.get('updated'):
+        labels.append(('Article updated', validate_last_updated(meta['updated'])))
+    else:
+        labels.append(('Site date (fallback)', validate_last_updated(cfg['LAST_UPDATED'])))
+    return labels
 
 
 def page(title, body, cfg, source=None, heading=True):
@@ -55,14 +69,17 @@ def run(site_dir, cfg):
     entries = articles(site_dir)
     rows = []
     for entry in entries:
-        rows.append('<li><h2><a href="%s">%s</a></h2><p>%s</p><p>%s</p><a href="%s">Markdown source</a></li>' % (
+        dates = ' · '.join('%s: <time datetime="%s">%s</time>' % (label, date, date) for label, date in date_labels(entry, cfg))
+        rows.append('<li><h2><a href="%s">%s</a></h2><p>%s</p><p>%s</p><p>%s</p><a href="%s">Markdown source</a></li>' % (
             entry["url"], html.escape(entry["title"]), html.escape(entry["description"]),
-            html.escape(" · ".join(entry["topics"])), entry["source"]))
+            dates, html.escape(" · ".join(entry["topics"])), entry["source"]))
     body = '<p>Browse %d writing page%s, with original Markdown sources.</p>' % (len(rows), "" if len(rows) == 1 else "s")
+    body += '<p>Latest declared article dates first. Articles without dates follow in title order.</p>'
     body += '<ul>%s</ul>' % "".join(rows) if rows else '<p>No writing pages have been published.</p>'
     (Path(site_dir) / "writing.html").write_text(page("Writing", body, cfg), encoding="utf-8", newline="")
     markdown = "# Writing\n\nLast updated: %s\n\n" % cfg["LAST_UPDATED"]
-    markdown += "\n".join(("- [%s](%s)" % (markdown_label(entry["title"]), entry["source"])) + (": " + html.escape(entry["description"], quote=False) if entry["description"] else "") for entry in entries)
+    markdown += "\n".join(("- [%s](%s)" % (markdown_label(entry["title"]), entry["source"])) + (": " + html.escape(entry["description"], quote=False) if entry["description"] else "")
+                          + ' (' + '; '.join(label + ': ' + date for label, date in date_labels(entry, cfg)) + ')' for entry in entries)
     (Path(site_dir) / "writing.md").write_text(markdown + "\n", encoding="utf-8", newline="")
     build_search(site_dir, cfg, entries)
     build_feed(site_dir, cfg, entries)

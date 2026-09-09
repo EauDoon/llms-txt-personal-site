@@ -91,8 +91,8 @@
     },
     {
       "path": "llms-full.txt",
-      "bytes": 15390,
-      "sha256": "4870ee1f2539b8716754ba03865e415d76129864f06ca4459fa250aa9c367206"
+      "bytes": 15425,
+      "sha256": "951b170d94d1f3e0f7789bf88e4135901500918e72382a46dd230707dd45fa5f"
     },
     {
       "path": "llms.txt",
@@ -186,13 +186,13 @@
     },
     {
       "path": "writing.html",
-      "bytes": 1664,
-      "sha256": "de3610a7d545fbc1cda94ae12e0464bacf1211b43b525fb79b0639be552bd2c0"
+      "bytes": 1827,
+      "sha256": "17714288e284a9ac50aca430de76b533648b8dd8c004c7800e562c05a7634d41"
     },
     {
       "path": "writing.md",
-      "bytes": 92,
-      "sha256": "6f8e8371b18dd2bc57bfcddc402effbd66790abe4ac95fdc69da56c094c06b29"
+      "bytes": 127,
+      "sha256": "e72df7ccd1fd89be8f6838c06db347cd5f7a14e0e62af45a2fc7554d0b6c4a48"
     }
   ]
 }

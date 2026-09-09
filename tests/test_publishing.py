@@ -15,9 +15,30 @@ from email_addresses import contact_values
 from publishing import article_metadata, review_articles
 from article import create_article
 from check_artifacts import audit
+from xml.etree import ElementTree as ET
 
 
 class PublishingTests(unittest.TestCase):
+    def test_archive_orders_declared_dates_and_labels_fallback_without_inventing_publication(self):
+        with tempfile.TemporaryDirectory() as directory:
+            template, site, cfg = self.fixture(directory)
+            for slug, dates in (('old', 'published: 2025-01-01\nupdated: 2025-02-01'),
+                                ('recent', 'published: 2024-01-01\nupdated: 2025-12-01'),
+                                ('undated', '')):
+                (template / 'writing' / (slug + '.md')).write_text('<!--\ntitle: ' + slug + '\n' + dates + '\n-->\n# Article', encoding='utf-8')
+            build_site_staged(str(template), str(site), cfg)
+            rendered = (site / 'writing.html').read_text(encoding='utf-8')
+            self.assertLess(rendered.index('/writing/recent.html'), rendered.index('/writing/old.html'))
+            self.assertLess(rendered.index('/writing/old.html'), rendered.index('/writing/undated.html'))
+            self.assertIn('Site date (fallback)', rendered)
+            self.assertIn('datetime="2025-12-01"', rendered)
+            feed = ET.parse(site / 'feed.xml')
+            ns = {'a': 'http://www.w3.org/2005/Atom'}
+            entries = feed.findall('a:entry', ns)
+            self.assertEqual(entries[0].findtext('a:title', namespaces=ns), 'recent')
+            undated = next(entry for entry in entries if entry.findtext('a:title', namespaces=ns) == 'undated')
+            self.assertIsNone(undated.find('a:published', ns))
+
     def test_character_references_remain_literal_without_hiding_unsafe_urls(self):
         from html.parser import HTMLParser
         class Text(HTMLParser):
