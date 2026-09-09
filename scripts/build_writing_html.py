@@ -37,12 +37,6 @@ def inline_parts(text):
     yield False, text[position:]
 
 
-def visible_inline_text(text):
-    """Use the same once-decoded prose and literal code policy as rendering."""
-    return "".join(value if code else html.unescape(value)
-                   for code, value in inline_parts(text))
-
-
 def script_json(value):
     """Serialize data without allowing HTML script termination."""
     return (json.dumps(value, ensure_ascii=True).replace("<", "\\u003c")
@@ -240,17 +234,26 @@ def md_to_html(md):
     return "\n".join(out)
 
 
-def visible_markdown_text(md):
-    """Index the renderer's visible text instead of interpreting Markdown twice."""
+def markdown_display(md):
+    """Return rendered text and the first real H1's text from one HTML parse."""
     class Text(HTMLParser):
         def __init__(self):
             super().__init__(convert_charrefs=True)
             self.parts = []
+            self.heading, self.in_heading, self.heading_done = [], False, False
+
+        def handle_starttag(self, tag, attrs):
+            if tag == "h1" and not self.heading_done:
+                self.in_heading = True
 
         def handle_data(self, value):
             self.parts.append(value)
+            if self.in_heading:
+                self.heading.append(value)
 
         def handle_endtag(self, tag):
+            if tag == "h1" and self.in_heading:
+                self.in_heading, self.heading_done = False, True
             if tag in {"h1", "h2", "h3", "h4", "p", "li", "pre", "tr"}:
                 self.parts.append("\n")
             elif tag in {"td", "th"}:
@@ -259,7 +262,11 @@ def visible_markdown_text(md):
     text = Text()
     text.feed(md_to_html(md))
     text.close()
-    return "".join(text.parts).strip()
+    return "".join(text.parts).strip(), "".join(text.heading).strip()
+
+
+def visible_markdown_text(md):
+    return markdown_display(md)[0]
 
 
 

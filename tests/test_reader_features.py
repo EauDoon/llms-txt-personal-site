@@ -33,6 +33,33 @@ class TextCollector(HTMLParser):
 
 
 class ReaderFeatures(unittest.TestCase):
+    def test_root_search_titles_come_from_first_rendered_h1(self):
+        sources = {
+            'formatted.md': ('# **Alice &amp; Bob** [reference](https://example.test) `&lt;raw&gt;`',
+                             'Alice & Bob reference &lt;raw&gt;'),
+            'fenced.md': ('```markdown\n# Fenced fake\n```\n<!--\n# Hidden fake\n-->\n## Not H1\n# **Real** [title](https://example.test)\n# Later',
+                          'Real title'),
+            'unclosed.md': ('```markdown\n# Fenced fake', 'Unclosed'),
+            'no-heading.md': ('- # A list item\n\n<h1>Raw HTML</h1>', 'No-Heading'),
+            'hostile.md': ('# &lt;img src=x onerror=alert(1)&gt; **Safe** &#39;',
+                           "<img src=x onerror=alert(1)> Safe '"),
+            'unmatched.md': ('# Unmatched `code', 'Unmatched `code'),
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for name, (source, _) in sources.items():
+                (root / name).write_text(source, encoding='utf-8')
+            build_catalog(root, CFG)
+            records = {record['url']: record for record in json.loads((root / 'search-index.json').read_text(encoding='utf-8'))}
+            fallback = TextCollector()
+            fallback.feed((root / 'search.html').read_text(encoding='utf-8'))
+            for name, (_, title) in sources.items():
+                with self.subTest(name=name):
+                    self.assertEqual(records['/' + name]['title'], title)
+                    self.assertIn(title, ''.join(fallback.text))
+            self.assertNotIn('img', fallback.tags)
+            self.assertNotIn('strong', fallback.tags)
+
     def test_ascii_email_structure_and_length_matrix(self):
         longest_domain = '.'.join(('a' * 63, 'b' * 63, 'c' * 63, 'd' * 60))
         accepted = ('alice@example.com', "O'Neil+news@example-domain.com",

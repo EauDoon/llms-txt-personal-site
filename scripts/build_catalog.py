@@ -1,14 +1,12 @@
 """Build reader discovery outputs from published Markdown, without dependencies."""
 import html
 import json
-import re
 from pathlib import Path
 from urllib.parse import quote
 from xml.etree import ElementTree as ET
 from build_sitemap import validate_last_updated
 
-from build_writing_html import (parse_front_matter, strip_guidance_comments,
-                                visible_markdown_text, visible_inline_text)
+from build_writing_html import parse_front_matter, markdown_display
 
 
 def markdown_label(value):
@@ -107,10 +105,9 @@ def build_search(site_dir, cfg, entries):
     for path in paths:
         source = "/" + quote(path.relative_to(site_dir).as_posix(), safe="/-._~")
         meta, body = parse_front_matter(path.read_text(encoding="utf-8"))
-        heading = re.search(r"^#\s+(.+)$", strip_guidance_comments(body), re.M)
-        body = visible_markdown_text(body)
+        body, heading = markdown_display(body)
         article = writing.get(source, {})
-        records.append({"title": article.get("title") or (visible_inline_text(heading[1]) if heading else path.stem.title()),
+        records.append({"title": article.get("title") or heading or path.stem.title(),
                         "url": article.get("url", source), "text": body[:100000]})
     (Path(site_dir) / "search-index.json").write_text(json.dumps(records, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="")
     links = ''.join('<li><a href="%s">%s</a></li>' % (r["url"], html.escape(r["title"])) for r in records)
