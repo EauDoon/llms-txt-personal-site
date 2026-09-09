@@ -115,19 +115,35 @@ def md_to_html(md):
 
     def inline(s):
         literal_code, parts = [], []
+        # Character references are literal text, not Markdown delimiters.
+        # Keep them inert while recognizing formatting and links, then escape
+        # their decoded values for HTML. URL validation sees decoded values.
+        prefix = 'LITERALENTITYTOKEN'
+        while prefix in s:
+            prefix += 'X'
+        entities = {}
+        token_pattern = re.compile(re.escape(prefix) + r'\d+END')
+        def entity(match):
+            token = prefix + str(len(entities)) + 'END'
+            entities[token] = html.escape(html.unescape(match[0]), quote=True)
+            return token
+        def restore_entities(value, escaped=True):
+            return token_pattern.sub(lambda match: (entities.get(match[0], match[0]) if escaped
+                                     else html.unescape(entities.get(match[0], match[0]))), value)
         for code, value in inline_parts(s):
             if code:
                 marker = '<span data-literal-code="%d"></span>' % len(literal_code)
                 literal_code.append((marker, '<code>%s</code>' % html.escape(value, quote=True)))
                 parts.append(marker)
             else:
-                parts.append(html.escape(html.unescape(value), quote=True))
+                value = re.sub(r'&(?:#[0-9]+|#[xX][0-9A-Fa-f]+|[A-Za-z][A-Za-z0-9]+);', entity, value)
+                parts.append(html.escape(value, quote=True))
         s = "".join(parts)
         s = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
         inert_links = []
         def link(match):
             label, escaped_target = match.groups()
-            target = html.unescape(escaped_target).strip()
+            target = restore_entities(html.unescape(escaped_target), escaped=False).strip()
             try:
                 scheme = urlsplit(target).scheme.lower()
             except ValueError:
@@ -150,7 +166,7 @@ def md_to_html(md):
             s = s.replace(placeholder, inert_text)
         for marker, code in literal_code:
             s = s.replace(marker, code)
-        return s
+        return restore_entities(s)
 
     while i < len(lines):
         ln = lines[i]

@@ -14,9 +14,50 @@ from build_writing_html import md_to_html
 from email_addresses import contact_values
 from publishing import article_metadata, review_articles
 from article import create_article
+from check_artifacts import audit
 
 
 class PublishingTests(unittest.TestCase):
+    def test_character_references_remain_literal_without_hiding_unsafe_urls(self):
+        from html.parser import HTMLParser
+        class Text(HTMLParser):
+            def __init__(self):
+                super().__init__()
+                self.text, self.links = [], []
+            def handle_data(self, data):
+                self.text.append(data)
+            def handle_starttag(self, tag, attrs):
+                if tag == 'a':
+                    self.links.append(dict(attrs)['href'])
+        source = '&#42;&#42;literal&#42;&#42; &#91;label&#93; &#124; &amp; &lt; `&amp;`'
+        parsed = Text()
+        parsed.feed(md_to_html(source + ' [bad](java&#115;cript:alert%281%29) [good](https://example.test/a&#95;b)'))
+        self.assertIn('**literal** [label] | & < &amp;', ''.join(parsed.text))
+        self.assertEqual(parsed.links, ['https://example.test/a_b'])
+        self.assertNotIn('<strong>', md_to_html(source))
+
+    def test_core_page_companions_preserve_sources_and_existing_html(self):
+        with tempfile.TemporaryDirectory() as directory:
+            template, site, cfg = self.fixture(directory)
+            source = '# Core &amp; notes\n\n## Evidence\nLiteral <img src=x onerror=alert(1)>\n'
+            (template / 'notes.md').write_text(source, encoding='utf-8')
+            (template / 'custom.md').write_text('# Custom', encoding='utf-8')
+            custom = '<!doctype html><html><body>Authored HTML retained</body></html>'
+            (template / 'custom.html').write_text(custom, encoding='utf-8')
+            build_site_staged(str(template), str(site), cfg)
+            rendered = (site / 'notes.html').read_text(encoding='utf-8')
+            self.assertIn('href="/notes.md"', rendered)
+            self.assertIn('id="evidence"', rendered)
+            self.assertIn('href="#evidence"', rendered)
+            self.assertNotIn('<img', rendered)
+            self.assertNotIn('application/ld+json', rendered)
+            self.assertEqual((site / 'notes.md').read_text(encoding='utf-8'), source)
+            self.assertEqual((site / 'custom.html').read_text(encoding='utf-8'), custom)
+            records = json.loads((site / 'search-index.json').read_text(encoding='utf-8'))
+            self.assertIn('/notes.html', [row['url'] for row in records])
+            self.assertIn('/custom.md', [row['url'] for row in records])
+            self.assertFalse(audit(site))
+
     def test_editorial_review_reports_errors_and_draft_work_without_mutation(self):
         with tempfile.TemporaryDirectory() as directory:
             template, _, cfg = self.fixture(directory)

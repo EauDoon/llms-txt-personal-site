@@ -28,12 +28,12 @@ def articles(site_dir):
     return entries
 
 
-def page(title, body, cfg):
+def page(title, body, cfg, source=None, heading=True):
     esc = html.escape
     return '''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>%s | %s</title><link rel="describedby" href="/llms.txt">
-<link rel="alternate" type="text/markdown" href="/%s.md" title="Page index in Markdown">
+<link rel="alternate" type="text/markdown" href="%s" title="Source in Markdown">
 <style>
 :root { color-scheme: light dark; font: 17px/1.65 system-ui,sans-serif; }
 body { max-width: 48rem; padding: 2rem 1.25rem; margin: auto; overflow-wrap: anywhere; }
@@ -41,10 +41,14 @@ a { color: light-dark(#1646ad,#94bbff); } :focus-visible { outline: 3px solid cu
 li { margin-block: 1.25rem; } p { margin-block: .5rem; }
 input,button { font: inherit; padding: .6rem; max-width: 100%%; box-sizing: border-box; }
 input { width: 100%%; } .skip { position: absolute; top: -5rem; } .skip:focus { top: .5rem; }
+pre,.table-scroll { overflow-x: auto; max-width: 100%%; } pre { padding: 1rem; border: 1px solid currentColor; }
+.outline { border-left: 2px solid currentColor; padding-left: 1rem; margin-block: 2rem; }
+@media print { nav,.skip { display: none; } body { max-width: none; padding: 0; } }
 </style></head><body><a class="skip" href="#main-content">Skip to content</a>
-<nav aria-label="Site"><a href="/">%s</a> · <a href="/writing.html">Writing</a> · <a href="/llms.txt">Machine-readable index</a></nav>
-<main id="main-content"><h1>%s</h1>%s</main></body></html>
-''' % (esc(title), esc(cfg["FULL_NAME"]), title.lower(), esc(cfg["FULL_NAME"]), esc(title), body)
+<nav aria-label="Site"><a href="/">%s</a> · <a href="/writing.html">Writing</a> · <a href="/search.html">Search</a> · <a href="/llms.txt">Machine-readable index</a></nav>
+<main id="main-content">%s%s</main></body></html>
+''' % (esc(title), esc(cfg["FULL_NAME"]), esc(source or '/' + title.lower() + '.md', quote=True),
+       esc(cfg["FULL_NAME"]), '<h1>%s</h1>' % esc(title) if heading else '', body)
 
 
 def run(site_dir, cfg):
@@ -108,8 +112,12 @@ def build_search(site_dir, cfg, entries):
         meta, body = parse_front_matter(path.read_text(encoding="utf-8"))
         body, heading = markdown_display(body)
         article = writing.get(source, {})
+        companion = path.with_suffix('.html')
+        from llms_txt import has_link_relation
+        readable = '/' + quote(companion.name, safe='-._~') if (path.parent == Path(site_dir) and companion.is_file()
+                    and has_link_relation(companion.read_text(encoding='utf-8'), 'alternate', source, 'text/markdown')) else source
         records.append({"title": article.get("title") or heading or path.stem.title(),
-                        "url": article.get("url", source), "text": body[:100000]})
+                        "url": article.get("url", readable), "text": body[:100000]})
     (Path(site_dir) / "search-index.json").write_text(json.dumps(records, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="")
     links = ''.join('<li><a href="%s">%s</a></li>' % (r["url"], html.escape(r["title"])) for r in records)
     body = '''<form role="search"><label for="query">Search published pages</label>

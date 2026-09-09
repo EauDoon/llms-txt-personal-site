@@ -1,5 +1,9 @@
 # Writing, discovery, and build review
 
+Character references are literal text during Markdown parsing: `&#42;` displays `*` without creating emphasis, and `&#124;` displays a pipe without splitting a table. URL safety checks still use decoded destination text. Configured contact addresses encode Markdown delimiters as character references so every accepted local-part character remains literal in readable core pages. Inline and fenced code continue preserving their literal entity spelling.
+
+Core root-level Markdown pages also receive readable HTML companions with source links, section anchors, and an outline. Existing authored HTML companions are preserved. Search points to the HTML companion only when it advertises the matching Markdown source. Root `index`, `writing`, `search`, and `topics` names remain reserved for their existing/generated surfaces. Core pages are not mislabeled as Article structured data.
+
 Run `python scripts/article.py review` to list drafts, published articles, missing summaries/topics/body, declared-date errors, and use of the site review-date fallback. `--json` produces a versioned report for local tooling; `--strict` also returns a failure for incomplete published articles. Draft warnings do not block strict review, but malformed metadata does. This command reads sources without building, changing files, approving facts, or publishing anything.
 
 Start an article with `python scripts/article.py new field-notes --title "Field notes" --description "A sourced summary." --topic Research`. The command creates `template/writing/field-notes.md` as a draft, without inventing publication or review dates. It refuses existing files, unsafe/reserved names, multiline metadata, and link-like directories. Write and review the content before changing its status to published.

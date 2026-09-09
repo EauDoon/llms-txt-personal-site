@@ -119,7 +119,12 @@ def fill(text, cfg):
             return m.group(0)
         if isinstance(val, ScriptSafeJson):
             return str(val)
-        return _html.escape(str(val), quote=True)
+        escaped = _html.escape(str(val), quote=True)
+        if key == 'EMAIL':
+            # Contact spelling is literal in both HTML and Markdown tables,
+            # emphasis and code. EMAIL_URI separately carries the URI encoding.
+            escaped = re.sub(r'[*_`|\[\]\\]', lambda match: '&#%d;' % ord(match[0]), escaped)
+        return escaped
     return re.sub(r"\{\{([A-Z0-9_]+)\}\}", sub, text)
 
 
@@ -342,6 +347,8 @@ def build_site(template_dir, out_dir, cfg):
         build_llms_index.run(out_dir, cfg)
     import build_writing_html
     build_writing_html.run(out_dir, cfg)
+    import build_pages
+    build_pages.run(out_dir, cfg)
     import build_catalog
     build_catalog.run(out_dir, cfg)
     import build_llms_full

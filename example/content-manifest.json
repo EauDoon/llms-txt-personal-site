@@ -20,9 +20,19 @@
       "sha256": "feefa51bbda26af844b659cc619bf219f808c7c2b5a45f6a06f42bce2cd498ad"
     },
     {
+      "path": "about.html",
+      "bytes": 2768,
+      "sha256": "955f96211d37e4f4a36442e9fa94aebe4e8c14d3ce51b1a7e90856c219080451"
+    },
+    {
       "path": "about.md",
       "bytes": 867,
       "sha256": "0c387c197786266b8e9f963d1281d4b840c361bc049007018da6c4a7ac9ff865"
+    },
+    {
+      "path": "changelog.html",
+      "bytes": 2524,
+      "sha256": "9d186a8f023c9698221735e6e933e2ca2f579499ad83223956bc3a5ac2c3013c"
     },
     {
       "path": "changelog.md",
@@ -30,14 +40,29 @@
       "sha256": "318cae6701883cb5fe7f682b3f2fdd434fa9f8f0453c3918a3ce99dfaad7908f"
     },
     {
+      "path": "contact.html",
+      "bytes": 2972,
+      "sha256": "d38ab6f543d4f0613af7161bda534f0eca139bc08cc6a0703eaedfde7e8f532d"
+    },
+    {
       "path": "contact.md",
       "bytes": 922,
       "sha256": "0e8601040a56d2078329b4822268316bc416591ae8bfa5303c0b7e7a0578a9c6"
     },
     {
+      "path": "experience.html",
+      "bytes": 2224,
+      "sha256": "2a47415f9ab0733f86191f6670feec3bf1e9fc0ce0e5ceb6981537db482de6bb"
+    },
+    {
       "path": "experience.md",
       "bytes": 709,
       "sha256": "26e1c5058455e2a642142bde4a5d686cde857546991dc9f3bb6cdd611b12bdcb"
+    },
+    {
+      "path": "faq.html",
+      "bytes": 2467,
+      "sha256": "051ac12f40f52d0426a0aaead4f7a737888a8fba55be187818a1af00ad4e1350"
     },
     {
       "path": "faq.md",
@@ -50,19 +75,24 @@
       "sha256": "027ed200fb8a6a3ffe6432319554c569330bbc31196562b7759a47288440f358"
     },
     {
+      "path": "focus.html",
+      "bytes": 2395,
+      "sha256": "eb790f06c8eb27bb36756bbec0063e3878ad93ad3c224889cfbd60b869368b67"
+    },
+    {
       "path": "focus.md",
       "bytes": 727,
       "sha256": "079fe8eaa8d81a179e169a8791689518f1ee483a78fc8ec40abca76db11b8d5d"
     },
     {
       "path": "index.html",
-      "bytes": 9697,
-      "sha256": "f6bc12c12cfca8df52c2a47b42f02e1cf7254789fa6caf26c36d396788506156"
+      "bytes": 9713,
+      "sha256": "673d619902a313954403dc1a0169ff188a2258920cd665ec9a080b8f74502312"
     },
     {
       "path": "llms-full.txt",
-      "bytes": 15370,
-      "sha256": "48c8bb72774f7bfc6f448b62f75860e97ef7a4921b0880cabb5c1adc6a0c46e7"
+      "bytes": 15390,
+      "sha256": "4870ee1f2539b8716754ba03865e415d76129864f06ca4459fa250aa9c367206"
     },
     {
       "path": "llms.txt",
@@ -70,9 +100,19 @@
       "sha256": "ab157ce719d7095263b3e32fda1a8bfe69ee373303d4f5b6df113c2be03da04a"
     },
     {
+      "path": "now.html",
+      "bytes": 2680,
+      "sha256": "dcfa71dda01b0f6069715db490eda7a08d0bc853f7ff15416b43b1d0558f746b"
+    },
+    {
       "path": "now.md",
       "bytes": 768,
       "sha256": "36f9c31aebd75340da53e6cb0553cb96ecc5413f642831594c52c13a748d9f45"
+    },
+    {
+      "path": "press.html",
+      "bytes": 5530,
+      "sha256": "114eb459beb0ecde51800535a03b6f0f59a7321d16473ed954c857d7815b15f4"
     },
     {
       "path": "press.md",
@@ -80,9 +120,19 @@
       "sha256": "3d4cbccbb0268dab57828ef755f1df737d03ac3620b129cc3b71ee9ad857106e"
     },
     {
+      "path": "products.html",
+      "bytes": 2109,
+      "sha256": "5c1389e1e5d7f9cd454ec5f3c84775e8bb7f0b51f1fc51e4fc7ba0c9f14ff0d7"
+    },
+    {
       "path": "products.md",
       "bytes": 1031,
       "sha256": "5a91dfc82bc69b152662f5238b82ab047af008f75d525fe0a95b7a15290628cc"
+    },
+    {
+      "path": "profile.html",
+      "bytes": 3188,
+      "sha256": "fca810397bf479203a0b142745e5003e36ae9863f519599aef0af804a2d1ce07"
     },
     {
       "path": "profile.md",
@@ -96,13 +146,13 @@
     },
     {
       "path": "search-index.json",
-      "bytes": 9492,
-      "sha256": "e7b26e82669a6256eff73b9daef70cc93f2c0ce3d7fbd0b95e98618811c21094"
+      "bytes": 9512,
+      "sha256": "15d699b56013d5c0b9abde26c698170f418c01a3513a86aeaef1caf0aefbe6c5"
     },
     {
       "path": "search.html",
-      "bytes": 2105,
-      "sha256": "b13241bf8ab993d9e9d409fab55406c5ca0ad8241e2b229ac33fb62bd5b989b7"
+      "bytes": 2444,
+      "sha256": "8b9b3e648f749fbd7beb9709509c6b809070b961a88ff5eb59c98b84beb1f3d7"
     },
     {
       "path": "search.js",
@@ -111,13 +161,13 @@
     },
     {
       "path": "search.md",
-      "bytes": 526,
-      "sha256": "1bf9861374c4289114adb8774749c380e5c03c1b78cbf076ba8eb670906bab2c"
+      "bytes": 546,
+      "sha256": "9e3a7dba3fc17d0577e60b85260a9e388457bf578a1de948ed2fee85212d36e8"
     },
     {
       "path": "sitemap.xml",
-      "bytes": 1997,
-      "sha256": "52b6f1d92c496161999120c354cfb3de19123d9728b749d04a923453289652c2"
+      "bytes": 2989,
+      "sha256": "fe8f399d69e6a0fdd739a967aabacf086fe7bf4a0049876dbf71745b25cd0550"
     },
     {
       "path": "vercel.json",
@@ -136,8 +186,8 @@
     },
     {
       "path": "writing.html",
-      "bytes": 1345,
-      "sha256": "23442900a6cc33e2027323f1e7dd8b1478db28b37ff44534067434532dd59197"
+      "bytes": 1664,
+      "sha256": "de3610a7d545fbc1cda94ae12e0464bacf1211b43b525fb79b0639be552bd2c0"
     },
     {
       "path": "writing.md",
