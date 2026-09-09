@@ -268,6 +268,7 @@ def build_site(template_dir, out_dir, cfg):
 
     from build_inventory import MAX_FILES, MAX_FILE_BYTES, MAX_TOTAL_BYTES
     n, total_bytes = 0, 0
+    sources = []
     for dirpath, dirs, files in os.walk(template_dir):
         for dirname in dirs:
             path = os.path.join(dirpath, dirname)
@@ -295,17 +296,26 @@ def build_site(template_dir, out_dir, cfg):
             total_bytes += size
             if n >= MAX_FILES or size > MAX_FILE_BYTES or total_bytes > MAX_TOTAL_BYTES:
                 raise ValueError("template exceeds the file count or byte budget")
-            if f.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".ico", ".webp", ".pdf")):
-                with open(src, "rb") as a, open(dst, "wb") as b:
-                    b.write(a.read())
-            else:
-                with open(src, encoding="utf-8") as source:
-                    t = source.read()
-                with open(dst, "w", encoding="utf-8", newline="") as output:
-                    output.write(fill(t, cfg))
+            sources.append((src, dst, relative))
             n += 1
 
-    print("  filled %d files into site/" % n)
+    from publishing import publication_exclusions
+    excluded = publication_exclusions(sources, fill, cfg)
+    copied = 0
+    for src, dst, relative in sources:
+        if relative.replace('\\', '/').casefold() in excluded:
+            continue
+        if src.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".ico", ".webp", ".pdf")):
+            with open(src, "rb") as a, open(dst, "wb") as b:
+                b.write(a.read())
+        else:
+            with open(src, encoding="utf-8") as source:
+                t = source.read()
+            with open(dst, "w", encoding="utf-8", newline="") as output:
+                output.write(fill(t, cfg))
+        copied += 1
+
+    print("  filled %d files into site/" % copied)
 
     leftover = {}
     for dirpath, _, files in os.walk(out_dir):

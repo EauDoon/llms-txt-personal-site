@@ -21,6 +21,8 @@ updated: 2026-01-02
 # Your article title
 ```
 
+Use `status: draft` in that leading comment to exclude an article's Markdown and same-stem HTML companion before any public output is copied. Its bytes do not enter search, feeds, indexes, the full-text bundle, or the manifest. Changing it to `status: published` publishes it; changing it back removes it from the next complete local build. Articles without status retain the legacy published behavior. Status values are exact, and unknown/duplicate metadata fields or malformed status fail the build while preserving the preceding output. Keep metadata in the leading comment, before the H1. Drafts are an editorial convenience, not a private storage area: other assets in `template/` are public, and Git history is separate from build output.
+
 Use only dates you can support. Dates must be real calendar dates in `YYYY-MM-DD` format, and publication cannot follow the updated date. Without `published`, no publication date is asserted. Without `updated`, Article metadata and Atom use the configured site review date, `LAST_UPDATED`. Midnight UTC in Atom encodes a date, not an observed publication time. The feed is a summary feed and does not retain deleted entries.
 
 Headings receive unique section links and an on-page outline. Fenced code blocks preserve literal text, including HTML examples. Raw HTML in Markdown is escaped. This is a deliberately small Markdown renderer, not a complete CommonMark implementation. Backtick fences, headings, simple lists, links, quotes, and simple tables are supported. Article tables scroll horizontally, keyboard users can skip navigation, and printing removes the outline.

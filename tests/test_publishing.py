@@ -1,5 +1,8 @@
 """Integrated editorial and reader contracts for the static publisher."""
 import sys
+import json
+import shutil
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -11,6 +14,45 @@ from email_addresses import contact_values
 
 
 class PublishingTests(unittest.TestCase):
+    def fixture(self, directory):
+        template, site = Path(directory) / 'template', Path(directory) / 'site'
+        shutil.copytree(ROOT / 'template', template)
+        cfg = json.loads((ROOT / 'site.config.example.json').read_text(encoding='utf-8'))
+        return template, site, dict(cfg, **json_block(cfg))
+
+    def test_draft_bytes_never_enter_public_build_and_transitions_remove_them(self):
+        sentinel = 'UNPUBLISHED_SYNTHETIC_SENTINEL_63eaf7'
+        with tempfile.TemporaryDirectory() as directory:
+            template, site, cfg = self.fixture(directory)
+            path = template / 'writing' / 'pending.md'
+            source = '<!--\nstatus: %s\ntitle: Pending\n-->\n# Pending\n' + sentinel
+            path.write_text(source % 'draft', encoding='utf-8')
+            (template / 'writing' / 'pending.html').write_text(sentinel, encoding='utf-8')
+            build_site_staged(str(template), str(site), cfg)
+            self.assertFalse((site / 'writing' / 'pending.md').exists())
+            for output in site.rglob('*'):
+                if output.is_file():
+                    self.assertNotIn(sentinel.encode(), output.read_bytes(), str(output))
+            path.write_text(source % 'published', encoding='utf-8')
+            build_site_staged(str(template), str(site), cfg)
+            self.assertIn(sentinel, (site / 'writing' / 'pending.html').read_text(encoding='utf-8'))
+            path.write_text(source % 'draft', encoding='utf-8')
+            build_site_staged(str(template), str(site), cfg)
+            self.assertFalse((site / 'writing' / 'pending.html').exists())
+
+    def test_ambiguous_article_status_preserves_previous_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            template, site, cfg = self.fixture(directory)
+            build_site_staged(str(template), str(site), cfg)
+            original = (site / 'content-manifest.json').read_bytes()
+            for metadata in ('status: Draft', 'status: draft\nSTATUS: published',
+                             'statuz: draft', 'status:', 'status: {{STATUS}}', 'status draft'):
+                with self.subTest(metadata=metadata):
+                    (template / 'writing' / 'bad.md').write_text('<!--\n' + metadata + '\n-->\n# Bad', encoding='utf-8')
+                    with self.assertRaises(ValueError):
+                        build_site_staged(str(template), str(site), cfg)
+                    self.assertEqual((site / 'content-manifest.json').read_bytes(), original)
+
     def test_paired_contact_framing_agrees_in_source_and_rendered_prose(self):
         address = "o'hara@yourname.com"
         for marker in ('', '**', '_', '`', '``', '**_'):
