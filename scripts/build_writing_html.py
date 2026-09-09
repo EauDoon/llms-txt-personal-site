@@ -47,7 +47,10 @@ def md_to_html(md):
     # be collected as a paragraph and rendered as a visible escaped <p>
     # block, which leaks author guidance to the rendered page and to
     # agents that fetch the HTML companion.
-    md = re.sub(r"<!--.*?-->", "", md, flags=re.DOTALL)
+    # Preserve literal comments inside fenced examples while removing guidance.
+    segments = re.split(r"(^[ \t]*`{3,}[^\n]*\n.*?(?:^[ \t]*`{3,}[ \t]*$|\Z))", md, flags=re.M | re.S)
+    md = "".join(part if i % 2 else re.sub(r"<!--.*?-->", "", part, flags=re.S)
+                 for i, part in enumerate(segments))
     lines = md.split("\n")
     out, i = [], 0
     in_ul = in_ol = False
@@ -94,6 +97,21 @@ def md_to_html(md):
         if not s:
             close(); i += 1; continue
 
+        fence = re.fullmatch(r"(`{3,})([^`]*)", s)
+        if fence:
+            close()
+            marker, language = fence.groups()
+            language = language.strip()
+            i += 1
+            code = []
+            while i < len(lines) and not re.fullmatch(r"`{%d,}\s*" % len(marker), lines[i].strip()):
+                code.append(lines[i]); i += 1
+            if i < len(lines):
+                i += 1
+            css = ' class="language-%s"' % language if re.fullmatch(r"[A-Za-z0-9_-]{1,32}", language) else ""
+            out.append("<pre><code%s>%s</code></pre>" % (css, html.escape("\n".join(code))))
+            continue
+
         if s == "---":
             close(); out.append("<hr>"); i += 1; continue
 
@@ -139,7 +157,7 @@ def md_to_html(md):
 
         close()
         buf = []
-        while i < len(lines) and lines[i].strip() and not re.match(r"^(#{1,4}\s|[-*]\s|\d+\.\s|\||>|---$)", lines[i].strip()):
+        while i < len(lines) and lines[i].strip() and not re.match(r"^(#{1,4}\s|[-*]\s|\d+\.\s|\||>|`{3,}|---$)", lines[i].strip()):
             buf.append(lines[i].strip()); i += 1
         # A reserved block prefix is not necessarily a valid block. Consume it
         # as literal paragraph text when none of the block parsers matched so

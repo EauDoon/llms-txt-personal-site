@@ -6,7 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from build import validate_public_contacts
-from build_writing_html import render_page
+from build_writing_html import render_page, md_to_html
 
 CFG = {"DOMAIN": "example.test", "FULL_NAME": "Example Person", "EMAIL": "person@example.test",
        "EMPLOYER_URL": "https://example.test", "LINKEDIN_SLUG": "example-person",
@@ -14,6 +14,15 @@ CFG = {"DOMAIN": "example.test", "FULL_NAME": "Example Person", "EMAIL": "person
 
 
 class ReaderFeatures(unittest.TestCase):
+    def test_fences_are_literal_and_unclosed_fences_terminate(self):
+        source = '```html\n<!-- visible -->\n<script>bad()</script>\n[link](https://example.test)\n```\n<!-- hidden -->'
+        page = md_to_html(source)
+        self.assertIn('&lt;!-- visible --&gt;', page)
+        self.assertNotIn('hidden', page)
+        self.assertNotIn('<script>', page)
+        self.assertNotIn('<a ', page)
+        self.assertIn('<pre><code>tail</code></pre>', md_to_html('```\ntail'))
+
     def test_article_metadata_cannot_terminate_script_or_attribute(self):
         attack = '</script><script>alert(1)</script>'
         page = render_page("test", '<!--\ntitle: ' + attack + '\n-->\n# Test',
