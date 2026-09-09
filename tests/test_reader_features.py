@@ -21,17 +21,52 @@ CFG = {"DOMAIN": "example.test", "FULL_NAME": "Example Person", "EMAIL": "person
        "X_HANDLE": "example_person", "LAST_UPDATED": "2026-01-01", "JOB_TITLE": "Writer"}
 
 
-class ReaderFeatures(unittest.TestCase):
-    def test_configured_discovery_text_is_readable_searchable_and_inert(self):
-        class TextCollector(HTMLParser):
-            def __init__(self):
-                super().__init__()
-                self.text, self.tags = [], []
-            def handle_data(self, value):
-                self.text.append(value)
-            def handle_starttag(self, tag, attrs):
-                self.tags.append(tag)
+class TextCollector(HTMLParser):
+    def __init__(self):
+        super().__init__()
+        self.text, self.tags = [], []
+    def handle_data(self, value):
+        self.text.append(value)
+    def handle_starttag(self, tag, attrs):
+        self.tags.append(tag)
 
+
+class ReaderFeatures(unittest.TestCase):
+    def test_article_and_search_share_authored_and_configured_entity_policy(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            template = root / 'template'
+            (template / 'writing').mkdir(parents=True)
+            source = ('# Entity policy\n\nAuthored &amp; &lt; &#39; &#xA9; &amp;lt;\n\n'
+                      'Configured {{FULL_NAME}}\n\nInline `&amp; &lt; &#39;`\n\n'
+                      '````html\n```\nFenced &amp; &lt; &#39;\n<!-- literal -->\n````\n'
+                      '\nEscaped &lt;img src=x onerror=alert(1)&gt;\n')
+            (template / 'writing' / 'entities.md').write_text(source, encoding='utf-8')
+            site = root / 'site'
+            build_site_staged(str(template), str(site), {**CFG, 'FULL_NAME': "Alice & Bob's"})
+            parsed = TextCollector()
+            parsed.feed((site / 'writing' / 'entities.html').read_text(encoding='utf-8'))
+            rendered = ''.join(parsed.text)
+            indexed = json.loads((site / 'search-index.json').read_text(encoding='utf-8'))[0]['text']
+            for phrase in ("Authored & < ' © &lt;", "Configured Alice & Bob's",
+                           'Inline &amp; &lt; &#39;', 'Fenced &amp; &lt; &#39;',
+                           '<!-- literal -->', 'Escaped <img src=x onerror=alert(1)>'):
+                with self.subTest(phrase=phrase):
+                    self.assertIn(phrase, rendered)
+                    self.assertIn(phrase, indexed)
+            self.assertNotIn('img', parsed.tags)
+
+    def test_inline_code_is_literal_before_comments_links_and_formatting(self):
+        code = '&amp; <!-- literal --> **bold** [x](https://example.test)'
+        rendered = md_to_html('Inline `' + code + '` and [code `&amp;`](https://example.test/page)')
+        parsed = TextCollector()
+        parsed.feed(rendered)
+        self.assertIn(code, ''.join(parsed.text))
+        self.assertEqual(parsed.tags.count('a'), 1)
+        self.assertNotIn('strong', parsed.tags)
+        self.assertIn('<a href="https://example.test/page">code <code>&amp;amp;</code></a>', rendered)
+
+    def test_configured_discovery_text_is_readable_searchable_and_inert(self):
         name = "Alice & Bob's <img src=x onerror=alert(1)>"
         topic = "Research & development's </script><script>alert(1)</script>"
         with tempfile.TemporaryDirectory() as directory:
@@ -54,14 +89,14 @@ class ReaderFeatures(unittest.TestCase):
             self.assertIn('&lt;literal&gt; &amp; &#x27;', article['text'])
             self.assertIn('<!-- literal comment -->', article['text'])
             self.assertNotIn('hidden guidance', article['text'])
-            for filename in ('writing.html', 'search.html'):
+            for filename in ('writing.html', 'search.html', 'writing/article.html'):
                 content = (site / filename).read_text(encoding='utf-8')
                 parsed = TextCollector()
                 parsed.feed(content)
                 self.assertIn(name, ''.join(parsed.text))
                 self.assertNotIn('img', parsed.tags)
                 self.assertNotIn('onerror="', content)
-                self.assertEqual(parsed.tags.count('script'), 1 if filename == 'search.html' else 0)
+                self.assertEqual(parsed.tags.count('script'), 0 if filename == 'writing.html' else 1)
                 self.assertNotIn('Alice &amp;amp;', content)
             feed = ET.fromstring((site / 'feed.xml').read_bytes())
             ns = {'a': 'http://www.w3.org/2005/Atom'}

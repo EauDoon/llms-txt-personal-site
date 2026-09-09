@@ -8,30 +8,7 @@ from xml.etree import ElementTree as ET
 from build_sitemap import validate_last_updated
 
 from build_writing_html import (parse_front_matter, strip_guidance_comments,
-                                opening_fence, closes_fence)
-
-
-def visible_markdown_text(body):
-    """Decode prose entities once while preserving literal fenced code bytes.
-
-    The template filler escapes configured values for HTML, including values
-    inserted into Markdown. Discovery stores visible text and escapes it again
-    only at its eventual HTML/XML/JSON output boundary.
-    """
-    marker, lines = None, []
-    for line in strip_guidance_comments(body).split("\n"):
-        if marker is not None:
-            lines.append(line)
-            if closes_fence(line, marker):
-                marker = None
-        else:
-            fence = opening_fence(line)
-            if fence:
-                marker = fence[1]
-                lines.append(line)
-            else:
-                lines.append(html.unescape(line))
-    return "\n".join(lines)
+                                visible_markdown_text, visible_inline_text)
 
 
 def markdown_label(value):
@@ -43,7 +20,6 @@ def articles(site_dir):
     entries = []
     for path in sorted((Path(site_dir) / "writing").glob("*.md")):
         meta, body = parse_front_matter(path.read_text(encoding="utf-8"))
-        meta = {key: html.unescape(value) for key, value in meta.items()}
         entries.append({"title": meta.get("title") or path.stem.replace("-", " ").title(),
                         "description": meta.get("desc", ""),
                         "topics": [s.strip() for s in meta.get("about", "").split(",") if s.strip()],
@@ -131,10 +107,10 @@ def build_search(site_dir, cfg, entries):
     for path in paths:
         source = "/" + quote(path.relative_to(site_dir).as_posix(), safe="/-._~")
         meta, body = parse_front_matter(path.read_text(encoding="utf-8"))
+        heading = re.search(r"^#\s+(.+)$", strip_guidance_comments(body), re.M)
         body = visible_markdown_text(body)
-        heading = re.search(r"^#\s+(.+)$", body, re.M)
         article = writing.get(source, {})
-        records.append({"title": article.get("title") or (heading[1] if heading else path.stem.title()),
+        records.append({"title": article.get("title") or (visible_inline_text(heading[1]) if heading else path.stem.title()),
                         "url": article.get("url", source), "text": body[:100000]})
     (Path(site_dir) / "search-index.json").write_text(json.dumps(records, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="")
     links = ''.join('<li><a href="%s">%s</a></li>' % (r["url"], html.escape(r["title"])) for r in records)

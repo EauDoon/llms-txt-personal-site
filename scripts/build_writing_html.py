@@ -17,12 +17,30 @@ import os
 import re
 import html
 import json
+from html.parser import HTMLParser
 from urllib.parse import quote, urlsplit
 from build_sitemap import validate_last_updated
 
 
 WRITING_INDEX_BEGIN = "<!-- BEGIN GENERATED WRITING INDEX -->"
 WRITING_INDEX_END = "<!-- END GENERATED WRITING INDEX -->"
+INLINE_CODE = re.compile(r"(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)")
+
+
+def inline_parts(text):
+    """Yield prose and literal code using matching backtick-run lengths."""
+    position = 0
+    for match in INLINE_CODE.finditer(text):
+        yield False, text[position:match.start()]
+        yield True, match[2]
+        position = match.end()
+    yield False, text[position:]
+
+
+def visible_inline_text(text):
+    """Use the same once-decoded prose and literal code policy as rendering."""
+    return "".join(value if code else html.unescape(value)
+                   for code, value in inline_parts(text))
 
 
 def script_json(value):
@@ -38,7 +56,7 @@ def parse_front_matter(md):
         for line in m.group(1).strip().split("\n"):
             if ":" in line:
                 k, v = line.split(":", 1)
-                meta[k.strip().lower()] = v.strip()
+                meta[k.strip().lower()] = html.unescape(v.strip())
         md = md[m.end():].lstrip()
     return meta, md
 
@@ -70,6 +88,11 @@ def strip_guidance_comments(md):
         while position < len(line):
             token = "-->" if in_comment else "<!--"
             boundary = line.find(token, position)
+            code = INLINE_CODE.search(line, position) if not in_comment else None
+            if code and (boundary < 0 or code.start() < boundary):
+                visible.append(line[position:code.end()])
+                position = code.end()
+                continue
             if boundary < 0:
                 if not in_comment:
                     visible.append(line[position:])
@@ -99,8 +122,15 @@ def md_to_html(md):
         if in_ol: out.append("</ol>"); in_ol = False
 
     def inline(s):
-        s = html.escape(s, quote=True)
-        s = re.sub(r"`([^`]+)`", r"<code>\1</code>", s)
+        literal_code, parts = [], []
+        for code, value in inline_parts(s):
+            if code:
+                marker = '<span data-literal-code="%d"></span>' % len(literal_code)
+                literal_code.append((marker, '<code>%s</code>' % html.escape(value, quote=True)))
+                parts.append(marker)
+            else:
+                parts.append(html.escape(html.unescape(value), quote=True))
+        s = "".join(parts)
         s = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
         inert_links = []
         def link(match):
@@ -126,6 +156,8 @@ def md_to_html(md):
         s = re.sub(r"(?<![\">=/\w])(https?://[^\s<),]+)", r'<a href="\1">\1</a>', s)
         for placeholder, inert_text in inert_links:
             s = s.replace(placeholder, inert_text)
+        for marker, code in literal_code:
+            s = s.replace(marker, code)
         return s
 
     while i < len(lines):
@@ -206,6 +238,28 @@ def md_to_html(md):
 
     close()
     return "\n".join(out)
+
+
+def visible_markdown_text(md):
+    """Index the renderer's visible text instead of interpreting Markdown twice."""
+    class Text(HTMLParser):
+        def __init__(self):
+            super().__init__(convert_charrefs=True)
+            self.parts = []
+
+        def handle_data(self, value):
+            self.parts.append(value)
+
+        def handle_endtag(self, tag):
+            if tag in {"h1", "h2", "h3", "h4", "p", "li", "pre", "tr"}:
+                self.parts.append("\n")
+            elif tag in {"td", "th"}:
+                self.parts.append("\t")
+
+    text = Text()
+    text.feed(md_to_html(md))
+    text.close()
+    return "".join(text.parts).strip()
 
 
 

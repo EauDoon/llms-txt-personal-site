@@ -96,8 +96,8 @@
     },
     {
       "path": "search-index.json",
-      "bytes": 10454,
-      "sha256": "1129d79f6698fbaba6b1276fb2153687185469446f2e047a39bd9a83714c6ae2"
+      "bytes": 9492,
+      "sha256": "e7b26e82669a6256eff73b9daef70cc93f2c0ce3d7fbd0b95e98618811c21094"
     },
     {
       "path": "search.html",
