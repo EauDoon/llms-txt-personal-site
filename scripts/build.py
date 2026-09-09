@@ -272,6 +272,7 @@ def build_site(template_dir, out_dir, cfg):
         raise OSError("template path is not a directory: %s" % template_dir)
 
     from build_inventory import MAX_FILES, MAX_FILE_BYTES, MAX_TOTAL_BYTES
+    os.makedirs(out_dir, exist_ok=True)
     n, total_bytes = 0, 0
     sources = []
     for dirpath, dirs, files in os.walk(template_dir):
@@ -284,7 +285,6 @@ def build_site(template_dir, out_dir, cfg):
                 )
         rel = os.path.relpath(dirpath, template_dir)
         target_dir = out_dir if rel == "." else os.path.join(out_dir, rel)
-        os.makedirs(target_dir, exist_ok=True)
         for f in files:
             src = os.path.join(dirpath, f)
             dst = os.path.join(target_dir, f)
@@ -310,6 +310,7 @@ def build_site(template_dir, out_dir, cfg):
     for src, dst, relative in sources:
         if relative.replace('\\', '/').casefold() in excluded:
             continue
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
         if src.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".ico", ".webp", ".pdf")):
             with open(src, "rb") as a, open(dst, "wb") as b:
                 b.write(a.read())

@@ -9,6 +9,13 @@ from build_sitemap import validate_last_updated
 FIELDS = {'title', 'desc', 'about', 'published', 'updated', 'status'}
 
 
+def article_topics(meta):
+    topics = [' '.join(value.split()) for value in meta.get('about', '').split(',') if value.strip()]
+    if len(topics) > 12 or any(len(topic) > 80 for topic in topics):
+        raise ValueError('article about metadata allows at most 12 topics of 80 characters each')
+    return list(dict.fromkeys(topics))
+
+
 def article_metadata(source):
     source = source.removeprefix('\ufeff')
     leading = re.match(r'\s*<!--(.*?)-->', source, re.DOTALL)
@@ -32,6 +39,7 @@ def article_metadata(source):
     status = meta.get('status', 'published')
     if status not in {'draft', 'published'}:
         raise ValueError('article status must be exactly draft or published')
+    article_topics(meta)
     return dict(meta, status=status), body
 
 

@@ -1,6 +1,8 @@
 """Build reader discovery outputs from published Markdown, without dependencies."""
 import html
 import json
+import hashlib
+import unicodedata
 from pathlib import Path
 from urllib.parse import quote
 from xml.etree import ElementTree as ET
@@ -8,6 +10,7 @@ from build_sitemap import validate_last_updated
 
 from build_writing_html import parse_front_matter, markdown_display
 from build_llms_index import _safe_label
+from publishing import article_topics
 
 
 def markdown_label(value):
@@ -21,7 +24,7 @@ def articles(site_dir):
         meta, body = parse_front_matter(path.read_text(encoding="utf-8"))
         entries.append({"title": meta.get("title") or path.stem.replace("-", " ").title(),
                         "description": meta.get("desc", ""),
-                        "topics": [s.strip() for s in meta.get("about", "").split(",") if s.strip()],
+                        "topics": article_topics(meta),
                         "url": "/writing/" + quote(path.stem, safe="-._~") + ".html",
                         "source": "/writing/" + quote(path.name, safe="-._~"),
                         "body": body, "meta": meta})
@@ -42,6 +45,53 @@ def date_labels(entry, cfg):
     return labels
 
 
+def topic_key(topic):
+    return unicodedata.normalize('NFC', ' '.join(topic.split())).casefold()
+
+
+def topic_id(topic):
+    return 'topic-' + hashlib.sha256(topic_key(topic).encode('utf-8')).hexdigest()[:20]
+
+
+def topic_links(entry):
+    return ' · '.join('<a href="/topics.html#%s">%s</a>' % (topic_id(topic), html.escape(topic))
+                      for topic in entry['topics'])
+
+
+def topic_groups(entries):
+    groups = {}
+    for entry in entries:
+        for topic in entry['topics']:
+            key = topic_key(topic)
+            group = groups.setdefault(key, {'label': topic, 'id': topic_id(topic), 'entries': []})
+            group['label'] = min(group['label'], topic)
+            if entry not in group['entries']:
+                group['entries'].append(entry)
+    return [groups[key] for key in sorted(groups)]
+
+
+def build_topics(site_dir, cfg, entries):
+    groups = topic_groups(entries)
+    body = '<p>Browse writing by topics supplied by the author.</p>'
+    markdown = '# Writing topics\n\nLast updated: %s\n\n' % cfg['LAST_UPDATED']
+    if groups:
+        body += '<nav aria-label="Topics on this page"><ul>' + ''.join(
+            '<li><a href="#%s">%s</a></li>' % (group['id'], html.escape(group['label'])) for group in groups) + '</ul></nav>'
+    else:
+        body += '<p>No topics are published yet. <a href="/writing.html">Browse all writing</a>.</p>'
+        markdown += 'No topics are published yet.\n'
+    for group in groups:
+        body += '<section aria-labelledby="%s"><h2 id="%s">%s</h2><ul>' % (group['id'], group['id'], html.escape(group['label']))
+        markdown += '## %s\n\n' % markdown_label(group['label'])
+        for entry in group['entries']:
+            body += '<li><a href="%s">%s</a></li>' % (entry['url'], html.escape(entry['title']))
+            markdown += '- [%s](%s)\n' % (markdown_label(entry['title']), entry['source'])
+        body += '</ul></section>'
+        markdown += '\n'
+    (Path(site_dir) / 'topics.html').write_text(page('Topics', body, cfg), encoding='utf-8', newline='')
+    (Path(site_dir) / 'topics.md').write_text(markdown, encoding='utf-8', newline='')
+
+
 def page(title, body, cfg, source=None, heading=True):
     esc = html.escape
     return '''<!doctype html>
@@ -59,7 +109,7 @@ pre,.table-scroll { overflow-x: auto; max-width: 100%%; } pre { padding: 1rem; b
 .outline { border-left: 2px solid currentColor; padding-left: 1rem; margin-block: 2rem; }
 @media print { nav,.skip { display: none; } body { max-width: none; padding: 0; } }
 </style></head><body><a class="skip" href="#main-content">Skip to content</a>
-<nav aria-label="Site"><a href="/">%s</a> · <a href="/writing.html">Writing</a> · <a href="/search.html">Search</a> · <a href="/llms.txt">Machine-readable index</a></nav>
+<nav aria-label="Site"><a href="/">%s</a> · <a href="/writing.html">Writing</a> · <a href="/topics.html">Topics</a> · <a href="/search.html">Search</a> · <a href="/llms.txt">Machine-readable index</a></nav>
 <main id="main-content">%s%s</main></body></html>
 ''' % (esc(title), esc(cfg["FULL_NAME"]), esc(source or '/' + title.lower() + '.md', quote=True),
        esc(cfg["FULL_NAME"]), '<h1>%s</h1>' % esc(title) if heading else '', body)
@@ -72,7 +122,7 @@ def run(site_dir, cfg):
         dates = ' · '.join('%s: <time datetime="%s">%s</time>' % (label, date, date) for label, date in date_labels(entry, cfg))
         rows.append('<li><h2><a href="%s">%s</a></h2><p>%s</p><p>%s</p><p>%s</p><a href="%s">Markdown source</a></li>' % (
             entry["url"], html.escape(entry["title"]), html.escape(entry["description"]),
-            dates, html.escape(" · ".join(entry["topics"])), entry["source"]))
+            dates, topic_links(entry), entry["source"]))
     body = '<p>Browse %d writing page%s, with original Markdown sources.</p>' % (len(rows), "" if len(rows) == 1 else "s")
     body += '<p>Latest declared article dates first. Articles without dates follow in title order.</p>'
     body += '<ul>%s</ul>' % "".join(rows) if rows else '<p>No writing pages have been published.</p>'
@@ -83,6 +133,7 @@ def run(site_dir, cfg):
     (Path(site_dir) / "writing.md").write_text(markdown + "\n", encoding="utf-8", newline="")
     build_search(site_dir, cfg, entries)
     build_feed(site_dir, cfg, entries)
+    build_topics(site_dir, cfg, entries)
 
 
 def build_feed(site_dir, cfg, entries):
@@ -110,6 +161,8 @@ def build_feed(site_dir, cfg, entries):
         node(item, "title", entry["title"])
         node(item, "link", href=base + entry["url"])
         node(item, "summary", entry["description"])
+        for topic in entry['topics']:
+            node(item, 'category', term=topic)
         node(item, "updated", updated + "T00:00:00Z")
         if entry["meta"].get("published"):
             published = validate_last_updated(entry["meta"]["published"])
@@ -123,7 +176,7 @@ def build_feed(site_dir, cfg, entries):
 def build_search(site_dir, cfg, entries):
     records = []
     writing = {entry["source"]: entry for entry in entries}
-    paths = [path for path in sorted(Path(site_dir).glob("*.md")) if path.name not in {"search.md", "writing.md"}] + sorted((Path(site_dir) / "writing").glob("*.md"))
+    paths = [path for path in sorted(Path(site_dir).glob("*.md")) if path.name not in {"search.md", "writing.md", "topics.md"}] + sorted((Path(site_dir) / "writing").glob("*.md"))
     for path in paths:
         source = "/" + quote(path.relative_to(site_dir).as_posix(), safe="/-._~")
         meta, body = parse_front_matter(path.read_text(encoding="utf-8"))

@@ -1,5 +1,7 @@
 # Writing, discovery, and build review
 
+`topics.html` and `topics.md` group published writing by authored `about` metadata. Up to 12 comma-separated topics of 80 characters each are supported. Grouping normalizes whitespace, Unicode composition and case; topic anchors remain stable when articles are reordered. Labels stay escaped literal text. Draft topics are excluded, and no topics are inferred from prose. The Atom feed exposes the same authored categories.
+
 The writing archive orders articles by their explicit `updated` date, or explicit `published` date when no article update is supplied. Articles with neither date follow in title order. Each row distinguishes declared publication/article-update dates from the configured site-date fallback. No publication date is invented for undated work; the Atom feed uses the same article ordering.
 
 Character references are literal text during Markdown parsing: `&#42;` displays `*` without creating emphasis, and `&#124;` displays a pipe without splitting a table. URL safety checks still use decoded destination text. Configured contact addresses encode Markdown delimiters as character references so every accepted local-part character remains literal in readable core pages. Inline and fenced code continue preserving their literal entity spelling.

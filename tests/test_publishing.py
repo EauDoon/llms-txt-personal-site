@@ -16,9 +16,31 @@ from publishing import article_metadata, review_articles
 from article import create_article
 from check_artifacts import audit
 from xml.etree import ElementTree as ET
+from build_catalog import topic_id
 
 
 class PublishingTests(unittest.TestCase):
+    def test_topic_directory_is_static_stable_and_uses_only_published_metadata(self):
+        with tempfile.TemporaryDirectory() as directory:
+            template, site, cfg = self.fixture(directory)
+            for slug, status, topics in (('one', 'published', 'Research, <img src=x onerror=bad>'),
+                                         ('two', 'published', 'research, Café'), ('secret', 'draft', 'SECRET_TOPIC')):
+                (template / 'writing' / (slug + '.md')).write_text(
+                    '<!--\nstatus: ' + status + '\ntitle: ' + slug + '\nabout: ' + topics + '\n-->\n# Article', encoding='utf-8')
+            build_site_staged(str(template), str(site), cfg)
+            output = (site / 'topics.html').read_text(encoding='utf-8')
+            self.assertEqual(output.count('id="' + topic_id('Research') + '"'), 1)
+            self.assertEqual(topic_id('Research'), topic_id(' research '))
+            self.assertEqual(topic_id('Café'), topic_id('Cafe\u0301'))
+            self.assertNotIn('<img', output)
+            self.assertNotIn('SECRET_TOPIC', output)
+            self.assertIn('/writing/one.html', output)
+            self.assertIn('/writing/two.html', output)
+            self.assertIn('term="Research"', (site / 'feed.xml').read_text(encoding='utf-8'))
+            self.assertFalse(audit(site))
+            with self.assertRaises(ValueError):
+                article_metadata('<!--\nabout: ' + 'x' * 81 + '\n-->')
+
     def test_archive_orders_declared_dates_and_labels_fallback_without_inventing_publication(self):
         with tempfile.TemporaryDirectory() as directory:
             template, site, cfg = self.fixture(directory)
@@ -135,8 +157,12 @@ class PublishingTests(unittest.TestCase):
             source = '<!--\nstatus: %s\ntitle: Pending\n-->\n# Pending\n' + sentinel
             path.write_text(source % 'draft', encoding='utf-8')
             (template / 'writing' / 'pending.html').write_text(sentinel, encoding='utf-8')
+            private_folder = template / 'writing' / 'draft-only-folder'
+            private_folder.mkdir()
+            (private_folder / 'nested.md').write_text(source % 'draft', encoding='utf-8')
             build_site_staged(str(template), str(site), cfg)
             self.assertFalse((site / 'writing' / 'pending.md').exists())
+            self.assertFalse((site / 'writing' / 'draft-only-folder').exists())
             for output in site.rglob('*'):
                 if output.is_file():
                     self.assertNotIn(sentinel.encode(), output.read_bytes(), str(output))

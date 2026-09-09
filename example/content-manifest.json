@@ -21,8 +21,8 @@
     },
     {
       "path": "about.html",
-      "bytes": 2768,
-      "sha256": "955f96211d37e4f4a36442e9fa94aebe4e8c14d3ce51b1a7e90856c219080451"
+      "bytes": 2805,
+      "sha256": "2b72139483618a04b533336635cbe256b3d7346454e5fcc60d836d47a6dd4a09"
     },
     {
       "path": "about.md",
@@ -31,8 +31,8 @@
     },
     {
       "path": "changelog.html",
-      "bytes": 2524,
-      "sha256": "9d186a8f023c9698221735e6e933e2ca2f579499ad83223956bc3a5ac2c3013c"
+      "bytes": 2561,
+      "sha256": "a52bd31e30efaaf389c04759a020628dbb65b6fe7b6ae51b0e483ff1cc0d24e9"
     },
     {
       "path": "changelog.md",
@@ -41,8 +41,8 @@
     },
     {
       "path": "contact.html",
-      "bytes": 2972,
-      "sha256": "d38ab6f543d4f0613af7161bda534f0eca139bc08cc6a0703eaedfde7e8f532d"
+      "bytes": 3009,
+      "sha256": "e70ac7c0a905c4f5d0fe36bd0bff25e19852f174bfe447a41fbfdebe6827fec7"
     },
     {
       "path": "contact.md",
@@ -51,8 +51,8 @@
     },
     {
       "path": "experience.html",
-      "bytes": 2224,
-      "sha256": "2a47415f9ab0733f86191f6670feec3bf1e9fc0ce0e5ceb6981537db482de6bb"
+      "bytes": 2261,
+      "sha256": "2534c14b48ac4a5c234a5ccb051119943e7f2885554e50a78f2153ca4d56534a"
     },
     {
       "path": "experience.md",
@@ -61,8 +61,8 @@
     },
     {
       "path": "faq.html",
-      "bytes": 2467,
-      "sha256": "051ac12f40f52d0426a0aaead4f7a737888a8fba55be187818a1af00ad4e1350"
+      "bytes": 2504,
+      "sha256": "a53b54b7929b624d7560009b584ed6a8d3a8e625585197b13dd1a58fe9bae93e"
     },
     {
       "path": "faq.md",
@@ -76,8 +76,8 @@
     },
     {
       "path": "focus.html",
-      "bytes": 2395,
-      "sha256": "eb790f06c8eb27bb36756bbec0063e3878ad93ad3c224889cfbd60b869368b67"
+      "bytes": 2432,
+      "sha256": "2f0386be6ec1e37c748c5c95ba0995102bd2da9ec91812d1a507ceba825782af"
     },
     {
       "path": "focus.md",
@@ -91,8 +91,8 @@
     },
     {
       "path": "llms-full.txt",
-      "bytes": 15425,
-      "sha256": "951b170d94d1f3e0f7789bf88e4135901500918e72382a46dd230707dd45fa5f"
+      "bytes": 15684,
+      "sha256": "ad37988ef5afe57de279e004b38fea97d37b2c2905fd82a2d1e2fa9b155d37de"
     },
     {
       "path": "llms.txt",
@@ -101,8 +101,8 @@
     },
     {
       "path": "now.html",
-      "bytes": 2680,
-      "sha256": "dcfa71dda01b0f6069715db490eda7a08d0bc853f7ff15416b43b1d0558f746b"
+      "bytes": 2717,
+      "sha256": "8b7f6fda026aef2c8c85ea6a8597b786d3fef5bf44f635cf657740be6bb6fab5"
     },
     {
       "path": "now.md",
@@ -111,8 +111,8 @@
     },
     {
       "path": "press.html",
-      "bytes": 5530,
-      "sha256": "114eb459beb0ecde51800535a03b6f0f59a7321d16473ed954c857d7815b15f4"
+      "bytes": 5567,
+      "sha256": "1430b84bfa87f6e1948144470c2ca9d04b1f0eeb9e98882d7b5999899444b943"
     },
     {
       "path": "press.md",
@@ -121,8 +121,8 @@
     },
     {
       "path": "products.html",
-      "bytes": 2109,
-      "sha256": "5c1389e1e5d7f9cd454ec5f3c84775e8bb7f0b51f1fc51e4fc7ba0c9f14ff0d7"
+      "bytes": 2146,
+      "sha256": "77d79487140b3fb98428d3fb7be30096a66dc7814d087038ff5673040784230e"
     },
     {
       "path": "products.md",
@@ -131,8 +131,8 @@
     },
     {
       "path": "profile.html",
-      "bytes": 3188,
-      "sha256": "fca810397bf479203a0b142745e5003e36ae9863f519599aef0af804a2d1ce07"
+      "bytes": 3225,
+      "sha256": "3b0d6ab9c531d65b00aa7a19b09e0124f88a5cf78edb30a4d72efad0408afdb6"
     },
     {
       "path": "profile.md",
@@ -151,8 +151,8 @@
     },
     {
       "path": "search.html",
-      "bytes": 2444,
-      "sha256": "8b9b3e648f749fbd7beb9709509c6b809070b961a88ff5eb59c98b84beb1f3d7"
+      "bytes": 2481,
+      "sha256": "928a869fc250155e9d99f2ed262cb334676974c10c5028987c1990f7195c97e6"
     },
     {
       "path": "search.js",
@@ -166,8 +166,18 @@
     },
     {
       "path": "sitemap.xml",
-      "bytes": 2989,
-      "sha256": "fe8f399d69e6a0fdd739a967aabacf086fe7bf4a0049876dbf71745b25cd0550"
+      "bytes": 3185,
+      "sha256": "21261f718f7fed3dfa0f04e04510787c4e76ae856d43e6def887b843c60a7e3f"
+    },
+    {
+      "path": "topics.html",
+      "bytes": 1609,
+      "sha256": "f6c47ef30f0413734130f9918c1d0587857e811de37f3c758eb29e199f3c209e"
+    },
+    {
+      "path": "topics.md",
+      "bytes": 73,
+      "sha256": "18ebf7ac3dbdd91322a5eeaa370e41638e05f087b8f7bee5394c1cca0bd205fc"
     },
     {
       "path": "vercel.json",
@@ -186,8 +196,8 @@
     },
     {
       "path": "writing.html",
-      "bytes": 1827,
-      "sha256": "17714288e284a9ac50aca430de76b533648b8dd8c004c7800e562c05a7634d41"
+      "bytes": 1864,
+      "sha256": "8396c294177a24efa603617e545aad5a24c9144024413baca2164a4af036d15e"
     },
     {
       "path": "writing.md",

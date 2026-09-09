@@ -396,6 +396,17 @@ Search runs locally in the browser at /search.html. Published pages:
 
 
 ======================================================================
+# SOURCE: https://yourname.com/topics.md
+======================================================================
+
+# Writing topics
+
+Last updated: 2026-01-01
+
+No topics are published yet.
+
+
+======================================================================
 # SOURCE: https://yourname.com/writing.md
 ======================================================================
 
