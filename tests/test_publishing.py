@@ -12,11 +12,27 @@ sys.path.insert(0, str(ROOT / 'scripts'))
 from build import build_site_staged, json_block
 from build_writing_html import md_to_html
 from email_addresses import contact_values
-from publishing import article_metadata
+from publishing import article_metadata, review_articles
 from article import create_article
 
 
 class PublishingTests(unittest.TestCase):
+    def test_editorial_review_reports_errors_and_draft_work_without_mutation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            template, _, cfg = self.fixture(directory)
+            create_article(directory, 'notes', 'Notes')
+            bad = template / 'writing' / 'bad.md'
+            bad.write_text('<!--\ntitle: Bad\nupdated: 2026-02-30\n-->\n# Bad', encoding='utf-8')
+            before = {str(p): p.read_bytes() for p in template.rglob('*') if p.is_file()}
+            report = review_articles(template, cfg)
+            self.assertEqual(report['drafts'], 1)
+            self.assertEqual(report['errors'], 1)
+            draft = next(r for r in report['articles'] if r['status'] == 'draft')
+            self.assertIn('add article body before publication', draft['warnings'])
+            self.assertGreater(report['publication_warnings'], 0)
+            self.assertEqual(before, {str(p): p.read_bytes() for p in template.rglob('*') if p.is_file()})
+            self.assertFalse((Path(directory) / 'site').exists())
+
     def test_article_cli_creates_inert_draft_and_refuses_overwrite(self):
         with tempfile.TemporaryDirectory() as directory:
             template, site, cfg = self.fixture(directory)

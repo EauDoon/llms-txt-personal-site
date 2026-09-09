@@ -1,5 +1,7 @@
 # Writing, discovery, and build review
 
+Run `python scripts/article.py review` to list drafts, published articles, missing summaries/topics/body, declared-date errors, and use of the site review-date fallback. `--json` produces a versioned report for local tooling; `--strict` also returns a failure for incomplete published articles. Draft warnings do not block strict review, but malformed metadata does. This command reads sources without building, changing files, approving facts, or publishing anything.
+
 Start an article with `python scripts/article.py new field-notes --title "Field notes" --description "A sourced summary." --topic Research`. The command creates `template/writing/field-notes.md` as a draft, without inventing publication or review dates. It refuses existing files, unsafe/reserved names, multiline metadata, and link-like directories. Write and review the content before changing its status to published.
 
 Quoted contact routes can be wrapped in matching Markdown emphasis or inline-code delimiters, for example `**'mailto:you@example.com'**`. The checker recognizes paired outer framing in source and rendered prose. It never removes bytes from an actual HTML contact destination or treats an unmatched trailing suffix as formatting.

@@ -1,11 +1,13 @@
 """Create and review local articles; never publish or deploy them."""
 import argparse
 import html
+import json
 import re
 from pathlib import Path
 
-from build import is_link_like
+from build import is_link_like, load_config
 from build_llms_index import _safe_label
+from publishing import review_articles
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -62,11 +64,25 @@ def main(argv=None):
     new.add_argument('--title', required=True)
     new.add_argument('--description', default='')
     new.add_argument('--topic', action='append', default=[])
+    review = commands.add_parser('review', help='report local editorial status without building')
+    review.add_argument('--json', action='store_true', help='emit a machine-readable report')
+    review.add_argument('--strict', action='store_true', help='also fail on published-article warnings')
     args = parser.parse_args(argv)
     try:
+        if args.command == 'review':
+            report = review_articles(ROOT / 'template', load_config())
+            if args.json:
+                print(json.dumps(report, ensure_ascii=False, indent=2))
+            else:
+                print('%d published articles, %d drafts' % (report['published'], report['drafts']))
+                for row in report['articles']:
+                    print('%s [%s]' % (row['path'], row['status']))
+                    for issue in row['errors'] + row['warnings']:
+                        print('  - ' + issue)
+            return int(bool(report['errors'] or (args.strict and report['publication_warnings'])))
         path = create_article(ROOT, args.slug, args.title, args.description, args.topic)
     except (OSError, ValueError) as exc:
-        parser.exit(1, 'Article not created: %s\n' % exc)
+        parser.exit(1, 'Article command failed: %s\n' % exc)
     print('Created draft: ' + str(path.relative_to(ROOT)))
     return 0
 

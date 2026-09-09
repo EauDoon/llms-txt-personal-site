@@ -1,6 +1,7 @@
 """Explicit editorial metadata and public-artifact selection."""
 import re
-from pathlib import PurePosixPath
+import os
+from pathlib import Path, PurePosixPath
 
 from build_writing_html import parse_front_matter
 from build_sitemap import validate_last_updated
@@ -64,3 +65,55 @@ def publication_exclusions(sources, fill, cfg):
             meta, _ = article_metadata(fill(text, cfg))
             validate_article_dates(meta, cfg['LAST_UPDATED'])
     return excluded
+
+
+def review_articles(template, cfg):
+    """Read bounded article sources and report editorial work without mutation."""
+    from build import fill, is_link_like
+    from build_inventory import MAX_FILES, MAX_FILE_BYTES, MAX_TOTAL_BYTES
+    from build_writing_html import markdown_display
+    template = Path(template)
+    writing = template / 'writing'
+    if not template.is_dir():
+        raise ValueError('template directory is missing')
+    for path in (template, writing):
+        if path.exists() and (is_link_like(path) or not path.is_dir()):
+            raise ValueError('editorial review requires real directories')
+    records, total = [], 0
+    for directory, dirs, files in os.walk(writing):
+        for name in dirs + files:
+            if is_link_like(Path(directory) / name):
+                raise ValueError('editorial review refuses link-like sources')
+        for name in sorted(files):
+            path = Path(directory) / name
+            if path.suffix.lower() != '.md':
+                continue
+            total += path.stat().st_size
+            if len(records) >= MAX_FILES or path.stat().st_size > MAX_FILE_BYTES or total > MAX_TOTAL_BYTES:
+                raise ValueError('editorial review exceeds the source budget')
+            record = {'path': path.relative_to(template).as_posix(), 'status': 'invalid', 'title': path.stem,
+                      'errors': [], 'warnings': []}
+            try:
+                source = path.read_text(encoding='utf-8')
+                raw, _ = article_metadata(source)
+                meta, body = article_metadata(fill(source, cfg))
+                record.update(status=raw['status'], title=meta.get('title') or path.stem,
+                              published=meta.get('published'), updated=meta.get('updated'))
+                validate_article_dates(meta, cfg['LAST_UPDATED'])
+                for key in ('title', 'desc', 'about'):
+                    if not meta.get(key):
+                        record['warnings'].append('add ' + key + ' metadata')
+                if not meta.get('updated'):
+                    record['warnings'].append('review date uses site LAST_UPDATED; add updated for an article-specific date')
+                text, heading = markdown_display(body)
+                if not text.strip() or text.strip() == (heading or '').strip():
+                    record['warnings'].append('add article body before publication')
+            except (OSError, UnicodeError, ValueError) as exc:
+                record['errors'].append(str(exc))
+            records.append(record)
+    records.sort(key=lambda record: record['path'])
+    return {'version': 1, 'scope': 'Local editorial structure, not fact verification or publication approval.',
+            'articles': records, 'drafts': sum(r['status'] == 'draft' for r in records),
+            'published': sum(r['status'] == 'published' for r in records),
+            'errors': sum(len(r['errors']) for r in records),
+            'publication_warnings': sum(len(r['warnings']) for r in records if r['status'] == 'published')}
