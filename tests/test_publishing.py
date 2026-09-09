@@ -17,9 +17,37 @@ from article import create_article
 from check_artifacts import audit
 from xml.etree import ElementTree as ET
 from build_catalog import topic_id
+from review_build import review_candidate
 
 
 class PublishingTests(unittest.TestCase):
+    def test_candidate_review_runs_real_gates_without_replacing_current_output(self):
+        with tempfile.TemporaryDirectory() as directory:
+            template, site, cfg = self.fixture(directory)
+            retired = template / 'retired.md'
+            with self.assertRaisesRegex(ValueError, 'must not overlap'):
+                review_candidate(template, template, cfg)
+            retired.write_text('# Retired\n\nA synthetic page.\n', encoding='utf-8')
+            build_site_staged(str(template), str(site), cfg)
+            original = {str(p): p.read_bytes() for p in site.rglob('*') if p.is_file()}
+            retired.unlink()
+            (template / 'fresh.md').write_text('# Fresh\n\nA synthetic page.\n', encoding='utf-8')
+            profile = template / 'profile.md'
+            profile.write_text(profile.read_text(encoding='utf-8') + '\nA synthetic revision.\n', encoding='utf-8')
+            report = review_candidate(template, site, cfg)
+            self.assertEqual(report['status'], 'candidate-passed')
+            self.assertIn('fresh.html', [row['path'] for row in report['added']])
+            self.assertIn('retired.md', [row['path'] for row in report['removed']])
+            self.assertIn('profile.html', [row['path'] for row in report['changed']])
+            self.assertEqual(original, {str(p): p.read_bytes() for p in site.rglob('*') if p.is_file()})
+            self.assertFalse(list(Path(directory).glob('.site-review-*')))
+            contact = template / 'contact.md'
+            contact.write_text(contact.read_text(encoding='utf-8') + '\n[Wrong](mailto:other@outside.example)\n', encoding='utf-8')
+            with self.assertRaisesRegex(ValueError, 'quality gate failed'):
+                review_candidate(template, site, cfg)
+            self.assertEqual(original, {str(p): p.read_bytes() for p in site.rglob('*') if p.is_file()})
+            self.assertFalse(list(Path(directory).glob('.site-review-*')))
+
     def test_search_records_offer_bounded_author_topic_and_page_type_filters(self):
         with tempfile.TemporaryDirectory() as directory:
             template, site, cfg = self.fixture(directory)
@@ -170,6 +198,16 @@ class PublishingTests(unittest.TestCase):
             self.assertNotIn('published', meta)
             self.assertNotEqual(subprocess.run(command, capture_output=True).returncode, 0)
             self.assertEqual(path.read_bytes(), original)
+            for companion_name in ('existing.html', 'Mixed.HTML', 'Source.MD'):
+                companion = template / 'writing' / companion_name
+                companion.write_bytes(b'Existing authored bytes')
+                slug = companion.stem.lower()
+                with self.subTest(companion=companion_name), self.assertRaises(FileExistsError):
+                    create_article(repo, slug, 'A new draft')
+                self.assertEqual(companion.read_bytes(), b'Existing authored bytes')
+                if companion.suffix.lower() == '.html':
+                    self.assertFalse((companion.parent / (slug + '.md')).exists())
+                companion.unlink()
             build_site_staged(str(template), str(site), cfg)
             self.assertFalse((site / 'writing' / 'field-notes.md').exists())
             for slug in ('../escape', 'Uppercase', 'con', '/absolute', 'a--b'):
@@ -190,7 +228,7 @@ class PublishingTests(unittest.TestCase):
             template, site, cfg = self.fixture(directory)
             path = template / 'writing' / 'pending.md'
             source = '<!--\nstatus: %s\ntitle: Pending\n-->\n# Pending\n' + sentinel
-            path.write_text(source % 'draft', encoding='utf-8')
+            path.write_text('\ufeff \ufeff\n' + source % 'draft', encoding='utf-8')
             (template / 'writing' / 'pending.html').write_text(sentinel, encoding='utf-8')
             private_folder = template / 'writing' / 'draft-only-folder'
             private_folder.mkdir()

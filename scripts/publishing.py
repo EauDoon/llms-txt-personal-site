@@ -17,7 +17,7 @@ def article_topics(meta):
 
 
 def article_metadata(source):
-    source = source.removeprefix('\ufeff')
+    source = re.sub(r'^[\s\ufeff]+', '', source)
     leading = re.match(r'\s*<!--(.*?)-->', source, re.DOTALL)
     if source.lstrip().startswith('<!--') and leading is None:
         raise ValueError('article metadata comment is not closed')

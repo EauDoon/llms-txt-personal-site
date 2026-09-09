@@ -50,6 +50,9 @@ def create_article(repo, slug, title, description='', topics=()):
     heading = _safe_label(title).replace('{', '&#123;').replace('}', '&#125;')
     lines += ['-->', '# ' + heading, '', '']
     writing.mkdir(exist_ok=True)
+    reserved = {slug + '.md', slug + '.html'}
+    if any(path.name.casefold() in reserved for path in writing.iterdir()):
+        raise FileExistsError('article source or HTML companion already exists')
     target = writing / (slug + '.md')
     with target.open('x', encoding='utf-8', newline='') as stream:
         stream.write('\n'.join(lines))

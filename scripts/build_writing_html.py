@@ -42,6 +42,7 @@ def script_json(value):
 
 
 def parse_front_matter(md):
+    md = re.sub(r'^[\s\ufeff]+', '', md)
     m = re.match(r"\s*<!--(.*?)-->", md, re.DOTALL)
     meta = {}
     if m:
