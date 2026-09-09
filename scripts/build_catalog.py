@@ -49,3 +49,25 @@ def run(site_dir, cfg):
     body = '<p>Browse %d writing page%s, with original Markdown sources.</p>' % (len(rows), "" if len(rows) == 1 else "s")
     body += '<ul>%s</ul>' % "".join(rows) if rows else '<p>No writing pages have been published.</p>'
     (Path(site_dir) / "writing.html").write_text(page("Writing", body, cfg), encoding="utf-8", newline="")
+    build_search(site_dir, cfg, entries)
+
+
+def build_search(site_dir, cfg, entries):
+    records = []
+    writing = {entry["source"]: entry for entry in entries}
+    paths = sorted(Path(site_dir).glob("*.md")) + sorted((Path(site_dir) / "writing").glob("*.md"))
+    for path in paths:
+        source = "/" + quote(path.relative_to(site_dir).as_posix(), safe="/-._~")
+        meta, body = parse_front_matter(path.read_text(encoding="utf-8"))
+        body = re.sub(r"<!--.*?-->", "", body, flags=re.S)
+        heading = re.search(r"^#\s+(.+)$", body, re.M)
+        article = writing.get(source, {})
+        records.append({"title": article.get("title") or (heading[1] if heading else path.stem.title()),
+                        "url": article.get("url", source), "text": body[:100000]})
+    (Path(site_dir) / "search-index.json").write_text(json.dumps(records, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="")
+    links = ''.join('<li><a href="%s">%s</a></li>' % (r["url"], html.escape(r["title"])) for r in records)
+    body = '''<form role="search"><label for="query">Search published pages</label>
+<input id="query" type="search" maxlength="200" autocomplete="off" placeholder="Title, topic, or phrase">
+<button type="reset">Clear search</button></form><p id="search-status" role="status" aria-live="polite">All published pages. Search requires JavaScript.</p>
+<ul id="search-results">%s</ul><script src="/search.js" defer></script>''' % links
+    (Path(site_dir) / "search.html").write_text(page("Search", body, cfg), encoding="utf-8", newline="")

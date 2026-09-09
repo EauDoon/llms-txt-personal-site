@@ -15,6 +15,17 @@ CFG = {"DOMAIN": "example.test", "FULL_NAME": "Example Person", "EMAIL": "person
 
 
 class ReaderFeatures(unittest.TestCase):
+    def test_search_indexes_published_text_without_author_guidance(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'profile.md').write_text('# Example\n<!-- do not publish guidance -->\nVerified words', encoding='utf-8')
+            build_catalog(root, CFG)
+            records = json.loads((root / 'search-index.json').read_text())
+            self.assertEqual(records[0]['url'], '/profile.md')
+            self.assertIn('Verified words', records[0]['text'])
+            self.assertNotIn('guidance', records[0]['text'])
+            self.assertIn('/profile.md', (root / 'search.html').read_text())
+
     def test_writing_directory_tracks_sources_and_empty_state(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
