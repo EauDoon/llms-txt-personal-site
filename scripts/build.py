@@ -359,8 +359,8 @@ def build_site(template_dir, out_dir, cfg):
     build_pages.run(out_dir, cfg)
     import build_catalog
     build_catalog.run(out_dir, cfg)
-    for generated in ('writing.md', 'topics.md', 'search.md'):
-        plain_email_sources.pop(generated, None)
+    plain_email_sources = {path: variant for path, variant in plain_email_sources.items()
+                           if path.casefold() not in ('writing.md', 'topics.md', 'search.md')}
     import build_llms_full
     build_llms_full.run(out_dir, cfg, plain_email_sources)
     import build_sitemap

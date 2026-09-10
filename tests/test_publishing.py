@@ -47,20 +47,26 @@ class PublishingTests(unittest.TestCase):
         import build_catalog
         from build import fill
         generate = build_catalog.run
-        with tempfile.TemporaryDirectory() as directory:
-            template, site, cfg = self.fixture(directory)
-            cfg['EMAIL'] = 'a**tag@example.test'
-            source = '# Generated\n\n{{EMAIL}}'
-            for name in ('writing.md', 'topics.md', 'search.md'):
-                (template / name).write_text(source, encoding='utf-8')
-            def same_bytes(directory, config):
-                generate(directory, config)
-                for name in ('writing.md', 'topics.md', 'search.md'):
-                    (Path(directory) / name).write_text(fill(source, config), encoding='utf-8')
-            with patch('build_catalog.run', side_effect=same_bytes):
-                build_site_staged(str(template), str(site), cfg)
-            self.assertEqual((site / 'llms-full.txt').read_text(encoding='utf-8').count(
-                '# Generated\n\na&#42;&#42;tag@example.test'), 3)
+        for names in (('writing.md', 'topics.md', 'search.md'), ('Writing.md', 'TOPICS.md', 'Search.md')):
+            with self.subTest(names=names), tempfile.TemporaryDirectory() as directory:
+                template, site, cfg = self.fixture(directory)
+                cfg['EMAIL'] = 'a**tag@example.test'
+                source = '# Generated\n\n{{EMAIL}}'
+                for name in names:
+                    original = template / name.lower()
+                    if name != name.lower() and original.exists():
+                        original.rename(template / name)
+                    (template / name).write_text(source, encoding='utf-8')
+                def same_bytes(directory, config):
+                    generate(directory, config)
+                    for name in ('writing.md', 'topics.md', 'search.md'):
+                        (Path(directory) / name).write_text(fill(source, config), encoding='utf-8')
+                with patch('build_catalog.run', side_effect=same_bytes):
+                    build_site_staged(str(template), str(site), cfg)
+                count = sum(path.read_text(encoding='utf-8').startswith('# Generated')
+                            for path in site.glob('*.md'))
+                self.assertEqual((site / 'llms-full.txt').read_text(encoding='utf-8').count(
+                    '# Generated\n\na&#42;&#42;tag@example.test'), count)
 
     def test_plain_machine_records_preserve_configured_email_without_decoding_other_text(self):
         with tempfile.TemporaryDirectory() as directory:
