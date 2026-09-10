@@ -65,8 +65,10 @@ class PublishingTests(unittest.TestCase):
                     build_site_staged(str(template), str(site), cfg)
                 count = sum(path.read_text(encoding='utf-8').startswith('# Generated')
                             for path in site.glob('*.md'))
-                self.assertEqual((site / 'llms-full.txt').read_text(encoding='utf-8').count(
-                    '# Generated\n\na&#42;&#42;tag@example.test'), count)
+                output = (site / 'llms-full.txt').read_text(encoding='utf-8')
+                self.assertEqual(output.count('# Generated\n\na&#42;&#42;tag@example.test'), 3)
+                # A case-sensitive filesystem retains distinct authored mixed-case files.
+                self.assertEqual(output.count('# Generated\n\na**tag@example.test'), count - 3)
 
     def test_plain_machine_records_preserve_configured_email_without_decoding_other_text(self):
         with tempfile.TemporaryDirectory() as directory:
