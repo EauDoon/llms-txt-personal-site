@@ -310,6 +310,7 @@ def build_site(template_dir, out_dir, cfg):
     from publishing import publication_exclusions
     excluded = publication_exclusions(sources, fill, cfg)
     copied = 0
+    plain_email_sources = {}
     for src, dst, relative in sources:
         if relative.replace('\\', '/').casefold() in excluded:
             continue
@@ -320,8 +321,11 @@ def build_site(template_dir, out_dir, cfg):
         else:
             with open(src, encoding="utf-8") as source:
                 t = source.read()
+            filled = fill(t, cfg, plain_text=src.lower().endswith('.txt'))
+            if src.lower().endswith('.md') and '{{EMAIL}}' in t:
+                plain_email_sources[relative.replace('\\', '/')] = (filled, fill(t, cfg, plain_text=True))
             with open(dst, "w", encoding="utf-8", newline="") as output:
-                output.write(fill(t, cfg, plain_text=src.lower().endswith('.txt')))
+                output.write(filled)
         copied += 1
 
     print("  filled %d files into site/" % copied)
@@ -356,7 +360,7 @@ def build_site(template_dir, out_dir, cfg):
     import build_catalog
     build_catalog.run(out_dir, cfg)
     import build_llms_full
-    build_llms_full.run(out_dir, cfg)
+    build_llms_full.run(out_dir, cfg, plain_email_sources)
     import build_sitemap
     build_sitemap.run(out_dir, cfg)
     import build_inventory

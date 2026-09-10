@@ -23,12 +23,10 @@ ORDER = [
 ]
 
 
-def run(site_dir, cfg):
-    from build import fill
+def run(site_dir, cfg, plain_email_sources=None):
+    """Concatenate published pages, optionally using verified substitution snapshots."""
     domain = cfg.get("DOMAIN", "example.com")
     name = cfg.get("FULL_NAME", "")
-    email = cfg.get('EMAIL')
-    encoded_email = fill('{{EMAIL}}', cfg) if email else None
 
     parts = [
         "# %s: complete machine-readable record\n" % name,
@@ -59,8 +57,9 @@ def run(site_dir, cfg):
         parts.append("=" * 70 + "\n\n")
         with open(path, encoding="utf-8") as source:
             text = source.read()
-            # Restore this configured contact only; other authored entities stay literal.
-            parts.append(text.replace(encoded_email, email) if encoded_email else text)
+            variant = (plain_email_sources or {}).get(rel)
+            # Use substitution provenance only while the published source is unchanged.
+            parts.append(variant[1] if variant and text == variant[0] else text)
 
     out = "".join(parts)
     with open(os.path.join(site_dir, "llms-full.txt"), "w", encoding="utf-8", newline="") as output:

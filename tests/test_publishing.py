@@ -21,6 +21,27 @@ from review_build import review_candidate
 
 
 class PublishingTests(unittest.TestCase):
+    def test_plain_email_substitution_preserves_authored_entities_and_generated_pages(self):
+        with tempfile.TemporaryDirectory() as directory:
+            template, site, cfg = self.fixture(directory)
+            cfg['EMAIL'] = 'a**tag@example.test'
+            literal = 'Authored a&#42;&#42;tag@example.test and &lt;script&gt;.'
+            (template / 'literal.md').write_text('# Literal\n\nContact: {{EMAIL}}\n\n' + literal, encoding='utf-8')
+            (template / 'writing.md').write_text('# REPLACED_INDEX\n\n{{EMAIL}}', encoding='utf-8')
+            (template / 'writing' / 'draft.md').write_text(
+                '<!--\nstatus: draft\n-->\n# DRAFT_CONTACT\n{{EMAIL}}', encoding='utf-8')
+            build_site_staged(str(template), str(site), cfg)
+            output = (site / 'llms-full.txt').read_text(encoding='utf-8')
+            self.assertIn('Contact: a**tag@example.test', output)
+            self.assertIn(literal, output)
+            self.assertNotIn('REPLACED_INDEX', output)
+            self.assertNotIn('DRAFT_CONTACT', output)
+            self.assertIn((site / 'writing.md').read_text(encoding='utf-8'), output)
+            from build_llms_full import run
+            run(str(site), cfg)
+            output = (site / 'llms-full.txt').read_text(encoding='utf-8')
+            self.assertIn((site / 'literal.md').read_text(encoding='utf-8'), output)
+
     def test_plain_machine_records_preserve_configured_email_without_decoding_other_text(self):
         with tempfile.TemporaryDirectory() as directory:
             template, site, cfg = self.fixture(directory)
