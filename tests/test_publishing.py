@@ -5,6 +5,7 @@ import shutil
 import tempfile
 import subprocess
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -41,6 +42,25 @@ class PublishingTests(unittest.TestCase):
             run(str(site), cfg)
             output = (site / 'llms-full.txt').read_text(encoding='utf-8')
             self.assertIn((site / 'literal.md').read_text(encoding='utf-8'), output)
+
+    def test_generated_catalog_pages_never_reuse_equal_source_snapshots(self):
+        import build_catalog
+        from build import fill
+        generate = build_catalog.run
+        with tempfile.TemporaryDirectory() as directory:
+            template, site, cfg = self.fixture(directory)
+            cfg['EMAIL'] = 'a**tag@example.test'
+            source = '# Generated\n\n{{EMAIL}}'
+            for name in ('writing.md', 'topics.md', 'search.md'):
+                (template / name).write_text(source, encoding='utf-8')
+            def same_bytes(directory, config):
+                generate(directory, config)
+                for name in ('writing.md', 'topics.md', 'search.md'):
+                    (Path(directory) / name).write_text(fill(source, config), encoding='utf-8')
+            with patch('build_catalog.run', side_effect=same_bytes):
+                build_site_staged(str(template), str(site), cfg)
+            self.assertEqual((site / 'llms-full.txt').read_text(encoding='utf-8').count(
+                '# Generated\n\na&#42;&#42;tag@example.test'), 3)
 
     def test_plain_machine_records_preserve_configured_email_without_decoding_other_text(self):
         with tempfile.TemporaryDirectory() as directory:

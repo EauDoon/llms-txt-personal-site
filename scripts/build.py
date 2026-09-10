@@ -359,6 +359,8 @@ def build_site(template_dir, out_dir, cfg):
     build_pages.run(out_dir, cfg)
     import build_catalog
     build_catalog.run(out_dir, cfg)
+    for generated in ('writing.md', 'topics.md', 'search.md'):
+        plain_email_sources.pop(generated, None)
     import build_llms_full
     build_llms_full.run(out_dir, cfg, plain_email_sources)
     import build_sitemap
