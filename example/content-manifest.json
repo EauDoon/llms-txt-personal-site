@@ -21,8 +21,8 @@
     },
     {
       "path": "about.html",
-      "bytes": 3140,
-      "sha256": "f7d7772edeafb57fbc7b769ad3a8bbf76ae6994a87becfac8092d547cf3fe953"
+      "bytes": 3115,
+      "sha256": "8e18ff50840f2e65a55630e49b5404417107dd5696530d982715af89b8b36a29"
     },
     {
       "path": "about.md",
@@ -111,8 +111,8 @@
     },
     {
       "path": "press.html",
-      "bytes": 5902,
-      "sha256": "fa20fb37697a8bd7843ad1468757dd99dd41c80f9ca3029f5673bb12d0784361"
+      "bytes": 5848,
+      "sha256": "e617bde13b926bd33d73a7f1f6c213dd1c2f4fadecbeec7187371011b03a72fa"
     },
     {
       "path": "press.md",
@@ -146,8 +146,8 @@
     },
     {
       "path": "search-index.json",
-      "bytes": 9977,
-      "sha256": "8a604dd8600324a28253ce4857aaedd2fcceb24f347414e9c6d4ecddf403feea"
+      "bytes": 9946,
+      "sha256": "611653fda4f91596a1f38cefde9750053e46e2e84087f70f96150b4f8bfa879c"
     },
     {
       "path": "search.html",
@@ -156,8 +156,8 @@
     },
     {
       "path": "search.js",
-      "bytes": 4842,
-      "sha256": "f00688297493dd75e25c13537857b092e8110c6b93830464efbbb23c7ccdd58f"
+      "bytes": 4854,
+      "sha256": "cb9f90f527aa433a6c0af0fc313cc1a2c6bd5e1831716118d258866d2ca578ae"
     },
     {
       "path": "search.md",

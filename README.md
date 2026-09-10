@@ -160,6 +160,7 @@ To build and check the unchanged generic example after initialization:
 python scripts/build.py
 python scripts/quality_check.py
 python -m unittest discover -s tests -v
+node --test tests/search.test.cjs
 ```
 
 These direct commands support template development. They do not run the personal-site readiness checks in `fork.py`.

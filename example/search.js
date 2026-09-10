@@ -42,9 +42,9 @@
       link.href = record.url;
       link.textContent = record.title;
       li.append(link);
-      if (term) {
+      const match = record.text.toLocaleLowerCase().indexOf(term);
+      if (term && match >= 0) {
         const paragraph = document.createElement("p");
-        const match = record.text.toLocaleLowerCase().indexOf(term);
         const start = Math.max(0, match - 60);
         paragraph.textContent = (start ? "…" : "") + record.text.slice(start, start + 180)
           + (record.text.length > start + 180 ? "…" : "");

@@ -21,6 +21,29 @@ from review_build import review_candidate
 
 
 class PublishingTests(unittest.TestCase):
+    def test_core_companions_keep_wrapped_lists_and_following_blocks(self):
+        source = ('# Wrapped lists\n\n1. First **ordered**\n   continued & safe.\n'
+                  '2. Second ordered\n   more text.\n\n- First unordered\n'
+                  '  continued `code`.\n* Second unordered\n\n'
+                  '- Before fence\n  ```text\n<!-- literal -->\n  ```\n'
+                  '- Before heading\n  ## Heading\n- Before quote\n  > Quote\n'
+                  '- Before table\n  | A |\n  |---|\n  | B |\n'
+                  '- Before rule\n  ---\n<!-- hidden guidance -->\nPlain paragraph.')
+        with tempfile.TemporaryDirectory() as directory:
+            template, site, cfg = self.fixture(directory)
+            (template / 'wrapped.md').write_text(source, encoding='utf-8')
+            build_site_staged(str(template), str(site), cfg)
+            output = (site / 'wrapped.html').read_text(encoding='utf-8')
+            self.assertIn('<ol>\n<li>First <strong>ordered</strong> continued &amp; safe.</li>\n'
+                          '<li>Second ordered more text.</li>\n</ol>', output)
+            self.assertIn('<ul>\n<li>First unordered continued <code>code</code>.</li>\n'
+                          '<li>Second unordered</li>\n</ul>', output)
+            for block in ('<pre><code class="language-text">&lt;!-- literal --&gt;</code></pre>',
+                          '<h2 id="heading">Heading</h2>', '<blockquote><p>Quote</p></blockquote>',
+                          '<table>', '<hr>', '<p>Plain paragraph.</p>'):
+                self.assertIn(block, output)
+            self.assertNotIn('hidden guidance', output)
+
     def test_candidate_review_runs_real_gates_without_replacing_current_output(self):
         with tempfile.TemporaryDirectory() as directory:
             template, site, cfg = self.fixture(directory)

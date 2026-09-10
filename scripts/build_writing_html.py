@@ -169,6 +169,19 @@ def md_to_html(md):
             s = s.replace(marker, code)
         return restore_entities(s)
 
+    def list_item(text):
+        nonlocal i
+        buf = [text]
+        i += 1
+        while i < len(lines):
+            line, stripped = lines[i], lines[i].strip()
+            if (not stripped or not line[0].isspace()
+                    or re.match(r"^(#{1,4}\s|[-*]\s|\d+\.\s|\||>|`{3,}|---$)", stripped)):
+                break
+            buf.append(stripped)
+            i += 1
+        out.append("<li>%s</li>" % inline(" ".join(buf)))
+
     while i < len(lines):
         ln = lines[i]
         s = ln.strip()
@@ -226,13 +239,13 @@ def md_to_html(md):
         if m:
             if in_ol: out.append("</ol>"); in_ol = False
             if not in_ul: out.append("<ul>"); in_ul = True
-            out.append("<li>%s</li>" % inline(m.group(1))); i += 1; continue
+            list_item(m.group(1)); continue
 
         m = re.match(r"^\d+\.\s+(.*)$", s)
         if m:
             if in_ul: out.append("</ul>"); in_ul = False
             if not in_ol: out.append("<ol>"); in_ol = True
-            out.append("<li>%s</li>" % inline(m.group(1))); i += 1; continue
+            list_item(m.group(1)); continue
 
         close()
         buf = []
