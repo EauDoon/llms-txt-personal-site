@@ -23,7 +23,8 @@ ORDER = [
 ]
 
 
-def run(site_dir, cfg):
+def run(site_dir, cfg, plain_email_sources=None):
+    """Concatenate published pages, optionally using verified substitution snapshots."""
     domain = cfg.get("DOMAIN", "example.com")
     name = cfg.get("FULL_NAME", "")
 
@@ -55,7 +56,10 @@ def run(site_dir, cfg):
         parts.append("# SOURCE: https://%s/%s\n" % (domain, quote(rel, safe="/-._~")))
         parts.append("=" * 70 + "\n\n")
         with open(path, encoding="utf-8") as source:
-            parts.append(source.read())
+            text = source.read()
+            variant = (plain_email_sources or {}).get(rel)
+            # Use substitution provenance only while the published source is unchanged.
+            parts.append(variant[1] if variant and text == variant[0] else text)
 
     out = "".join(parts)
     with open(os.path.join(site_dir, "llms-full.txt"), "w", encoding="utf-8", newline="") as output:

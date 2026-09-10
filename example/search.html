@@ -1,17 +1,29 @@
 <!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Search | Your Full Name</title><link rel="describedby" href="/llms.txt">
-<link rel="alternate" type="text/markdown" href="/search.md" title="Page index in Markdown">
+<link rel="alternate" type="text/markdown" href="/search.md" title="Source in Markdown">
 <style>
 :root { color-scheme: light dark; font: 17px/1.65 system-ui,sans-serif; }
 body { max-width: 48rem; padding: 2rem 1.25rem; margin: auto; overflow-wrap: anywhere; }
 a { color: light-dark(#1646ad,#94bbff); } :focus-visible { outline: 3px solid currentColor; outline-offset: 4px; }
 li { margin-block: 1.25rem; } p { margin-block: .5rem; }
-input,button { font: inherit; padding: .6rem; max-width: 100%; box-sizing: border-box; }
+input,button,select { font: inherit; padding: .6rem; max-width: 100%; min-height: 44px; box-sizing: border-box; }
 input { width: 100%; } .skip { position: absolute; top: -5rem; } .skip:focus { top: .5rem; }
+form { display: grid; gap: .75rem; } label { display: block; } select { width: 100%; }
+.search-filters { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+.search-actions { display: flex; flex-wrap: wrap; gap: .75rem; }
+@media (max-width: 480px) { .search-filters { grid-template-columns: 1fr; } }
+pre,.table-scroll { overflow-x: auto; max-width: 100%; } pre { padding: 1rem; border: 1px solid currentColor; }
+.outline { border-left: 2px solid currentColor; padding-left: 1rem; margin-block: 2rem; }
+@media print { nav,.skip { display: none; } body { max-width: none; padding: 0; } }
 </style></head><body><a class="skip" href="#main-content">Skip to content</a>
-<nav aria-label="Site"><a href="/">Your Full Name</a> · <a href="/writing.html">Writing</a> · <a href="/llms.txt">Machine-readable index</a></nav>
-<main id="main-content"><h1>Search</h1><form role="search"><label for="query">Search published pages</label>
-<input id="query" type="search" maxlength="200" autocomplete="off" placeholder="Title, topic, or phrase">
-<button type="reset">Clear search</button></form><p id="search-status" role="status" aria-live="polite">All published pages. Search requires JavaScript.</p>
-<ul id="search-results"><li><a href="/about.md">About this site</a></li><li><a href="/changelog.md">Change history</a></li><li><a href="/contact.md">Contact</a></li><li><a href="/experience.md">Roles</a></li><li><a href="/faq.md">Questions and answers</a></li><li><a href="/focus.md">Current focus</a></li><li><a href="/now.md">What Your Full Name is working on now</a></li><li><a href="/press.md">Your Full Name: public record</a></li><li><a href="/products.md">Work and products</a></li><li><a href="/profile.md">Your Full Name</a></li><li><a href="/writing/example-depth-page.html">Example Depth Page</a></li></ul><script src="/search.js" defer></script></main></body></html>
+<nav aria-label="Site"><a href="/">Your Full Name</a> · <a href="/writing.html">Writing</a> · <a href="/topics.html">Topics</a> · <a href="/search.html">Search</a> · <a href="/llms.txt">Machine-readable index</a></nav>
+<main id="main-content"><h1>Search</h1><p>Search runs in this browser. The page URL stores your query and filters for sharing or reloading.</p>
+<form role="search"><div><label for="query">Search published pages</label>
+<input id="query" name="q" type="search" maxlength="200" autocomplete="off" placeholder="Title, topic, or phrase"></div>
+<div class="search-filters"><div><label for="page-type">Page type</label><select id="page-type" name="type"><option value="">All pages</option><option value="article">Writing</option><option value="page">Core pages</option></select></div>
+<div><label for="topic">Topic</label><select id="topic" name="topic"><option value="">All topics</option></select></div></div>
+<div class="search-actions"><button type="submit">Search pages</button><button type="reset">Clear search</button></div></form>
+<p id="search-status" role="status" aria-live="polite">All published pages. Search requires JavaScript.</p>
+<button id="search-retry" type="button" hidden>Retry search</button>
+<ul id="search-results"><li><a href="/about.html">About this site</a></li><li><a href="/changelog.html">Change history</a></li><li><a href="/contact.html">Contact</a></li><li><a href="/experience.html">Roles</a></li><li><a href="/faq.html">Questions and answers</a></li><li><a href="/focus.html">Current focus</a></li><li><a href="/now.html">What Your Full Name is working on now</a></li><li><a href="/press.html">Your Full Name: public record</a></li><li><a href="/products.html">Work and products</a></li><li><a href="/profile.html">Your Full Name</a></li><li><a href="/writing/example-depth-page.html">Example Depth Page</a></li></ul><script src="/search.js" defer></script></main></body></html>

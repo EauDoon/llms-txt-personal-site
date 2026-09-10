@@ -28,6 +28,16 @@ The example is generic starter content, not a verified biography or a site ready
 
 See [writing and build review](docs/WRITING.md) for article dates, supported Markdown, search limits, offline link audits, and reproducible builds.
 
+The publishing workflow now includes draft-first article creation, a read-only editorial report, and an exact candidate-build change review. Core pages have readable HTML companions; writing is browsable by declared dates and authored topics, with related-article links and shareable filtered search.
+
+```bash
+python scripts/article.py new field-notes --title "Field notes" --topic Research
+python scripts/article.py review
+python scripts/review_build.py
+```
+
+The new article remains excluded from every public build until its leading metadata says `status: published`. Review its facts, sources, metadata, and candidate output before that transition. Existing articles without status keep their published behavior. See the writing guide for limits and exact commands; these tools do not configure hosting or publish remotely.
+
 ## Build your own site
 
 Use Git and Python 3.12, the version used by this repository's CI. On Windows, use `py -3` in place of `python` if that is how your Python installation is available.
@@ -150,6 +160,7 @@ To build and check the unchanged generic example after initialization:
 python scripts/build.py
 python scripts/quality_check.py
 python -m unittest discover -s tests -v
+node --test tests/search.test.cjs
 ```
 
 These direct commands support template development. They do not run the personal-site readiness checks in `fork.py`.

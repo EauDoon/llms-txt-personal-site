@@ -42,6 +42,7 @@ def script_json(value):
 
 
 def parse_front_matter(md):
+    md = re.sub(r'^[\s\ufeff]+', '', md)
     m = re.match(r"\s*<!--(.*?)-->", md, re.DOTALL)
     meta = {}
     if m:
@@ -115,19 +116,35 @@ def md_to_html(md):
 
     def inline(s):
         literal_code, parts = [], []
+        # Character references are literal text, not Markdown delimiters.
+        # Keep them inert while recognizing formatting and links, then escape
+        # their decoded values for HTML. URL validation sees decoded values.
+        prefix = 'LITERALENTITYTOKEN'
+        while prefix in s:
+            prefix += 'X'
+        entities = {}
+        token_pattern = re.compile(re.escape(prefix) + r'\d+END')
+        def entity(match):
+            token = prefix + str(len(entities)) + 'END'
+            entities[token] = html.escape(html.unescape(match[0]), quote=True)
+            return token
+        def restore_entities(value, escaped=True):
+            return token_pattern.sub(lambda match: (entities.get(match[0], match[0]) if escaped
+                                     else html.unescape(entities.get(match[0], match[0]))), value)
         for code, value in inline_parts(s):
             if code:
                 marker = '<span data-literal-code="%d"></span>' % len(literal_code)
                 literal_code.append((marker, '<code>%s</code>' % html.escape(value, quote=True)))
                 parts.append(marker)
             else:
-                parts.append(html.escape(html.unescape(value), quote=True))
+                value = re.sub(r'&(?:#[0-9]+|#[xX][0-9A-Fa-f]+|[A-Za-z][A-Za-z0-9]+);', entity, value)
+                parts.append(html.escape(value, quote=True))
         s = "".join(parts)
         s = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
         inert_links = []
         def link(match):
             label, escaped_target = match.groups()
-            target = html.unescape(escaped_target).strip()
+            target = restore_entities(html.unescape(escaped_target), escaped=False).strip()
             try:
                 scheme = urlsplit(target).scheme.lower()
             except ValueError:
@@ -150,7 +167,20 @@ def md_to_html(md):
             s = s.replace(placeholder, inert_text)
         for marker, code in literal_code:
             s = s.replace(marker, code)
-        return s
+        return restore_entities(s)
+
+    def list_item(text):
+        nonlocal i
+        buf = [text]
+        i += 1
+        while i < len(lines):
+            line, stripped = lines[i], lines[i].strip()
+            if (not stripped or not line[0].isspace()
+                    or re.match(r"^(#{1,4}\s|[-*]\s|\d+\.\s|\||>|`{3,}|---$)", stripped)):
+                break
+            buf.append(stripped)
+            i += 1
+        out.append("<li>%s</li>" % inline(" ".join(buf)))
 
     while i < len(lines):
         ln = lines[i]
@@ -209,13 +239,13 @@ def md_to_html(md):
         if m:
             if in_ol: out.append("</ol>"); in_ol = False
             if not in_ul: out.append("<ul>"); in_ul = True
-            out.append("<li>%s</li>" % inline(m.group(1))); i += 1; continue
+            list_item(m.group(1)); continue
 
         m = re.match(r"^\d+\.\s+(.*)$", s)
         if m:
             if in_ul: out.append("</ul>"); in_ul = False
             if not in_ol: out.append("<ol>"); in_ol = True
-            out.append("<li>%s</li>" % inline(m.group(1))); i += 1; continue
+            list_item(m.group(1)); continue
 
         close()
         buf = []
@@ -324,9 +354,11 @@ h2, h3, h4 {{ scroll-margin-top: 1rem; }}
 <a class="skip-link" href="#main-content">Skip to content</a>
 <div class="wrap">
 <p><a href="/">{name}</a> / <a href="/writing/{slug}.md">this page in Markdown</a></p>
+<nav aria-label="Writing navigation"><a href="/writing.html">All writing</a> · <a href="/topics.html">Topics</a> · <a href="/search.html">Search</a></nav>
 <main id="main-content">
 {outline}
 {content}
+<!-- GENERATED RELATED WRITING -->
 </main>
 <footer><p>Contact: <a href="mailto:{email_uri}">{email}</a></p></footer>
 </div>

@@ -11,9 +11,30 @@ ATOM = "[" + ATOM_CHARACTERS + "]+"
 DNS_LABEL = r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?"
 CANDIDATE = re.compile(r"[" + ATOM_CHARACTERS + r".]+@[A-Za-z0-9.-]+")
 MAILTO = re.compile(r"(?i)(?<![A-Za-z0-9])mailto:[^\s<>)\]]+")
-# Only paired prose quotes delimit a route. The closing quote must end the
-# token, allowing outside punctuation or another route, never trailing letters.
-QUOTED_MAILTO = re.compile(r'''(?i)(['"])(mailto:[^\s<>]*?)\1(?=[.,;:!?()[\]{}]*(?:\s|$|['"]?mailto:))''')
+PROSE_BOUNDARY = re.compile(r'''[.,;:!?()[\]{}]*(?=\s|$|['"]?mailto:)''', re.IGNORECASE)
+
+
+def quoted_route(text, start):
+    """Recognize paired prose quotes and matching outer Markdown delimiters.
+
+    Framing is recognized outside the route only. Destination bytes and raw
+    HTML href values are never cleaned, nor are arbitrary suffixes stripped.
+    """
+    if start == 0 or text[start - 1] not in "'\"":
+        return None
+    quote_mark = text[start - 1]
+    opening = re.search(r"[*_`]+$", text[:start - 1])
+    closing = opening[0][::-1] if opening else ""
+    end = start
+    while end < len(text) and not text[end].isspace() and text[end] not in '<>':
+        if text[end] == quote_mark:
+            after = end + 1
+            if closing and text.startswith(closing, after):
+                after += len(closing)
+            if PROSE_BOUNDARY.match(text, after):
+                return text[start:end], after
+        end += 1
+    return None
 
 
 def validate_email_address(value):
@@ -137,11 +158,9 @@ def contact_values(source, suffix):
             addresses.extend(text_addresses(text[position:match.start()]))
             target = match[0]
             position = match.end()
-            if match.start() > 0 and text[match.start() - 1] in "'\"":
-                quoted = QUOTED_MAILTO.match(text, match.start() - 1)
-                if quoted:
-                    target = quoted[2]
-                    position = quoted.end()
+            quoted = quoted_route(text, match.start())
+            if quoted:
+                target, position = quoted
             try:
                 explicit.append(unquote(urlsplit(target).path))
             except ValueError:
