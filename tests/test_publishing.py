@@ -47,7 +47,8 @@ class PublishingTests(unittest.TestCase):
         import build_catalog
         from build import fill
         generate = build_catalog.run
-        for names in (('writing.md', 'topics.md', 'search.md'), ('Writing.md', 'TOPICS.md', 'Search.md')):
+        for names in (('writing.md', 'topics.md', 'search.md'), ('Writing.md', 'TOPICS.md', 'Search.md'),
+                      ('writing.md', 'topics.md', '\u017fearch.md')):
             with self.subTest(names=names), tempfile.TemporaryDirectory() as directory:
                 template, site, cfg = self.fixture(directory)
                 cfg['EMAIL'] = 'a**tag@example.test'
