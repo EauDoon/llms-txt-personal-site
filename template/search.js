@@ -74,7 +74,7 @@
         !record || typeof record.title !== "string" || typeof record.text !== "string" || record.text.length > 100000
         || typeof record.url !== "string" || !/^\/(?!\/)[^\\\s]*$/.test(record.url)
         || !["article", "page"].includes(record.type) || !Array.isArray(record.topic_keys)
-        || record.topic_keys.length > 12 || record.topic_keys.some(key => typeof key !== "string" || key.length > 160))) {
+        || record.topic_keys.length > 12 || record.topic_keys.some(key => typeof key !== "string"))) {
         throw new Error("Invalid search index");
       }
       indexed = records.map(record => ({ ...record, terms: (record.title + " " + record.text).toLocaleLowerCase() }));

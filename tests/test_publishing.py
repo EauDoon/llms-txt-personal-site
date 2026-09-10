@@ -21,6 +21,34 @@ from review_build import review_candidate
 
 
 class PublishingTests(unittest.TestCase):
+    def test_plain_machine_records_preserve_configured_email_without_decoding_other_text(self):
+        with tempfile.TemporaryDirectory() as directory:
+            template, site, cfg = self.fixture(directory)
+            cfg['EMAIL'] = "a**tag|notes&x'@example.test"
+            (template / 'literal.md').write_text('# Literal\n\nKeep &lt;script&gt; inert.\n', encoding='utf-8')
+            build_site_staged(str(template), str(site), cfg)
+            for name in ('llms.txt', 'llms-full.txt'):
+                output = (site / name).read_text(encoding='utf-8')
+                self.assertIn(cfg['EMAIL'], output)
+                self.assertNotIn('a&#42;&#42;tag', output)
+            self.assertIn('Keep &lt;script&gt; inert.', (site / 'llms-full.txt').read_text(encoding='utf-8'))
+            self.assertIn('a&#42;&#42;tag', (site / 'contact.md').read_text(encoding='utf-8'))
+            self.assertFalse(audit(site))
+
+    def test_normalized_unicode_topics_preserve_the_metadata_boundary(self):
+        with tempfile.TemporaryDirectory() as directory:
+            template, site, cfg = self.fixture(directory)
+            for slug, topic in (('ligatures', '\ufb03' * 80), ('astral', '\U0001f600' * 80)):
+                (template / 'writing' / (slug + '.md')).write_text(
+                    '<!--\ntitle: ' + slug + '\nabout: ' + topic + '\n-->\n# Unicode topics\n', encoding='utf-8')
+            build_site_staged(str(template), str(site), cfg)
+            rows = {row['url']: row for row in json.loads((site / 'search-index.json').read_text(encoding='utf-8'))}
+            self.assertEqual(rows['/writing/ligatures.html']['topic_keys'], ['ffi' * 80])
+            self.assertEqual(rows['/writing/astral.html']['topic_keys'], ['\U0001f600' * 80])
+            self.assertIn('value="' + 'ffi' * 80 + '"', (site / 'search.html').read_text(encoding='utf-8'))
+            with self.assertRaisesRegex(ValueError, '80 characters'):
+                article_metadata('<!--\nabout: ' + '\ufb03' * 81 + '\n-->\n# Too long')
+
     def test_core_companions_keep_wrapped_lists_and_following_blocks(self):
         source = ('# Wrapped lists\n\n1. First **ordered**\n   continued & safe.\n'
                   '2. Second ordered\n   more text.\n\n- First unordered\n'

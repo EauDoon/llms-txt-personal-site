@@ -15,7 +15,8 @@ test('title-only search results omit unrelated body excerpts', async () => {
     .map(id => ['#' + id, element()]));
   controls['#query'].form = element();
   const records = [
-    { title: 'Needle title', text: 'Unrelated opening.', url: '/title.html', type: 'page', topic_keys: [] },
+    { title: 'Needle title', text: 'Unrelated opening.', url: '/title.html', type: 'page',
+      topic_keys: ['ffi'.repeat(80), '\u{1f600}'.repeat(80)] },
     { title: 'Body match', text: 'Contains needle in the body.', url: '/body.html', type: 'page', topic_keys: [] },
   ];
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../template/search.js'), 'utf8'), {

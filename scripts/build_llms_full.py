@@ -24,8 +24,11 @@ ORDER = [
 
 
 def run(site_dir, cfg):
+    from build import fill
     domain = cfg.get("DOMAIN", "example.com")
     name = cfg.get("FULL_NAME", "")
+    email = cfg.get('EMAIL')
+    encoded_email = fill('{{EMAIL}}', cfg) if email else None
 
     parts = [
         "# %s: complete machine-readable record\n" % name,
@@ -55,7 +58,9 @@ def run(site_dir, cfg):
         parts.append("# SOURCE: https://%s/%s\n" % (domain, quote(rel, safe="/-._~")))
         parts.append("=" * 70 + "\n\n")
         with open(path, encoding="utf-8") as source:
-            parts.append(source.read())
+            text = source.read()
+            # Restore this configured contact only; other authored entities stay literal.
+            parts.append(text.replace(encoded_email, email) if encoded_email else text)
 
     out = "".join(parts)
     with open(os.path.join(site_dir, "llms-full.txt"), "w", encoding="utf-8", newline="") as output:
