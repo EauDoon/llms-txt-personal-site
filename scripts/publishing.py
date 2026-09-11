@@ -1,6 +1,7 @@
 """Explicit editorial metadata and public-artifact selection."""
 import re
 import os
+import unicodedata
 from pathlib import Path, PurePosixPath
 
 from build_writing_html import parse_front_matter
@@ -88,6 +89,8 @@ def review_articles(template, cfg):
         if path.exists() and (is_link_like(path) or not path.is_dir()):
             raise ValueError('editorial review requires real directories')
     records, total = [], 0
+    def title_key(value):
+        return unicodedata.normalize('NFC', ' '.join(value.split())).casefold()
     for directory, dirs, files in os.walk(writing):
         for name in dirs + files:
             if is_link_like(Path(directory) / name):
@@ -114,12 +117,23 @@ def review_articles(template, cfg):
                 if not meta.get('updated'):
                     record['warnings'].append('review date uses site LAST_UPDATED; add updated for an article-specific date')
                 text, heading = markdown_display(body)
+                if meta.get('title') and heading and title_key(meta['title']) != title_key(heading):
+                    record['warnings'].append('article heading differs from title metadata; review reader-facing identity')
                 if not text.strip() or text.strip() == (heading or '').strip():
                     record['warnings'].append('add article body before publication')
             except (OSError, UnicodeError, ValueError) as exc:
                 record['errors'].append(str(exc))
             records.append(record)
     records.sort(key=lambda record: record['path'])
+    titles = {}
+    for record in records:
+        if not record['errors']:
+            titles.setdefault(title_key(record['title']), []).append(record)
+    for duplicates in titles.values():
+        if len(duplicates) > 1:
+            for record in duplicates:
+                others = ', '.join(other['path'] for other in duplicates if other is not record)
+                record['warnings'].append('duplicate title also used by: ' + others)
     return {'version': 1, 'scope': 'Local editorial structure, not fact verification or publication approval.',
             'articles': records, 'drafts': sum(r['status'] == 'draft' for r in records),
             'published': sum(r['status'] == 'published' for r in records),

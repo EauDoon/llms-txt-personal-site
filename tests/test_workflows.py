@@ -7,9 +7,26 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from article import create_article
+from publishing import review_articles
 
 
 class WorkflowTests(unittest.TestCase):
+    def test_review_identifies_ambiguous_titles_without_changing_sources(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'writing').mkdir()
+            sources = {'one': '<!--\ntitle: Café\n-->\n# Different\nBody',
+                       'two': '<!--\ntitle: CAFÉ\nstatus: draft\n-->\n# Café\nBody'}
+            for slug, source in sources.items():
+                (root / 'writing' / (slug + '.md')).write_text(source, encoding='utf-8')
+            report = review_articles(root, {'LAST_UPDATED': '2026-01-01'})
+            for row in report['articles']:
+                self.assertTrue(any('duplicate title' in warning for warning in row['warnings']))
+            self.assertTrue(any('heading differs' in w for w in report['articles'][0]['warnings']))
+            self.assertFalse(any('heading differs' in w for w in report['articles'][1]['warnings']))
+            for slug, source in sources.items():
+                self.assertEqual((root / 'writing' / (slug + '.md')).read_text(encoding='utf-8'), source)
+
     def test_new_article_accepts_only_valid_explicit_dates(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
