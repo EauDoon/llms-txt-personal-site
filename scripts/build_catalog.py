@@ -8,7 +8,7 @@ from urllib.parse import quote, unquote
 from xml.etree import ElementTree as ET
 from build_sitemap import validate_last_updated
 
-from build_writing_html import parse_front_matter, markdown_display
+from build_writing_html import parse_front_matter, markdown_display, reading_estimate
 from build_llms_index import _safe_label
 from publishing import article_topics
 
@@ -148,7 +148,7 @@ def run(site_dir, cfg):
         dates = ' · '.join('%s: <time datetime="%s">%s</time>' % (label, date, date) for label, date in date_labels(entry, cfg))
         rows.append('<li><h2><a href="%s">%s</a></h2><p>%s</p><p>%s</p><p>%s</p><a href="%s">Markdown source</a></li>' % (
             entry["url"], html.escape(entry["title"]), html.escape(entry["description"]),
-            dates, topic_links(entry), entry["source"]))
+            dates + ' · ' + reading_estimate(entry['body']), topic_links(entry), entry["source"]))
     body = '<p>Browse %d writing page%s, with original Markdown sources.</p>' % (len(rows), "" if len(rows) == 1 else "s")
     body += '<p>Latest declared article dates first. Articles without dates follow in title order.</p>'
     body += '<ul>%s</ul>' % "".join(rows) if rows else '<p>No writing pages have been published.</p>'

@@ -8,9 +8,23 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from article import create_article
 from publishing import review_articles
+from build_catalog import run as catalog
+from build_writing_html import render_page
 
 
 class WorkflowTests(unittest.TestCase):
+    def test_reading_estimate_uses_visible_body_in_directory_and_article(self):
+        cfg = {'FULL_NAME': 'Example', 'DOMAIN': 'example.test', 'LAST_UPDATED': '2026-01-01'}
+        body = '# Notes\n\n' + 'word ' * 440 + '\n<!-- ' + 'hidden ' * 1000 + '-->'
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'writing').mkdir()
+            (root / 'writing/notes.md').write_text(body, encoding='utf-8')
+            catalog(root, cfg)
+            self.assertIn('About 3 min read', (root / 'writing.html').read_text(encoding='utf-8'))
+            self.assertIn('About 3 min read', render_page('notes', body, cfg))
+            self.assertIn('About 1 min read', render_page('short', '# Short', cfg))
+
     def test_review_identifies_ambiguous_titles_without_changing_sources(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
