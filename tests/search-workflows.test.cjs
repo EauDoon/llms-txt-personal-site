@@ -52,3 +52,13 @@ test('search ranks title matches first and preserves order for ties and empty qu
   assert.deepEqual((await search('needle', records)).titles(), ['Needle notes', 'Needle examples', 'Background']);
   assert.deepEqual((await search('', records)).titles(), ['Background', 'Needle notes', 'Needle examples']);
 });
+
+test('result descriptions and authored topics are searchable and rendered as text', async () => {
+  const result = await search('methods', [record('Notes', 'Body', {
+    type: 'article', description: 'Research methods <img>', topics: ['Lab notes'], topic_keys: ['lab notes'],
+  })]);
+  assert.deepEqual(result.titles(), ['Notes']);
+  assert.equal(result.rows()[0].children[1].textContent, 'Research methods <img>');
+  assert.equal(result.rows()[0].children[2].textContent, 'Writing · Lab notes');
+  assert.deepEqual((await search('lab', [record('Notes', '', {topics: ['Lab notes']})])).titles(), ['Notes']);
+});

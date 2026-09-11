@@ -65,6 +65,14 @@
           + (record.text.length > start + 180 ? "…" : "");
         li.append(paragraph);
       }
+      if (record.description) {
+        const description = document.createElement('p');
+        description.textContent = record.description;
+        li.append(description);
+      }
+      const context = document.createElement('p');
+      context.textContent = [record.type === 'article' ? 'Writing' : 'Core page', ...(record.topics || [])].join(' · ');
+      li.append(context);
       fragment.append(li);
     }
     results.replaceChildren(fragment);
@@ -89,10 +97,13 @@
         !record || typeof record.title !== "string" || typeof record.text !== "string" || record.text.length > 100000
         || typeof record.url !== "string" || !/^\/(?!\/)[^\\\s]*$/.test(record.url)
         || !["article", "page"].includes(record.type) || !Array.isArray(record.topic_keys)
-        || record.topic_keys.length > 12 || record.topic_keys.some(key => typeof key !== "string"))) {
+        || record.topic_keys.length > 12 || record.topic_keys.some(key => typeof key !== "string")
+        || (record.description !== undefined && (typeof record.description !== 'string' || record.description.length > 1000))
+        || (record.topics !== undefined && (!Array.isArray(record.topics) || record.topics.length > 12
+          || record.topics.some(value => typeof value !== 'string' || value.length > 160))))) {
         throw new Error("Invalid search index");
       }
-      indexed = records.map(record => ({ ...record, terms: normalize(record.title + " " + record.text),
+      indexed = records.map(record => ({ ...record, terms: normalize([record.title, record.text, record.description || '', ...(record.topics || [])].join(' ')),
         bodyTerms: normalize(record.text), titleTerms: normalize(record.title) }));
       retry.hidden = true;
       search();

@@ -218,6 +218,8 @@ def build_search(site_dir, cfg, entries):
         records.append({"title": article.get("title") or heading or path.stem.title(),
                         "url": article.get("url", readable), "text": body[:100000],
                         "type": "article" if article else "page",
+                        "description": article.get('description', '')[:500],
+                        "topics": article.get('topics', []),
                         "topic_keys": sorted({topic_key(topic) for topic in article.get('topics', [])})})
     (Path(site_dir) / "search-index.json").write_text(json.dumps(records, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="")
     links = ''.join('<li><a href="%s">%s</a></li>' % (r["url"], html.escape(r["title"])) for r in records)

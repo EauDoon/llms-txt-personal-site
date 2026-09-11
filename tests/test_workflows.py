@@ -14,6 +14,16 @@ from build_writing_html import render_page
 
 
 class WorkflowTests(unittest.TestCase):
+    def test_search_inventory_exposes_authored_context(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'writing').mkdir()
+            (root / 'writing/notes.md').write_text('<!--\ntitle: Notes\ndesc: Methods summary\nabout: Research\n-->\n# Notes', encoding='utf-8')
+            catalog(root, {'FULL_NAME': 'Example', 'LAST_UPDATED': '2026-01-01', 'DOMAIN': 'example.test'})
+            row = json.loads((root / 'search-index.json').read_text(encoding='utf-8'))[0]
+            self.assertEqual(row['description'], 'Methods summary')
+            self.assertEqual(row['topics'], ['Research'])
+
     def test_feed_includes_inert_full_text_and_discoverable_subscription(self):
         cfg = {'FULL_NAME': 'Example', 'DOMAIN': 'example.test', 'LAST_UPDATED': '2026-01-01'}
         with tempfile.TemporaryDirectory() as directory:
