@@ -118,6 +118,7 @@ def page(title, body, cfg, source=None, heading=True):
     return '''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>%s | %s</title><link rel="describedby" href="/llms.txt">
+<link rel="alternate" type="application/atom+xml" href="/feed.xml" title="Writing feed">
 <link rel="alternate" type="text/markdown" href="%s" title="Source in Markdown">
 <style>
 :root { color-scheme: light dark; font: 17px/1.65 system-ui,sans-serif; }
@@ -151,6 +152,7 @@ def run(site_dir, cfg):
             dates + ' · ' + reading_estimate(entry['body']), topic_links(entry), entry["source"]))
     body = '<p>Browse %d writing page%s, with original Markdown sources.</p>' % (len(rows), "" if len(rows) == 1 else "s")
     body += '<p>Latest declared article dates first. Articles without dates follow in title order.</p>'
+    body += '<p><a href="/feed.xml">Subscribe to the writing feed</a> in an Atom reader.</p>'
     body += '<ul>%s</ul>' % "".join(rows) if rows else '<p>No writing pages have been published.</p>'
     (Path(site_dir) / "writing.html").write_text(page("Writing", body, cfg), encoding="utf-8", newline="")
     markdown = "# Writing\n\nLast updated: %s\n\n" % cfg["LAST_UPDATED"]
@@ -187,6 +189,7 @@ def build_feed(site_dir, cfg, entries):
         node(item, "title", entry["title"])
         node(item, "link", href=base + entry["url"])
         node(item, "summary", entry["description"])
+        node(item, 'content', markdown_display(entry['body'])[0], type='text')
         for topic in entry['topics']:
             node(item, 'category', term=topic)
         node(item, "updated", updated + "T00:00:00Z")

@@ -4,6 +4,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from xml.etree import ElementTree as ET
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'scripts'))
 from article import create_article
@@ -13,6 +14,25 @@ from build_writing_html import render_page
 
 
 class WorkflowTests(unittest.TestCase):
+    def test_feed_includes_inert_full_text_and_discoverable_subscription(self):
+        cfg = {'FULL_NAME': 'Example', 'DOMAIN': 'example.test', 'LAST_UPDATED': '2026-01-01'}
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'writing').mkdir()
+            source = '# Notes\n\nRead <script> safely.\n<!-- secret guidance -->'
+            (root / 'writing/notes.md').write_text(source, encoding='utf-8')
+            catalog(root, cfg)
+            feed = ET.fromstring((root / 'feed.xml').read_bytes())
+            content = feed.find('{http://www.w3.org/2005/Atom}entry/{http://www.w3.org/2005/Atom}content')
+            self.assertIsNotNone(content)
+            self.assertEqual(content.attrib['type'], 'text')
+            self.assertIn('Read <script> safely.', content.text)
+            self.assertNotIn('secret guidance', content.text)
+            self.assertFalse(list(content))
+            for document in ((root / 'writing.html').read_text(encoding='utf-8'), render_page('notes', source, cfg)):
+                self.assertIn('type="application/atom+xml"', document)
+                self.assertIn('href="/feed.xml">Subscribe', document)
+
     def test_reading_estimate_uses_visible_body_in_directory_and_article(self):
         cfg = {'FULL_NAME': 'Example', 'DOMAIN': 'example.test', 'LAST_UPDATED': '2026-01-01'}
         body = '# Notes\n\n' + 'word ' * 440 + '\n<!-- ' + 'hidden ' * 1000 + '-->'
