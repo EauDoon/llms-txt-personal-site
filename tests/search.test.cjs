@@ -11,7 +11,7 @@ test('title-only search results omit unrelated body excerpts', async () => {
     replaceChildren(...children) { this.children = children; },
     addEventListener() {},
   });
-  const controls = Object.fromEntries(['query', 'page-type', 'topic', 'search-results', 'search-status', 'search-retry']
+  const controls = Object.fromEntries(['query', 'page-type', 'topic', 'search-results', 'search-status', 'search-retry', 'search-more']
     .map(id => ['#' + id, element()]));
   controls['#query'].form = element();
   const records = [
@@ -28,7 +28,8 @@ test('title-only search results omit unrelated body excerpts', async () => {
   await new Promise(resolve => setImmediate(resolve));
   const results = controls['#search-results'].children[0].children;
   assert.equal(results.length, 2);
-  assert.equal(results[0].children.length, 1);
+  assert.equal(results[0].children.length, 2);
+  assert.equal(results[0].children[1].textContent, 'Core page');
   assert.equal(results[0].children[0].textContent, 'Needle title');
   assert.equal(results[1].children[1].textContent, 'Contains needle in the body.');
 });

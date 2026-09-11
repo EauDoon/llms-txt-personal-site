@@ -1,2 +1,22 @@
 <?xml version='1.0' encoding='utf-8'?>
-<feed xmlns="http://www.w3.org/2005/Atom"><id>https://yourname.com/feed.xml</id><title>Your Full Name writing</title><link href="https://yourname.com/feed.xml" rel="self" /><link href="https://yourname.com/writing.html" /><author><name>Your Full Name</name></author><entry><id>https://yourname.com/writing/example-depth-page.html</id><title>Example Depth Page</title><link href="https://yourname.com/writing/example-depth-page.html" /><summary /><updated>2026-01-01T00:00:00Z</updated></entry><updated>2026-01-01T00:00:00Z</updated></feed>
+<feed xmlns="http://www.w3.org/2005/Atom"><id>https://yourname.com/feed.xml</id><title>Your Full Name writing</title><link href="https://yourname.com/feed.xml" rel="self" /><link href="https://yourname.com/writing.html" /><author><name>Your Full Name</name></author><entry><id>https://yourname.com/writing/example-depth-page.html</id><title>Example Depth Page</title><link href="https://yourname.com/writing/example-depth-page.html" /><summary /><content type="text">Example Depth Page: Replace This Title
+
+Open with a bolded thesis paragraph that answers the question the title asks. An agent that reads only this paragraph should come away with the correct answer, because often that is all it reads.
+
+By Your Full Name, Your Exact Job Title at Your Employer. Last updated: 2026-01-01.
+
+Factual claims on this page are sourced and dated. Sections marked View are opinion, not fact.
+
+
+A section heading that matches a real question
+
+Explain the mechanism. Prefer concrete detail over adjectives.
+
+View. Mark opinion like this. An agent can then say "they argue that" rather than presenting it as established fact.
+
+Another section
+
+
+Related: link the other depth pages here.
+
+Author: Your Full Name, Your Exact Job Title at Your Employer. Contact: you@yourname.com.</content><updated>2026-01-01T00:00:00Z</updated></entry><updated>2026-01-01T00:00:00Z</updated></feed>

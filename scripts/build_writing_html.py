@@ -297,6 +297,12 @@ def visible_markdown_text(md):
     return markdown_display(md)[0]
 
 
+def reading_estimate(md):
+    # ponytail: whitespace words at 220/min; use locale-aware segmentation if needed.
+    words = len(visible_markdown_text(md).split())
+    return 'About %d min read' % max(1, (words + 219) // 220)
+
+
 
 SHELL = """<!doctype html>
 <html lang="en">
@@ -309,6 +315,7 @@ SHELL = """<!doctype html>
 <link rel="canonical" href="https://{domain}/writing/{slug}.html">
 <link rel="alternate" type="text/markdown" href="/writing/{slug}.md" title="This page in Markdown">
 <link rel="describedby" href="/llms.txt">
+<link rel="alternate" type="application/atom+xml" href="/feed.xml" title="Writing feed">
 <meta property="og:type" content="article">
 <meta property="og:title" content="{title}">
 <meta property="og:description" content="{desc}">
@@ -355,7 +362,9 @@ h2, h3, h4 {{ scroll-margin-top: 1rem; }}
 <div class="wrap">
 <p><a href="/">{name}</a> / <a href="/writing/{slug}.md">this page in Markdown</a></p>
 <nav aria-label="Writing navigation"><a href="/writing.html">All writing</a> · <a href="/topics.html">Topics</a> · <a href="/search.html">Search</a></nav>
+<p><a href="/feed.xml">Subscribe to the writing feed</a></p>
 <main id="main-content">
+<p>{reading}</p>
 {outline}
 {content}
 <!-- GENERATED RELATED WRITING -->
@@ -419,6 +428,7 @@ def render_page(slug, source, cfg, style=""):
         about_json=", ".join(script_json(a) for a in about),
         style=style,
         content=content,
+        reading=reading_estimate(md),
         outline=outline,
     )
 

@@ -8,7 +8,7 @@ from urllib.parse import quote, unquote
 from xml.etree import ElementTree as ET
 from build_sitemap import validate_last_updated
 
-from build_writing_html import parse_front_matter, markdown_display
+from build_writing_html import parse_front_matter, markdown_display, reading_estimate
 from build_llms_index import _safe_label
 from publishing import article_topics
 
@@ -118,6 +118,7 @@ def page(title, body, cfg, source=None, heading=True):
     return '''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>%s | %s</title><link rel="describedby" href="/llms.txt">
+<link rel="alternate" type="application/atom+xml" href="/feed.xml" title="Writing feed">
 <link rel="alternate" type="text/markdown" href="%s" title="Source in Markdown">
 <style>
 :root { color-scheme: light dark; font: 17px/1.65 system-ui,sans-serif; }
@@ -148,9 +149,10 @@ def run(site_dir, cfg):
         dates = ' · '.join('%s: <time datetime="%s">%s</time>' % (label, date, date) for label, date in date_labels(entry, cfg))
         rows.append('<li><h2><a href="%s">%s</a></h2><p>%s</p><p>%s</p><p>%s</p><a href="%s">Markdown source</a></li>' % (
             entry["url"], html.escape(entry["title"]), html.escape(entry["description"]),
-            dates, topic_links(entry), entry["source"]))
+            dates + ' · ' + reading_estimate(entry['body']), topic_links(entry), entry["source"]))
     body = '<p>Browse %d writing page%s, with original Markdown sources.</p>' % (len(rows), "" if len(rows) == 1 else "s")
     body += '<p>Latest declared article dates first. Articles without dates follow in title order.</p>'
+    body += '<p><a href="/feed.xml">Subscribe to the writing feed</a> in an Atom reader.</p>'
     body += '<ul>%s</ul>' % "".join(rows) if rows else '<p>No writing pages have been published.</p>'
     (Path(site_dir) / "writing.html").write_text(page("Writing", body, cfg), encoding="utf-8", newline="")
     markdown = "# Writing\n\nLast updated: %s\n\n" % cfg["LAST_UPDATED"]
@@ -187,6 +189,7 @@ def build_feed(site_dir, cfg, entries):
         node(item, "title", entry["title"])
         node(item, "link", href=base + entry["url"])
         node(item, "summary", entry["description"])
+        node(item, 'content', markdown_display(entry['body'])[0], type='text')
         for topic in entry['topics']:
             node(item, 'category', term=topic)
         node(item, "updated", updated + "T00:00:00Z")
@@ -215,12 +218,16 @@ def build_search(site_dir, cfg, entries):
         records.append({"title": article.get("title") or heading or path.stem.title(),
                         "url": article.get("url", readable), "text": body[:100000],
                         "type": "article" if article else "page",
+                        "description": article.get('description', '')[:500],
+                        "topics": article.get('topics', []),
                         "topic_keys": sorted({topic_key(topic) for topic in article.get('topics', [])})})
     (Path(site_dir) / "search-index.json").write_text(json.dumps(records, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="")
     links = ''.join('<li><a href="%s">%s</a></li>' % (r["url"], html.escape(r["title"])) for r in records)
     options = ''.join('<option value="%s">%s</option>' % (html.escape(topic_key(group['label']), quote=True), html.escape(group['label']))
                       for group in topic_groups(entries))
     body = '''<p>Search runs in this browser. The page URL stores your query and filters for sharing or reloading.</p>
+<p>Use several words to match all of them, or double quotes for an exact phrase.</p>
+<p>Pages matching more search terms in their title appear first.</p>
 <form role="search"><div><label for="query">Search published pages</label>
 <input id="query" name="q" type="search" maxlength="200" autocomplete="off" placeholder="Title, topic, or phrase"></div>
 <div class="search-filters"><div><label for="page-type">Page type</label><select id="page-type" name="type"><option value="">All pages</option><option value="article">Writing</option><option value="page">Core pages</option></select></div>
@@ -228,7 +235,7 @@ def build_search(site_dir, cfg, entries):
 <div class="search-actions"><button type="submit">Search pages</button><button type="reset">Clear search</button></div></form>
 <p id="search-status" role="status" aria-live="polite">All published pages. Search requires JavaScript.</p>
 <button id="search-retry" type="button" hidden>Retry search</button>
-<ul id="search-results">%s</ul><script src="/search.js" defer></script>''' % (options, links)
+<ul id="search-results">%s</ul><button id="search-more" type="button" hidden>Show more results</button><script src="/search.js" defer></script>''' % (options, links)
     (Path(site_dir) / "search.html").write_text(page("Search", body, cfg), encoding="utf-8", newline="")
     markdown = "# Search and page directory\n\nLast updated: %s\n\nSearch runs locally in the browser at /search.html. Published pages:\n\n" % cfg["LAST_UPDATED"]
     markdown += "\n".join("- [%s](%s)" % (markdown_label(record["title"]), record["url"]) for record in records)

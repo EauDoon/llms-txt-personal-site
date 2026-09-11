@@ -23,6 +23,9 @@ jobs:
       - name: Run build regression tests
         run: python -m unittest discover -s tests -v
 
+      - name: Run browser search logic regressions
+        run: node --test tests/*.test.cjs
+
       - name: Build the site from the template
         run: |
           cp site.config.example.json site.config.json
