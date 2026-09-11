@@ -11,7 +11,7 @@ test('title-only search results omit unrelated body excerpts', async () => {
     replaceChildren(...children) { this.children = children; },
     addEventListener() {},
   });
-  const controls = Object.fromEntries(['query', 'page-type', 'topic', 'search-results', 'search-status', 'search-retry']
+  const controls = Object.fromEntries(['query', 'page-type', 'topic', 'search-results', 'search-status', 'search-retry', 'search-more']
     .map(id => ['#' + id, element()]));
   controls['#query'].form = element();
   const records = [

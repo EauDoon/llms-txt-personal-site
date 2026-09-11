@@ -6,9 +6,11 @@
   const results = document.querySelector("#search-results");
   const status = document.querySelector("#search-status");
   const retry = document.querySelector("#search-retry");
+  const more = document.querySelector('#search-more');
   const fallback = Array.from(results.children, node => node.cloneNode(true));
   let indexed = null;
   let loading = false;
+  let visible = 25;
   const normalize = text => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
 
   function originalOffset(text, offset) {
@@ -39,7 +41,9 @@
     if (url.href !== location.href) history[mode + "State"](null, "", url);
   }
 
-  function search(mode) {
+  function search(mode, expand = false) {
+    const previous = visible;
+    visible = expand ? visible + 25 : 25;
     if (mode) saveState(mode);
     if (!indexed) return;
     const terms = Array.from(query.value.slice(0, 200).matchAll(/"([^"]*)"?|([^\s"]+)/g),
@@ -50,11 +54,13 @@
     const score = record => terms.filter(term => record.titleTerms.includes(term)).length;
     found.sort((a, b) => score(b) - score(a));
     const fragment = document.createDocumentFragment();
-    for (const record of found) {
+    let firstNew;
+    for (const [index, record] of found.slice(0, visible).entries()) {
       const li = document.createElement("li");
       const link = document.createElement("a");
       link.href = record.url;
       link.textContent = record.title;
+      if (expand && index === previous) firstNew = link;
       li.append(link);
       const term = terms.find(term => record.bodyTerms.includes(term));
       const match = term ? originalOffset(record.text, record.bodyTerms.indexOf(term)) : -1;
@@ -76,8 +82,11 @@
       fragment.append(li);
     }
     results.replaceChildren(fragment);
+    if (firstNew) firstNew.focus();
+    more.hidden = visible >= found.length;
     status.textContent = found.length ? `${found.length} matching page${found.length === 1 ? "" : "s"}.`
       : "No pages match. Try a shorter phrase or clear search.";
+    if (found.length > 25) status.textContent += ` Showing ${Math.min(visible, found.length)}.`;
   }
 
   async function load(isRetry = false) {
@@ -110,6 +119,7 @@
       if (isRetry) query.focus();
     } catch {
       indexed = null;
+      more.hidden = true;
       results.replaceChildren(...fallback.map(node => node.cloneNode(true)));
       status.textContent = "Search is unavailable. Browse all published pages below or retry.";
       retry.hidden = false;
@@ -127,6 +137,7 @@
     event.preventDefault(); query.value = ""; type.value = ""; topic.value = ""; search("push"); query.focus();
   });
   retry.addEventListener("click", () => load(true));
+  more.addEventListener('click', () => search(null, true));
   window.addEventListener("popstate", () => { restoreState(); search(); });
   restoreState();
   load();

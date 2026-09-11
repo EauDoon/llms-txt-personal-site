@@ -62,3 +62,22 @@ test('result descriptions and authored topics are searchable and rendered as tex
   assert.equal(result.rows()[0].children[2].textContent, 'Writing · Lab notes');
   assert.deepEqual((await search('lab', [record('Notes', '', {topics: ['Lab notes']})])).titles(), ['Notes']);
 });
+
+test('large result sets expand in bounded batches and reset on a new query', async () => {
+  const result = await search('', Array.from({length: 60}, (_, i) => record('Note ' + i)));
+  assert.equal(result.rows().length, 25);
+  const more = result.controls['#search-more'];
+  assert.equal(more.hidden, false);
+  more.listeners.click();
+  assert.equal(result.rows().length, 50);
+  assert.equal(result.rows()[25].children[0].focused, true);
+  more.listeners.click();
+  assert.equal(result.rows().length, 60);
+  assert.equal(more.hidden, true);
+  result.controls['#query'].value = 'Note 59';
+  result.controls['#query'].listeners.input();
+  assert.equal(result.rows().length, 1);
+  result.controls['#query'].form.listeners.reset({preventDefault() {}});
+  assert.equal(result.rows().length, 25);
+  assert.equal(result.controls['#query'].focused, true);
+});

@@ -62,6 +62,8 @@ The reproducibility check builds twice in temporary directories and removes them
 Preview locally with `python -m http.server 8000 --bind 127.0.0.1 --directory site`, then open `http://127.0.0.1:8000`. Test search, clear, empty results, article section links, source links, and a narrow mobile viewport. Stop the server with Ctrl+C. Before deployment, confirm the generated facts and public inventory yourself. Hosting, cache behavior, and deployed content types require separate live verification.
 # Import an existing draft
 
+Search initially renders 25 matches. **Show more results** adds the next 25 and moves keyboard focus to the first newly revealed link. Query/filter changes, browser history, and clear reset the visible batch; the total match count remains announced. Without JavaScript or when loading fails, the complete static page directory remains available.
+
 Search results identify core pages versus writing and display authored article descriptions and topics. Descriptions and topics also participate in text matching. All result text is inserted as text, never HTML. Existing indexes without the optional context fields remain readable.
 
 Search ranks results by the number of query terms found in the title. Equal scores preserve the generated directory order, and an empty query keeps that order. Ranking is a local matching rule, not an authority or factual-confidence score.

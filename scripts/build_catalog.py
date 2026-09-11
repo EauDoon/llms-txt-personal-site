@@ -235,7 +235,7 @@ def build_search(site_dir, cfg, entries):
 <div class="search-actions"><button type="submit">Search pages</button><button type="reset">Clear search</button></div></form>
 <p id="search-status" role="status" aria-live="polite">All published pages. Search requires JavaScript.</p>
 <button id="search-retry" type="button" hidden>Retry search</button>
-<ul id="search-results">%s</ul><script src="/search.js" defer></script>''' % (options, links)
+<ul id="search-results">%s</ul><button id="search-more" type="button" hidden>Show more results</button><script src="/search.js" defer></script>''' % (options, links)
     (Path(site_dir) / "search.html").write_text(page("Search", body, cfg), encoding="utf-8", newline="")
     markdown = "# Search and page directory\n\nLast updated: %s\n\nSearch runs locally in the browser at /search.html. Published pages:\n\n" % cfg["LAST_UPDATED"]
     markdown += "\n".join("- [%s](%s)" % (markdown_label(record["title"]), record["url"]) for record in records)
