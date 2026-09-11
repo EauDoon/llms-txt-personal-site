@@ -31,6 +31,14 @@ async function search(query, records) {
 }
 const record = (title, text = '', extra = {}) => ({title, text, url: '/' + encodeURIComponent(title) + '.html', type: 'page', topic_keys: [], ...extra});
 
+test('accent-insensitive matching preserves readable original excerpts', async () => {
+  const text = 'Opening '.repeat(30) + 'Café research in Zürich.';
+  const result = await search('cafe zurich', [record('Notes', text), record('Other')]);
+  assert.deepEqual(result.titles(), ['Notes']);
+  assert.match(result.rows()[0].children[1].textContent, /Café research in Zürich/);
+  assert.deepEqual((await search('CAFÉ', [record('Cafe\u0301')])).titles(), ['Cafe\u0301']);
+});
+
 test('search combines independent words and respects quoted phrases', async () => {
   const records = [record('Alpha', 'Something beta'), record('Alpha beta'), record('Alpha only')];
   assert.deepEqual((await search('alpha beta', records)).titles(), ['Alpha', 'Alpha beta']);

@@ -62,6 +62,8 @@ The reproducibility check builds twice in temporary directories and removes them
 Preview locally with `python -m http.server 8000 --bind 127.0.0.1 --directory site`, then open `http://127.0.0.1:8000`. Test search, clear, empty results, article section links, source links, and a narrow mobile viewport. Stop the server with Ctrl+C. Before deployment, confirm the generated facts and public inventory yourself. Hosting, cache behavior, and deployed content types require separate live verification.
 # Import an existing draft
 
+Search ignores letter case and Unicode combining accents, so `cafe` finds `Café` and decomposed `Café`. Results retain authored spelling and excerpts. This is normalization, not translation, stemming, or transliteration; topic filters still select the exact normalized authored topic.
+
 Search matches all unquoted words anywhere in a page; double-quoted phrases must appear together. An unfinished opening quote treats the remainder as a phrase. Empty quotes are ignored. Queries remain capped at 200 characters. Run search regressions with `node --test tests/*.test.cjs`.
 
 The Atom feed includes full visible article text as inert `type="text"` content, alongside summaries, dates, and authored topics. Article pages and the writing directory expose a subscription link, and generated reader pages advertise the feed for compatible readers. Drafts remain excluded. External feed-reader behavior requires testing with your chosen reader.

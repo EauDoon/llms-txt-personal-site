@@ -9,6 +9,17 @@
   const fallback = Array.from(results.children, node => node.cloneNode(true));
   let indexed = null;
   let loading = false;
+  const normalize = text => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+
+  function originalOffset(text, offset) {
+    let normalized = 0, original = 0;
+    for (const char of text) {
+      if (normalized >= offset) break;
+      normalized += normalize(char).length;
+      original += char.length;
+    }
+    return original;
+  }
 
   function restoreState() {
     const params = new URL(location.href).searchParams;
@@ -32,7 +43,7 @@
     if (mode) saveState(mode);
     if (!indexed) return;
     const terms = Array.from(query.value.slice(0, 200).matchAll(/"([^"]*)"?|([^\s"]+)/g),
-      match => (match[1] ?? match[2]).trim().toLocaleLowerCase()).filter(Boolean);
+      match => normalize((match[1] ?? match[2]).trim())).filter(Boolean);
     const found = indexed.filter(record => terms.every(term => record.terms.includes(term))
       && (!type.value || record.type === type.value)
       && (!topic.value || record.topic_keys.includes(topic.value)));
@@ -43,8 +54,8 @@
       link.href = record.url;
       link.textContent = record.title;
       li.append(link);
-      const term = terms.find(term => record.text.toLocaleLowerCase().includes(term));
-      const match = term ? record.text.toLocaleLowerCase().indexOf(term) : -1;
+      const term = terms.find(term => record.bodyTerms.includes(term));
+      const match = term ? originalOffset(record.text, record.bodyTerms.indexOf(term)) : -1;
       if (term && match >= 0) {
         const paragraph = document.createElement("p");
         const start = Math.max(0, match - 60);
@@ -79,7 +90,7 @@
         || record.topic_keys.length > 12 || record.topic_keys.some(key => typeof key !== "string"))) {
         throw new Error("Invalid search index");
       }
-      indexed = records.map(record => ({ ...record, terms: (record.title + " " + record.text).toLocaleLowerCase() }));
+      indexed = records.map(record => ({ ...record, terms: normalize(record.title + " " + record.text), bodyTerms: normalize(record.text) }));
       retry.hidden = true;
       search();
       if (isRetry) query.focus();
