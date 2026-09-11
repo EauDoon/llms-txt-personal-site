@@ -31,8 +31,9 @@
   function search(mode) {
     if (mode) saveState(mode);
     if (!indexed) return;
-    const term = query.value.slice(0, 200).trim().toLocaleLowerCase();
-    const found = indexed.filter(record => record.terms.includes(term)
+    const terms = Array.from(query.value.slice(0, 200).matchAll(/"([^"]*)"?|([^\s"]+)/g),
+      match => (match[1] ?? match[2]).trim().toLocaleLowerCase()).filter(Boolean);
+    const found = indexed.filter(record => terms.every(term => record.terms.includes(term))
       && (!type.value || record.type === type.value)
       && (!topic.value || record.topic_keys.includes(topic.value)));
     const fragment = document.createDocumentFragment();
@@ -42,7 +43,8 @@
       link.href = record.url;
       link.textContent = record.title;
       li.append(link);
-      const match = record.text.toLocaleLowerCase().indexOf(term);
+      const term = terms.find(term => record.text.toLocaleLowerCase().includes(term));
+      const match = term ? record.text.toLocaleLowerCase().indexOf(term) : -1;
       if (term && match >= 0) {
         const paragraph = document.createElement("p");
         const start = Math.max(0, match - 60);

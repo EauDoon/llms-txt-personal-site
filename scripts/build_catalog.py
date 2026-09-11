@@ -224,6 +224,7 @@ def build_search(site_dir, cfg, entries):
     options = ''.join('<option value="%s">%s</option>' % (html.escape(topic_key(group['label']), quote=True), html.escape(group['label']))
                       for group in topic_groups(entries))
     body = '''<p>Search runs in this browser. The page URL stores your query and filters for sharing or reloading.</p>
+<p>Use several words to match all of them, or double quotes for an exact phrase.</p>
 <form role="search"><div><label for="query">Search published pages</label>
 <input id="query" name="q" type="search" maxlength="200" autocomplete="off" placeholder="Title, topic, or phrase"></div>
 <div class="search-filters"><div><label for="page-type">Page type</label><select id="page-type" name="type"><option value="">All pages</option><option value="article">Writing</option><option value="page">Core pages</option></select></div>
