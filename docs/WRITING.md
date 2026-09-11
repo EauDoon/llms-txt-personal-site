@@ -60,3 +60,6 @@ The artifact audit compares every output file with `content-manifest.json`, vali
 The reproducibility check builds twice in temporary directories and removes them afterward. It leaves your existing `site/` unchanged. CI runs both checks. Builds reject overlapping template/output paths, link-like source paths, more than 5,000 source/output files, individual files over 20 MiB, or total source/output bytes over 100 MiB. These are static personal-site budgets, not a sandbox for untrusted Python or template code.
 
 Preview locally with `python -m http.server 8000 --bind 127.0.0.1 --directory site`, then open `http://127.0.0.1:8000`. Test search, clear, empty results, article section links, source links, and a narrow mobile viewport. Stop the server with Ctrl+C. Before deployment, confirm the generated facts and public inventory yourself. Hosting, cache behavior, and deployed content types require separate live verification.
+# Import an existing draft
+
+`python scripts/article.py new notes --title "Notes" --body-file notes.md` copies a UTF-8 Markdown body into a new unpublished article. The source stays unchanged. Existing destinations, link-like inputs, oversized files, empty bodies, and leading metadata comments are rejected. Supply metadata through the command options; review imported body text before publication.

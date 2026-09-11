@@ -18,7 +18,7 @@ def one_line(value, label, limit):
     return value.strip()
 
 
-def create_article(repo, slug, title, description='', topics=()):
+def create_article(repo, slug, title, description='', topics=(), body_path=None):
     if not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', slug) or len(slug) > 80:
         raise ValueError('slug must contain at most 80 lowercase letters, digits and single hyphens')
     if re.fullmatch(r'(con|prn|aux|nul|com[1-9]|lpt[1-9])', slug):
@@ -48,7 +48,18 @@ def create_article(repo, slug, title, description='', topics=()):
     if topics:
         lines.append('about: ' + metadata(', '.join(dict.fromkeys(topics))))
     heading = _safe_label(title).replace('{', '&#123;').replace('}', '&#125;')
-    lines += ['-->', '# ' + heading, '', '']
+    body = '# ' + heading + '\n\n'
+    if body_path is not None:
+        from build_inventory import MAX_FILE_BYTES
+        source = Path(body_path)
+        if is_link_like(source) or not source.is_file() or source.stat().st_size > MAX_FILE_BYTES:
+            raise ValueError('body source must be a bounded real file')
+        body = source.read_text(encoding='utf-8-sig')
+        if not body.strip() or '\x00' in body:
+            raise ValueError('body source must contain nonempty UTF-8 Markdown')
+        if body.lstrip().startswith('<!--'):
+            raise ValueError('body source must not start with metadata; supply metadata through options')
+    lines += ['-->', body]
     writing.mkdir(exist_ok=True)
     reserved = {slug + '.md', slug + '.html'}
     if any(path.name.casefold() in reserved for path in writing.iterdir()):
@@ -67,6 +78,7 @@ def main(argv=None):
     new.add_argument('--title', required=True)
     new.add_argument('--description', default='')
     new.add_argument('--topic', action='append', default=[])
+    new.add_argument('--body-file', type=Path, help='import UTF-8 Markdown body into the new draft')
     review = commands.add_parser('review', help='report local editorial status without building')
     review.add_argument('--json', action='store_true', help='emit a machine-readable report')
     review.add_argument('--strict', action='store_true', help='also fail on published-article warnings')
@@ -83,8 +95,8 @@ def main(argv=None):
                     for issue in row['errors'] + row['warnings']:
                         print('  - ' + issue)
             return int(bool(report['errors'] or (args.strict and report['publication_warnings'])))
-        path = create_article(ROOT, args.slug, args.title, args.description, args.topic)
-    except (OSError, ValueError) as exc:
+        path = create_article(ROOT, args.slug, args.title, args.description, args.topic, args.body_file)
+    except (OSError, UnicodeError, ValueError) as exc:
         parser.exit(1, 'Article command failed: %s\n' % exc)
     print('Created draft: ' + str(path.relative_to(ROOT)))
     return 0
