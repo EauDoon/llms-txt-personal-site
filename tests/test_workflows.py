@@ -14,6 +14,18 @@ from build_writing_html import render_page
 
 
 class WorkflowTests(unittest.TestCase):
+    def test_duplicate_title_report_keeps_each_finding_bounded(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'writing').mkdir()
+            for i in range(20):
+                (root / 'writing' / ('note-%d.md' % i)).write_text('<!--\ntitle: Notes\n-->\n# Notes\nBody', encoding='utf-8')
+            report = review_articles(root, {'LAST_UPDATED': '2026-01-01'})
+            for row in report['articles']:
+                warning = next(w for w in row['warnings'] if 'duplicate title' in w)
+                self.assertLess(len(warning), 300)
+                self.assertIn('20 articles', warning)
+
     def test_search_inventory_exposes_authored_context(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

@@ -41,7 +41,7 @@ updated: 2026-01-02
 
 Use `status: draft` in that leading comment to exclude an article's Markdown and same-stem HTML companion before any public output is copied. Its bytes do not enter search, feeds, indexes, the full-text bundle, or the manifest. Changing it to `status: published` publishes it; changing it back removes it from the next complete local build. Articles without status retain the legacy published behavior. Status values are exact, and unknown/duplicate metadata fields or malformed status fail the build while preserving the preceding output. Keep metadata in the leading comment, before the H1. Drafts are an editorial convenience, not a private storage area: other assets in `template/` are public, and Git history is separate from build output.
 
-Use only dates you can support. Dates must be real calendar dates in `YYYY-MM-DD` format, and publication cannot follow the updated date. Without `published`, no publication date is asserted. Without `updated`, Article metadata and Atom use the configured site review date, `LAST_UPDATED`. Midnight UTC in Atom encodes a date, not an observed publication time. The feed is a summary feed and does not retain deleted entries.
+Use only dates you can support. Dates must be real calendar dates in `YYYY-MM-DD` format, and publication cannot follow the updated date. Without `published`, no publication date is asserted. Without `updated`, Article metadata and Atom use the configured site review date, `LAST_UPDATED`. Midnight UTC in Atom encodes a date, not an observed publication time. The feed includes summaries and full visible article text, and does not retain deleted entries.
 
 Headings receive unique section links and an on-page outline. Fenced code blocks preserve literal text, including HTML examples. Raw HTML in Markdown is escaped. This is a deliberately small Markdown renderer, not a complete CommonMark implementation. Backtick fences, headings, simple lists, links, quotes, and simple tables are supported. Article tables scroll horizontally, keyboard users can skip navigation, and printing removes the outline.
 
@@ -60,7 +60,7 @@ The artifact audit compares every output file with `content-manifest.json`, vali
 The reproducibility check builds twice in temporary directories and removes them afterward. It leaves your existing `site/` unchanged. CI runs both checks. Builds reject overlapping template/output paths, link-like source paths, more than 5,000 source/output files, individual files over 20 MiB, or total source/output bytes over 100 MiB. These are static personal-site budgets, not a sandbox for untrusted Python or template code.
 
 Preview locally with `python -m http.server 8000 --bind 127.0.0.1 --directory site`, then open `http://127.0.0.1:8000`. Test search, clear, empty results, article section links, source links, and a narrow mobile viewport. Stop the server with Ctrl+C. Before deployment, confirm the generated facts and public inventory yourself. Hosting, cache behavior, and deployed content types require separate live verification.
-# Import an existing draft
+## Reader and author workflow additions
 
 Search initially renders 25 matches. **Show more results** adds the next 25 and moves keyboard focus to the first newly revealed link. Query/filter changes, browser history, and clear reset the visible batch; the total match count remains announced. Without JavaScript or when loading fails, the complete static page directory remains available.
 

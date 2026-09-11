@@ -21,8 +21,8 @@
     },
     {
       "path": "about.html",
-      "bytes": 3115,
-      "sha256": "8e18ff50840f2e65a55630e49b5404417107dd5696530d982715af89b8b36a29"
+      "bytes": 3204,
+      "sha256": "b849cb07a62abceae44090ecbd9fd0244ca21c9e736c3032bf5d3b988748668a"
     },
     {
       "path": "about.md",
@@ -31,8 +31,8 @@
     },
     {
       "path": "changelog.html",
-      "bytes": 2896,
-      "sha256": "6eb3c9d31fc67578bf71f0e5c90301227f1254323dceb244c9b0a5f87ed28f5e"
+      "bytes": 2985,
+      "sha256": "cfa95daa0ad0de8bc63424a944e73216484961e107ae4ef055a9a1d7f9048a2d"
     },
     {
       "path": "changelog.md",
@@ -41,8 +41,8 @@
     },
     {
       "path": "contact.html",
-      "bytes": 3344,
-      "sha256": "ba6e66debfee60c3bd5c95e4921bc81c37d9bfa2bed92604f22daadf9783993d"
+      "bytes": 3433,
+      "sha256": "64b96a1f3bfe1af0d90eec93db604fa846796a7a7758c21695ed0ff7bf3ca780"
     },
     {
       "path": "contact.md",
@@ -51,8 +51,8 @@
     },
     {
       "path": "experience.html",
-      "bytes": 2596,
-      "sha256": "23b46299ff19b134cd4e04a3dd4c14e3c8c8f8e48f5696a01e5e11b6c5933266"
+      "bytes": 2685,
+      "sha256": "08dbcd943181ca6db044017dd562b87750e4df9f9ce652c508a1c7c258d6f8d1"
     },
     {
       "path": "experience.md",
@@ -61,8 +61,8 @@
     },
     {
       "path": "faq.html",
-      "bytes": 2839,
-      "sha256": "a5de8581c23d7b228075a09d98c04d6238647c9d72897af773358d5c52fb0e8c"
+      "bytes": 2928,
+      "sha256": "924159b70baaa70664d0055e199d149ca536eca4b17e10e18a1aa575a26f5418"
     },
     {
       "path": "faq.md",
@@ -71,13 +71,13 @@
     },
     {
       "path": "feed.xml",
-      "bytes": 579,
-      "sha256": "027ed200fb8a6a3ffe6432319554c569330bbc31196562b7759a47288440f358"
+      "bytes": 1409,
+      "sha256": "577097d0a39221adc91dc7c7b99fdb1a71a404694fad69ca71225b7b3cae6708"
     },
     {
       "path": "focus.html",
-      "bytes": 2767,
-      "sha256": "d267c2789f97be018b265b65900deb8dfe9b4642c68d0ea3095e09d34e5caaa0"
+      "bytes": 2856,
+      "sha256": "0df6bda0744c8312d10480a19332713a71269388dd26d4e4bf811fd162e656a1"
     },
     {
       "path": "focus.md",
@@ -101,8 +101,8 @@
     },
     {
       "path": "now.html",
-      "bytes": 3052,
-      "sha256": "312d4159927477883fe7303a94c60d6883437ca4d16f685dd301cbb5fcede311"
+      "bytes": 3141,
+      "sha256": "dbdd2aa03e37e2328a7e7e205ecd9349db6ff5daa0f0dc6d860292c9c426df3d"
     },
     {
       "path": "now.md",
@@ -111,8 +111,8 @@
     },
     {
       "path": "press.html",
-      "bytes": 5848,
-      "sha256": "e617bde13b926bd33d73a7f1f6c213dd1c2f4fadecbeec7187371011b03a72fa"
+      "bytes": 5937,
+      "sha256": "5db2b4505efe95f5a0f3102c9cfce48d9c6e213877a7d1c72e07eecf650c08c9"
     },
     {
       "path": "press.md",
@@ -121,8 +121,8 @@
     },
     {
       "path": "products.html",
-      "bytes": 2481,
-      "sha256": "2abdd18ad44fc1d68b3b4806e55f657100186238bf609bb436eb3a811893712b"
+      "bytes": 2570,
+      "sha256": "65a0a6f77466aa76eafa45c841637e53d4c916014aae53d14a6bc53f97daa7a5"
     },
     {
       "path": "products.md",
@@ -131,8 +131,8 @@
     },
     {
       "path": "profile.html",
-      "bytes": 3560,
-      "sha256": "4077ac6cc20c5a15ff7b7eb88c8f278e0faa4ae62c6b42badd860b41352b2a5c"
+      "bytes": 3649,
+      "sha256": "db410d697e377bcf7e60456def6e24f7e989ec4150b9b5759813d43694855c67"
     },
     {
       "path": "profile.md",
@@ -146,18 +146,18 @@
     },
     {
       "path": "search-index.json",
-      "bytes": 9946,
-      "sha256": "611653fda4f91596a1f38cefde9750053e46e2e84087f70f96150b4f8bfa879c"
+      "bytes": 10397,
+      "sha256": "40688becc8b823d54d0b2261ffb101b68e844263b26252fa80a0ffa1f196df02"
     },
     {
       "path": "search.html",
-      "bytes": 3454,
-      "sha256": "8cbbcfaa82e2b26b6b0be6b5c3f74ee1a245df65a7aef478f8fcdd671463d4b9"
+      "bytes": 3769,
+      "sha256": "59720100da302efdb38c926888ecfb501ed492d0a7934645c0ce27e64bfe9345"
     },
     {
       "path": "search.js",
-      "bytes": 4834,
-      "sha256": "a8c80e203972711be69d758dde71f300bd17abad03ffb58d36d15ebf76c0ee3b"
+      "bytes": 6895,
+      "sha256": "a219de6653469185e029cd0323ec6e31c819060339d8975155109a697ff45371"
     },
     {
       "path": "search.md",
@@ -171,8 +171,8 @@
     },
     {
       "path": "topics.html",
-      "bytes": 1944,
-      "sha256": "6287ebc07b83a93ecc49c829e34e882320b822008e63bbf35b6739980edccc2f"
+      "bytes": 2033,
+      "sha256": "e17b184636afef9afcc0258c25675a3794819a0219ef8b659971adea2eac11e8"
     },
     {
       "path": "topics.md",
@@ -186,8 +186,8 @@
     },
     {
       "path": "writing/example-depth-page.html",
-      "bytes": 6638,
-      "sha256": "c73eba8f0d2cdabca1803b75342d33c036ebbd1e5292145c8b1fc53fa620bbce"
+      "bytes": 6812,
+      "sha256": "432f5a4325a017bfee7f4fdee315223f61af94c89ea3fe5c2ed4644279c170d2"
     },
     {
       "path": "writing/example-depth-page.md",
@@ -196,8 +196,8 @@
     },
     {
       "path": "writing.html",
-      "bytes": 2199,
-      "sha256": "27433a99392692b1f7c2e5a5bd209ec205d15be3ad9507656695a3d5cad8af42"
+      "bytes": 2387,
+      "sha256": "1307ec10994708862f1cee42d6b26e520278b1b429aa8769e259a2040136d194"
     },
     {
       "path": "writing.md",

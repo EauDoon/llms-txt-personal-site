@@ -132,7 +132,9 @@ def review_articles(template, cfg):
     for duplicates in titles.values():
         if len(duplicates) > 1:
             for record in duplicates:
-                others = ', '.join(other['path'] for other in duplicates if other is not record)
+                others = ', '.join(other['path'] for other in duplicates[:6] if other is not record)
+                if len(duplicates) > 6:
+                    others += ' (and more; %d articles share this title)' % len(duplicates)
                 record['warnings'].append('duplicate title also used by: ' + others)
     return {'version': 1, 'scope': 'Local editorial structure, not fact verification or publication approval.',
             'articles': records, 'drafts': sum(r['status'] == 'draft' for r in records),

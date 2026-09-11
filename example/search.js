@@ -6,9 +6,22 @@
   const results = document.querySelector("#search-results");
   const status = document.querySelector("#search-status");
   const retry = document.querySelector("#search-retry");
+  const more = document.querySelector('#search-more');
   const fallback = Array.from(results.children, node => node.cloneNode(true));
   let indexed = null;
   let loading = false;
+  let visible = 25;
+  const normalize = text => text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
+
+  function originalOffset(text, offset) {
+    let normalized = 0, original = 0;
+    for (const char of text) {
+      if (normalized >= offset) break;
+      normalized += normalize(char).length;
+      original += char.length;
+    }
+    return original;
+  }
 
   function restoreState() {
     const params = new URL(location.href).searchParams;
@@ -28,21 +41,29 @@
     if (url.href !== location.href) history[mode + "State"](null, "", url);
   }
 
-  function search(mode) {
+  function search(mode, expand = false) {
+    const previous = visible;
+    visible = expand ? visible + 25 : 25;
     if (mode) saveState(mode);
     if (!indexed) return;
-    const term = query.value.slice(0, 200).trim().toLocaleLowerCase();
-    const found = indexed.filter(record => record.terms.includes(term)
+    const terms = Array.from(query.value.slice(0, 200).matchAll(/"([^"]*)"?|([^\s"]+)/g),
+      match => normalize((match[1] ?? match[2]).trim())).filter(Boolean);
+    const found = indexed.filter(record => terms.every(term => record.terms.includes(term))
       && (!type.value || record.type === type.value)
       && (!topic.value || record.topic_keys.includes(topic.value)));
+    const score = record => terms.filter(term => record.titleTerms.includes(term)).length;
+    found.sort((a, b) => score(b) - score(a));
     const fragment = document.createDocumentFragment();
-    for (const record of found) {
+    let firstNew;
+    for (const [index, record] of found.slice(0, visible).entries()) {
       const li = document.createElement("li");
       const link = document.createElement("a");
       link.href = record.url;
       link.textContent = record.title;
+      if (expand && index === previous) firstNew = link;
       li.append(link);
-      const match = record.text.toLocaleLowerCase().indexOf(term);
+      const term = terms.find(term => record.bodyTerms.includes(term));
+      const match = term ? originalOffset(record.text, record.bodyTerms.indexOf(term)) : -1;
       if (term && match >= 0) {
         const paragraph = document.createElement("p");
         const start = Math.max(0, match - 60);
@@ -50,11 +71,22 @@
           + (record.text.length > start + 180 ? "…" : "");
         li.append(paragraph);
       }
+      if (record.description) {
+        const description = document.createElement('p');
+        description.textContent = record.description;
+        li.append(description);
+      }
+      const context = document.createElement('p');
+      context.textContent = [record.type === 'article' ? 'Writing' : 'Core page', ...(record.topics || [])].join(' · ');
+      li.append(context);
       fragment.append(li);
     }
     results.replaceChildren(fragment);
+    if (firstNew) firstNew.focus();
+    more.hidden = visible >= found.length;
     status.textContent = found.length ? `${found.length} matching page${found.length === 1 ? "" : "s"}.`
       : "No pages match. Try a shorter phrase or clear search.";
+    if (found.length > 25) status.textContent += ` Showing ${Math.min(visible, found.length)}.`;
   }
 
   async function load(isRetry = false) {
@@ -74,15 +106,20 @@
         !record || typeof record.title !== "string" || typeof record.text !== "string" || record.text.length > 100000
         || typeof record.url !== "string" || !/^\/(?!\/)[^\\\s]*$/.test(record.url)
         || !["article", "page"].includes(record.type) || !Array.isArray(record.topic_keys)
-        || record.topic_keys.length > 12 || record.topic_keys.some(key => typeof key !== "string"))) {
+        || record.topic_keys.length > 12 || record.topic_keys.some(key => typeof key !== "string")
+        || (record.description !== undefined && (typeof record.description !== 'string' || record.description.length > 1000))
+        || (record.topics !== undefined && (!Array.isArray(record.topics) || record.topics.length > 12
+          || record.topics.some(value => typeof value !== 'string' || value.length > 160))))) {
         throw new Error("Invalid search index");
       }
-      indexed = records.map(record => ({ ...record, terms: (record.title + " " + record.text).toLocaleLowerCase() }));
+      indexed = records.map(record => ({ ...record, terms: normalize([record.title, record.text, record.description || '', ...(record.topics || [])].join(' ')),
+        bodyTerms: normalize(record.text), titleTerms: normalize(record.title) }));
       retry.hidden = true;
       search();
       if (isRetry) query.focus();
     } catch {
       indexed = null;
+      more.hidden = true;
       results.replaceChildren(...fallback.map(node => node.cloneNode(true)));
       status.textContent = "Search is unavailable. Browse all published pages below or retry.";
       retry.hidden = false;
@@ -100,6 +137,7 @@
     event.preventDefault(); query.value = ""; type.value = ""; topic.value = ""; search("push"); query.focus();
   });
   retry.addEventListener("click", () => load(true));
+  more.addEventListener('click', () => search(null, true));
   window.addEventListener("popstate", () => { restoreState(); search(); });
   restoreState();
   load();
