@@ -47,6 +47,8 @@
     const found = indexed.filter(record => terms.every(term => record.terms.includes(term))
       && (!type.value || record.type === type.value)
       && (!topic.value || record.topic_keys.includes(topic.value)));
+    const score = record => terms.filter(term => record.titleTerms.includes(term)).length;
+    found.sort((a, b) => score(b) - score(a));
     const fragment = document.createDocumentFragment();
     for (const record of found) {
       const li = document.createElement("li");
@@ -90,7 +92,8 @@
         || record.topic_keys.length > 12 || record.topic_keys.some(key => typeof key !== "string"))) {
         throw new Error("Invalid search index");
       }
-      indexed = records.map(record => ({ ...record, terms: normalize(record.title + " " + record.text), bodyTerms: normalize(record.text) }));
+      indexed = records.map(record => ({ ...record, terms: normalize(record.title + " " + record.text),
+        bodyTerms: normalize(record.text), titleTerms: normalize(record.title) }));
       retry.hidden = true;
       search();
       if (isRetry) query.focus();

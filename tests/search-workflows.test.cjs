@@ -41,8 +41,14 @@ test('accent-insensitive matching preserves readable original excerpts', async (
 
 test('search combines independent words and respects quoted phrases', async () => {
   const records = [record('Alpha', 'Something beta'), record('Alpha beta'), record('Alpha only')];
-  assert.deepEqual((await search('alpha beta', records)).titles(), ['Alpha', 'Alpha beta']);
+  assert.deepEqual((await search('alpha beta', records)).titles(), ['Alpha beta', 'Alpha']);
   assert.deepEqual((await search('"alpha beta"', records)).titles(), ['Alpha beta']);
   assert.deepEqual((await search('"alpha beta', records)).titles(), ['Alpha beta']);
   assert.equal((await search('""', records)).titles().length, 3);
+});
+
+test('search ranks title matches first and preserves order for ties and empty queries', async () => {
+  const records = [record('Background', 'needle'), record('Needle notes'), record('Needle examples')];
+  assert.deepEqual((await search('needle', records)).titles(), ['Needle notes', 'Needle examples', 'Background']);
+  assert.deepEqual((await search('', records)).titles(), ['Background', 'Needle notes', 'Needle examples']);
 });
