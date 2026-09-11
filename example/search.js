@@ -48,7 +48,7 @@
     if (!indexed) return;
     const terms = Array.from(query.value.slice(0, 200).matchAll(/"([^"]*)"?|([^\s"]+)/g),
       match => normalize((match[1] ?? match[2]).trim())).filter(Boolean);
-    const found = indexed.filter(record => terms.every(term => record.terms.includes(term))
+    const found = indexed.filter(record => terms.every(term => record.fields.some(field => field.includes(term)))
       && (!type.value || record.type === type.value)
       && (!topic.value || record.topic_keys.includes(topic.value)));
     const score = record => terms.filter(term => record.titleTerms.includes(term)).length;
@@ -112,7 +112,7 @@
           || record.topics.some(value => typeof value !== 'string' || value.length > 160))))) {
         throw new Error("Invalid search index");
       }
-      indexed = records.map(record => ({ ...record, terms: normalize([record.title, record.text, record.description || '', ...(record.topics || [])].join(' ')),
+      indexed = records.map(record => ({ ...record, fields: [record.title, record.text, record.description || '', ...(record.topics || [])].map(normalize),
         bodyTerms: normalize(record.text), titleTerms: normalize(record.title) }));
       retry.hidden = true;
       search();

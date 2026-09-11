@@ -53,6 +53,15 @@ test('search ranks title matches first and preserves order for ties and empty qu
   assert.deepEqual((await search('', records)).titles(), ['Background', 'Needle notes', 'Needle examples']);
 });
 
+test('exact phrases stay within each authored search field', async () => {
+  const records = [record('Alpha', 'Beta', {description:'Research', topics:['Methods', 'Practice']}),
+    record('Whole phrase', 'Alpha beta', {description:'Research methods', topics:['Methods practice']})];
+  for (const phrase of ['alpha beta', 'research methods', 'methods practice']) {
+    assert.deepEqual((await search('"' + phrase + '"', records)).titles(), ['Whole phrase']);
+    assert.equal((await search(phrase, records)).titles().length, 2);
+  }
+});
+
 test('result descriptions and authored topics are searchable and rendered as text', async () => {
   const result = await search('methods', [record('Notes', 'Body', {
     type: 'article', description: 'Research methods <img>', topics: ['Lab notes'], topic_keys: ['lab notes'],

@@ -7,7 +7,8 @@ from pathlib import Path
 
 from build import is_link_like, load_config
 from build_llms_index import _safe_label
-from publishing import review_articles
+from publishing import FIELDS, review_articles
+from build_writing_html import parse_front_matter
 from build_sitemap import validate_last_updated
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -63,7 +64,8 @@ def create_article(repo, slug, title, description='', topics=(), body_path=None,
         body = source.read_text(encoding='utf-8-sig')
         if not body.strip() or '\x00' in body:
             raise ValueError('body source must contain nonempty UTF-8 Markdown')
-        if body.lstrip().startswith('<!--'):
+        imported_metadata, _ = parse_front_matter(body)
+        if FIELDS.intersection(imported_metadata):
             raise ValueError('body source must not start with metadata; supply metadata through options')
     lines += ['-->', body]
     writing.mkdir(exist_ok=True)

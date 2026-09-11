@@ -114,6 +114,25 @@ class WorkflowTests(unittest.TestCase):
                 create_article(root, 'other', 'Other', body_path=source)
             self.assertFalse((root / 'template/writing/other.md').exists())
 
+    def test_import_body_allows_hidden_guidance_but_rejects_metadata(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'template').mkdir()
+            source = root / 'notes.md'
+            guidance = '<!-- Guidance: verify sources -->\n# Notes\nReadable body.'
+            source.write_text(guidance, encoding='utf-8')
+            target = create_article(root, 'notes', 'Notes', body_path=source)
+            imported = target.read_text(encoding='utf-8')
+            self.assertTrue(imported.endswith(guidance))
+            rendered = render_page('notes', imported, {'FULL_NAME': 'Example', 'DOMAIN': 'example.test', 'LAST_UPDATED': '2026-01-01'})
+            self.assertIn('Readable body.', rendered)
+            self.assertNotIn('verify sources', rendered)
+            for key in ('title', 'desc', 'about', 'published', 'updated', 'STATUS'):
+                source.write_text('<!--\n' + key + ': imported\n-->\n# Notes', encoding='utf-8')
+                with self.subTest(key=key), self.assertRaisesRegex(ValueError, 'metadata'):
+                    create_article(root, 'rejected', 'Notes', body_path=source)
+            self.assertFalse((root / 'template/writing/rejected.md').exists())
+
 
 if __name__ == '__main__':
     unittest.main()

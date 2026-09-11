@@ -70,7 +70,7 @@ Search ranks results by the number of query terms found in the title. Equal scor
 
 Search ignores letter case and Unicode combining accents, so `cafe` finds `Café` and decomposed `Café`. Results retain authored spelling and excerpts. This is normalization, not translation, stemming, or transliteration; topic filters still select the exact normalized authored topic.
 
-Search matches all unquoted words anywhere in a page; double-quoted phrases must appear together. An unfinished opening quote treats the remainder as a phrase. Empty quotes are ignored. Queries remain capped at 200 characters. Run search regressions with `node --test tests/*.test.cjs`.
+Search matches all unquoted words anywhere in a page; double-quoted phrases must appear together within one title, body, description, or topic. Words in separate fields can satisfy an unquoted query but cannot form a phrase. An unfinished opening quote treats the remainder as a phrase. Empty quotes are ignored. Queries remain capped at 200 characters. Run search regressions with `node --test tests/*.test.cjs`.
 
 The Atom feed includes full visible article text as inert `type="text"` content, alongside summaries, dates, and authored topics. Article pages and the writing directory expose a subscription link, and generated reader pages advertise the feed for compatible readers. Drafts remain excluded. External feed-reader behavior requires testing with your chosen reader.
 
@@ -80,4 +80,4 @@ Editorial review warns when multiple valid articles (including drafts) share a t
 
 Use `--published YYYY-MM-DD` and `--updated YYYY-MM-DD` when the dates are known. Dates must be calendar-valid, and publication cannot follow an explicit update date. Neither option changes draft status or schedules publication. Build review still checks dates against the configured site date when no article update date is supplied.
 
-`python scripts/article.py new notes --title "Notes" --body-file notes.md` copies a UTF-8 Markdown body into a new unpublished article. The source stays unchanged. Existing destinations, link-like inputs, oversized files, empty bodies, and leading metadata comments are rejected. Supply metadata through the command options; review imported body text before publication.
+`python scripts/article.py new notes --title "Notes" --body-file notes.md` copies a UTF-8 Markdown body into a new unpublished article. The source stays unchanged. Existing destinations, link-like inputs, oversized files, empty bodies, and leading comments containing recognized article metadata are rejected. Ordinary guidance comments are preserved in the source and hidden in rendered output. Supply metadata through the command options; review imported body text before publication.
