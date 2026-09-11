@@ -8,6 +8,7 @@ from pathlib import Path
 from build import is_link_like, load_config
 from build_llms_index import _safe_label
 from publishing import review_articles
+from build_sitemap import validate_last_updated
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -18,7 +19,7 @@ def one_line(value, label, limit):
     return value.strip()
 
 
-def create_article(repo, slug, title, description='', topics=(), body_path=None):
+def create_article(repo, slug, title, description='', topics=(), body_path=None, published=None, updated=None):
     if not re.fullmatch(r'[a-z0-9]+(?:-[a-z0-9]+)*', slug) or len(slug) > 80:
         raise ValueError('slug must contain at most 80 lowercase letters, digits and single hyphens')
     if re.fullmatch(r'(con|prn|aux|nul|com[1-9]|lpt[1-9])', slug):
@@ -43,6 +44,11 @@ def create_article(repo, slug, title, description='', topics=(), body_path=None)
     def metadata(value):
         return html.escape(value, quote=False).replace('{', '&#123;').replace('}', '&#125;')
     lines = ['<!--', 'status: draft', 'title: ' + metadata(title)]
+    for key, value in (('published', published), ('updated', updated)):
+        if value is not None:
+            lines.append(key + ': ' + validate_last_updated(value))
+    if published and updated and published > updated:
+        raise ValueError('article published date cannot follow updated date')
     if description:
         lines.append('desc: ' + metadata(description))
     if topics:
@@ -79,6 +85,8 @@ def main(argv=None):
     new.add_argument('--description', default='')
     new.add_argument('--topic', action='append', default=[])
     new.add_argument('--body-file', type=Path, help='import UTF-8 Markdown body into the new draft')
+    new.add_argument('--published', help='declared publication date, YYYY-MM-DD; article remains a draft')
+    new.add_argument('--updated', help='declared article review date, YYYY-MM-DD')
     review = commands.add_parser('review', help='report local editorial status without building')
     review.add_argument('--json', action='store_true', help='emit a machine-readable report')
     review.add_argument('--strict', action='store_true', help='also fail on published-article warnings')
@@ -95,7 +103,8 @@ def main(argv=None):
                     for issue in row['errors'] + row['warnings']:
                         print('  - ' + issue)
             return int(bool(report['errors'] or (args.strict and report['publication_warnings'])))
-        path = create_article(ROOT, args.slug, args.title, args.description, args.topic, args.body_file)
+        path = create_article(ROOT, args.slug, args.title, args.description, args.topic, args.body_file,
+                              args.published, args.updated)
     except (OSError, UnicodeError, ValueError) as exc:
         parser.exit(1, 'Article command failed: %s\n' % exc)
     print('Created draft: ' + str(path.relative_to(ROOT)))

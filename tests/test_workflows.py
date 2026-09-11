@@ -10,6 +10,21 @@ from article import create_article
 
 
 class WorkflowTests(unittest.TestCase):
+    def test_new_article_accepts_only_valid_explicit_dates(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'template').mkdir()
+            target = create_article(root, 'dated', 'Dated', published='2026-01-01', updated='2026-02-01')
+            text = target.read_text(encoding='utf-8')
+            self.assertIn('published: 2026-01-01', text)
+            self.assertIn('updated: 2026-02-01', text)
+            self.assertIn('status: draft', text)
+            for options in ({'published': '2026-02-30'}, {'updated': 'tomorrow'},
+                            {'published': '2026-02-02', 'updated': '2026-02-01'}):
+                with self.assertRaises(ValueError):
+                    create_article(root, 'invalid', 'Invalid', **options)
+            self.assertFalse((root / 'template/writing/invalid.md').exists())
+
     def test_import_body_preserves_source_and_stays_draft(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
