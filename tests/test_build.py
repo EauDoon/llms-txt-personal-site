@@ -284,12 +284,19 @@ class BuildTests(unittest.TestCase):
         return {
             "DOMAIN": "example.test",
             "FULL_NAME": "Example Person",
+            "GIVEN_NAME": "Example",
+            "FAMILY_NAME": "Person",
             "EMAIL": "person@example.test",
             "JOB_TITLE": "Example Role",
             "EMPLOYER": "Example Employer",
             "EMPLOYER_URL": "https://employer.example.test",
+            "EMPLOYER_DESC": "An example employer used for tests.",
+            "CITY": "Example City",
+            "COUNTRY_CODE": "EX",
+            "COUNTRY_NAME": "Example Country",
             "LINKEDIN_SLUG": "example-person",
             "X_HANDLE": "exampleperson",
+            "SUMMARY": "An example person used to test the build.",
             "ABSENCE_EMPLOYMENT_DATES": "No employment dates are published.",
             "ABSENCE_RECORDED_MEDIA": "No recorded media was located",
             "ABSENCE_BYLINED_ARTICLE": "No bylined article was located.",
@@ -640,6 +647,20 @@ class BuildTests(unittest.TestCase):
 
         self.assertNotIn(' onmouseover="', rendered)
         self.assertIn("bad%22%20onmouseover%3D%22alert%281%29.html", rendered)
+
+    def test_load_config_requires_every_key_json_block_consumes(self) -> None:
+        from build import REQUIRED_CONFIG
+        for missing_key in ("GIVEN_NAME", "FAMILY_NAME", "EMPLOYER_DESC", "CITY",
+                            "COUNTRY_CODE", "COUNTRY_NAME", "SUMMARY"):
+            with self.subTest(missing=missing_key):
+                incomplete = {k: v for k, v in self.config().items() if k != missing_key}
+                with tempfile.TemporaryDirectory() as directory:
+                    config_path = Path(directory) / "site.config.json"
+                    config_path.write_text(json.dumps(incomplete), encoding="utf-8")
+                    with patch("build.CONFIG", str(config_path)):
+                        with self.assertRaisesRegex(SystemExit, "missing required keys"):
+                            load_config()
+                        self.assertIn(missing_key, REQUIRED_CONFIG)
 
 
 if __name__ == "__main__":
