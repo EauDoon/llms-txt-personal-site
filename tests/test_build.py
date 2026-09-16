@@ -140,6 +140,53 @@ class BuildTests(unittest.TestCase):
                 with self.subTest(old_value=old_value):
                     self.assertNotIn(old_value, all_text)
 
+    def test_one_fact_change_propagates_to_markdown_html_and_json_ld(self) -> None:
+        config = json.loads(
+            (ROOT / "site.config.example.json").read_text(encoding="utf-8")
+        )
+        old_title = config["JOB_TITLE"]
+        new_title = "Synthetic Staff Engineer"
+        config["JOB_TITLE"] = new_title
+        config = dict(config, **json_block(config))
+
+        with tempfile.TemporaryDirectory() as directory:
+            generated = Path(directory) / "site"
+            build_site(str(ROOT / "template"), str(generated), config)
+
+            profile_markdown = (generated / "profile.md").read_text(encoding="utf-8")
+            profile_html = (generated / "profile.html").read_text(encoding="utf-8")
+            index_html = (generated / "index.html").read_text(encoding="utf-8")
+            json_ld = json.loads(
+                index_html.split(
+                    '<script type="application/ld+json">', 1
+                )[1].split("</script>", 1)[0]
+            )
+            all_text = "\n".join(
+                path.read_text(encoding="utf-8", errors="ignore")
+                for path in generated.rglob("*")
+                if path.is_file()
+            )
+
+        self.assertIn(
+            "| Current title | Synthetic Staff Engineer |",
+            profile_markdown,
+        )
+        self.assertIn(
+            "<tr><td>Current title</td><td>Synthetic Staff Engineer</td></tr>",
+            profile_html,
+        )
+        self.assertIn(
+            "<title>Your Full Name: Synthetic Staff Engineer at Your Employer | Your City</title>",
+            index_html,
+        )
+        self.assertEqual(json_ld["@graph"][0]["jobTitle"], new_title)
+        self.assertEqual(
+            json_ld["@graph"][2]["name"],
+            "Your Full Name: Synthetic Staff Engineer, Your Employer",
+        )
+
+        self.assertNotIn(old_title, all_text)
+
     def test_json_ld_is_valid_and_script_safe(self) -> None:
         config = json.loads(
             (ROOT / "site.config.example.json").read_text(encoding="utf-8")

@@ -103,6 +103,8 @@ Repeated fields such as title, employer, contact details, and checked absence st
 
 For example, after a verified role change, update the title and employer fields once, revise any historical or narrative passages that need context, update the date, and rebuild. Inspect the resulting profile, FAQ, contact page, and homepage before publishing.
 
+See the [synthetic change-one-fact case](docs/CHANGE_ONE_FACT.md) for a recruiter-facing example with observed Markdown, HTML, and JSON-LD output.
+
 The builder creates output in a clean staging directory. Removed template files cannot linger in the next local build, and a generation failure before promotion preserves the previous output. It rejects template symlinks and Windows junctions. Your deployment process must also remove obsolete remote files.
 
 ## What the quality gate checks
