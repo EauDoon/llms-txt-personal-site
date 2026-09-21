@@ -10,6 +10,23 @@ Write in Markdown, keep repeated facts in one JSON config, and build a static si
 
 The goal is to make accurate information easier to retrieve and cite. Publishing a site does not guarantee indexing, assistant adoption, correct answers, or recommendations.
 
+## How to use this README
+
+This README serves two readers. Pick the section that matches you.
+
+| If you are... | Read |
+| --- | --- |
+| Someone forking this template to publish your own personal site | [USER](#user-for-someone-forking-this-template) |
+| Someone working on this template repository itself (build tooling, CI, contributing changes upstream) | [FORK-CONTRIBUTOR](#fork-contributor-for-someone-working-on-this-template) |
+
+The intro above and the example link apply to both. Everything below is grouped under one of the two headings.
+
+---
+
+# USER (for someone forking this template)
+
+You want to fork this repository, replace the starter content with your own facts, build a static site, and publish it. The sections below cover what the template produces, how to initialize and customize your fork, how updates flow, and the editorial principles behind the content.
+
 ## What it builds
 
 | Output | Purpose |
@@ -153,6 +170,12 @@ If the domain fronts a real [A2A v1 service](https://a2a-protocol.org/latest/spe
 The validator checks the card's supported structure, versions, endpoints, and credential-like fields. Live checks compare its bytes and response headers with the local build. With discovery disabled, the live path must return `404` or `410`, which helps catch stale cards after deployment.
 
 Card validation does not test the server's operations, authorization, or JWS signatures. Verify the service independently before advertising it.
+
+---
+
+# FORK-CONTRIBUTOR (for someone working on this template)
+
+You are improving the shared template itself: build tooling, CI, examples, tests, or upstream documentation. The sections below cover the development workflow, the repository layout, and the license terms that apply when reusing the tooling.
 
 ## Development and repository map
 
