@@ -1,5 +1,9 @@
 # llms.txt personal site
 
+[![build](https://img.shields.io/github/actions/workflow/status/EauDoon/llms-txt-personal-site/quality-check.yml?branch=main)](https://github.com/EauDoon/llms-txt-personal-site/actions)
+[![license](https://img.shields.io/github/license/EauDoon/llms-txt-personal-site)](https://github.com/EauDoon/llms-txt-personal-site/blob/main/LICENSE)
+[![last commit](https://img.shields.io/github/last-commit/EauDoon/llms-txt-personal-site)](https://github.com/EauDoon/llms-txt-personal-site)
+
 **Publish a personal website that gives AI assistants a clear, consistent source for who you are.**
 
 A biography can drift across old profiles, employer pages, and search results. This template helps you maintain your own reference: sourced facts, dated corrections, verified contact routes, and explicit gaps in the record.
