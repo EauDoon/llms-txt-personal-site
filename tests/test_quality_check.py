@@ -12,9 +12,16 @@ from urllib.parse import quote
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
+
+import build_llms_full
 
 
 class QualityCheckTests(unittest.TestCase):
+    def refresh_full_text_bundle(self, repo, cfg):
+        """Rebuild llms-full.txt from the edited pages, as a real build would."""
+        build_llms_full.run(repo / "site", cfg)
+
     def test_malformed_routes_retain_suffixes_in_source_and_rendered_contexts(self):
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
@@ -80,6 +87,7 @@ class QualityCheckTests(unittest.TestCase):
                         routes = '\n'.join(pattern % address for pattern in patterns)
                         routes += "\n'mailto:" + address + "','mailto:" + address + "'\n"
                         path.write_text(original + '\n' + routes + '\n', encoding='utf-8')
+                        self.refresh_full_text_bundle(repo, cfg)
                         result = subprocess.run(command, cwd=repo, capture_output=True, text=True, check=False)
                         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
                 encoded = quote(email, safe='@')
@@ -114,6 +122,7 @@ class QualityCheckTests(unittest.TestCase):
                         self.assertEqual(result.returncode, 0, email + ': ' + script + '\n' + result.stdout + result.stderr)
                     contact = repo / 'site' / 'contact.md'
                     contact.write_text(contact.read_text(encoding='utf-8') + '\n[Contact](mailto:' + quote(email, safe='@') + ')\n', encoding='utf-8')
+                    self.refresh_full_text_bundle(repo, cfg)
                     result = subprocess.run([sys.executable, str(repo / 'scripts' / 'quality_check.py')], cwd=repo,
                                             capture_output=True, text=True, check=False)
                     self.assertEqual(result.returncode, 0, email + ': Markdown mailto\n' + result.stdout + result.stderr)
@@ -160,6 +169,7 @@ class QualityCheckTests(unittest.TestCase):
             index.write_text(original, encoding='utf-8')
             article = repo / 'site' / 'writing' / 'example-depth-page.md'
             article.write_text(article.read_text(encoding='utf-8') + '\nThird-party example: other@yourname.com.evil\n', encoding='utf-8')
+            self.refresh_full_text_bundle(repo, cfg)
             result = subprocess.run(command, cwd=repo, capture_output=True, text=True, check=False)
             self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
@@ -175,6 +185,7 @@ class QualityCheckTests(unittest.TestCase):
             scripts = repo / "scripts"
             scripts.mkdir()
             shutil.copy2(ROOT / "scripts" / "a2a_agent_card.py", scripts)
+            shutil.copy2(ROOT / "scripts" / "build.py", scripts)
             shutil.copy2(ROOT / "scripts" / "build_sitemap.py", scripts)
             shutil.copy2(ROOT / "scripts" / "http_client.py", scripts)
             shutil.copy2(ROOT / "scripts" / "llms_txt.py", scripts)
@@ -456,6 +467,36 @@ class QualityCheckTests(unittest.TestCase):
                     self.assertIn(message, result.stdout)
             index_path.write_text(original, encoding="utf-8")
 
+
+    def test_llms_full_byte_drift_fails_the_gate(self) -> None:
+        for email in ("you@yourname.com", "o'hara@yourname.com"):
+            with self.subTest(email=email), tempfile.TemporaryDirectory() as directory:
+                repo = Path(directory)
+                shutil.copytree(ROOT / "scripts", repo / "scripts", ignore=shutil.ignore_patterns("__pycache__"))
+                shutil.copytree(ROOT / "template", repo / "template")
+                config = json.loads((ROOT / "site.config.example.json").read_text(encoding="utf-8"))
+                config["EMAIL"] = email
+                (repo / "site.config.json").write_text(json.dumps(config), encoding="utf-8")
+                build = subprocess.run([sys.executable, str(repo / "scripts" / "build.py")], cwd=repo,
+                                       capture_output=True, text=True, check=False)
+                self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
+
+                def run_gate() -> subprocess.CompletedProcess[str]:
+                    return subprocess.run([sys.executable, str(repo / "scripts" / "quality_check.py")],
+                                          cwd=repo, capture_output=True, text=True, check=False)
+
+                passed = run_gate()
+                self.assertEqual(passed.returncode, 0, passed.stdout + passed.stderr)
+                self.assertIn("llms-full.txt contains the current bytes of every .md source", passed.stdout)
+
+                page = repo / "site" / "now.md"
+                original = page.read_text(encoding="utf-8")
+                page.write_text(original + "\nA paragraph the full-text bundle does not have.\n",
+                                encoding="utf-8")
+                stale = run_gate()
+                self.assertNotEqual(stale.returncode, 0, stale.stdout)
+                self.assertIn("llms-full.txt does not contain the current bytes of: ['now.md']", stale.stdout)
+                page.write_text(original, encoding="utf-8")
 
     def test_robots_sitemap_directive_drift_fails_the_gate(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

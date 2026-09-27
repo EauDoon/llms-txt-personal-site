@@ -19,6 +19,7 @@ from collections import Counter
 from urllib.parse import unquote, urlsplit
 
 from a2a_agent_card import load_agent_card, validate_agent_card
+from build import fill
 from build_sitemap import public_urls, validate_last_updated
 from http_client import fetch_url
 from llms_txt import has_link_relation, markdown_alternate, validate_llms_txt
@@ -403,14 +404,23 @@ head("7. GENERATED FILE IS IN SYNC")
 lf = os.path.join(R, "llms-full.txt")
 if os.path.exists(lf):
     t = read(lf)
-    missing = [rel for rel, p in sources()
-               if rel.endswith(".md") and rel not in ("404.md",)
-               and read(p)[:60].strip().split("\n")[0] not in t]
+    # build.py publishes a plain-text spelling of the configured address when
+    # the HTML spelling would break Markdown, so accept either spelling of
+    # that one token and nothing else. Derive both with the builder's own rule.
+    escaped = fill("{{EMAIL}}", _cfg, plain_text=False)
+    plain = fill("{{EMAIL}}", _cfg, plain_text=True)
+    missing = []
+    for rel, p in sources():
+        if not rel.endswith(".md") or rel in ("404.md",):
+            continue
+        text = read(p)
+        if text not in t and text.replace(escaped, plain) not in t:
+            missing.append(rel)
     if missing:
-        fails.append("llms-full.txt missing: %s" % missing)
-        print("  FAIL llms-full.txt is stale, missing: %s" % missing)
+        fails.append("llms-full.txt does not contain the current bytes of: %s" % missing)
+        print("  FAIL llms-full.txt is stale, missing current bytes for: %s" % missing)
     else:
-        print("  ok   llms-full.txt contains every .md source")
+        print("  ok   llms-full.txt contains the current bytes of every .md source")
 
 index_issues = search_index_issues(R)
 for issue in index_issues:
