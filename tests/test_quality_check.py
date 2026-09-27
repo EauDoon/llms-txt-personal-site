@@ -233,6 +233,10 @@ class QualityCheckTests(unittest.TestCase):
                 "- [Profile](https://%s/profile.md): Canonical profile.\n" % domain,
                 encoding="utf-8",
             )
+            (site / "robots.txt").write_text(
+                "User-agent: *\nAllow: /\n\nSitemap: https://%s/sitemap.xml\n" % domain,
+                encoding="utf-8",
+            )
             (site / "sitemap.xml").write_text(
                 '<?xml version="1.0" encoding="UTF-8"?>\n'
                 '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
@@ -266,7 +270,6 @@ class QualityCheckTests(unittest.TestCase):
                 json.dumps({"DOMAIN": domain, "LAST_UPDATED": "2026-08-30"}),
                 encoding="utf-8",
             )
-
             command = [sys.executable, str(scripts / "quality_check.py")]
             if live:
                 command.append("--live")
@@ -452,6 +455,47 @@ class QualityCheckTests(unittest.TestCase):
                     self.assertNotEqual(result.returncode, 0, result.stdout)
                     self.assertIn(message, result.stdout)
             index_path.write_text(original, encoding="utf-8")
+
+
+    def test_robots_sitemap_directive_drift_fails_the_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            shutil.copytree(ROOT / "scripts", repo / "scripts", ignore=shutil.ignore_patterns("__pycache__"))
+            shutil.copytree(ROOT / "template", repo / "template")
+            (repo / "site.config.json").write_text(
+                (ROOT / "site.config.example.json").read_text(encoding="utf-8"), encoding="utf-8"
+            )
+            build = subprocess.run([sys.executable, str(repo / "scripts" / "build.py")], cwd=repo,
+                                   capture_output=True, text=True, check=False)
+            self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
+
+            def run_gate() -> subprocess.CompletedProcess[str]:
+                return subprocess.run([sys.executable, str(repo / "scripts" / "quality_check.py")],
+                                      cwd=repo, capture_output=True, text=True, check=False)
+
+            passed = run_gate()
+            self.assertEqual(passed.returncode, 0, passed.stdout + passed.stderr)
+            self.assertIn("ok   robots.txt points crawlers at https://yourname.com/sitemap.xml",
+                          passed.stdout)
+
+            robots_path = repo / "site" / "robots.txt"
+            original = robots_path.read_text(encoding="utf-8")
+            broken = [
+                (original.replace("https://yourname.com/sitemap.xml", "https://www.yourname.com/sitemap.xml"),
+                 "robots.txt Sitemap is https://www.yourname.com/sitemap.xml, "
+                 "not https://yourname.com/sitemap.xml"),
+                (original.replace("Sitemap: https://yourname.com/sitemap.xml\n", ""),
+                 "robots.txt declares no Sitemap"),
+                (original.replace("User-agent: *\nAllow: /", "User-agent: *\nDisallow: /"),
+                 "robots.txt blocks every unspecified crawler with 'Disallow: /'"),
+            ]
+            for text, message in broken:
+                with self.subTest(message=message):
+                    robots_path.write_text(text, encoding="utf-8")
+                    result = run_gate()
+                    self.assertNotEqual(result.returncode, 0, result.stdout)
+                    self.assertIn(message, result.stdout)
+            robots_path.write_text(original, encoding="utf-8")
 
 
 if __name__ == "__main__":

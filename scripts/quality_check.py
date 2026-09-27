@@ -481,6 +481,36 @@ except (ET.ParseError, OSError) as exc:
     fails.append("sitemap.xml is missing or invalid: %s" % exc)
     print("  FAIL sitemap.xml is missing or invalid: %s" % exc)
 
+robots_path = os.path.join(R, "robots.txt")
+if not os.path.isfile(robots_path):
+    fails.append("robots.txt is missing from the build")
+    print("  FAIL robots.txt is missing from the build")
+else:
+    lines = [line.strip() for line in read(robots_path).splitlines()]
+    declared = [line[len("Sitemap:"):].strip() for line in lines
+                if line.casefold().startswith("sitemap:")]
+    expected_sitemap = "https://%s/sitemap.xml" % DOMAIN
+    if not declared:
+        fails.append("robots.txt declares no Sitemap")
+        print("  FAIL robots.txt declares no Sitemap")
+    for value in declared:
+        if value != expected_sitemap:
+            fails.append("robots.txt Sitemap is %s, not %s" % (value, expected_sitemap))
+            print("  FAIL robots.txt Sitemap is %s, not %s" % (value, expected_sitemap))
+    # A bare Disallow: / for unspecified agents contradicts the file's own
+    # header, which states the site is meant to be crawled and cited.
+    catch_all_blocked, in_catch_all = False, False
+    for line in lines:
+        if line.casefold().startswith("user-agent:"):
+            in_catch_all = line.split(":", 1)[1].strip() == "*"
+        elif in_catch_all and line.casefold() == "disallow: /":
+            catch_all_blocked = True
+    if catch_all_blocked:
+        fails.append("robots.txt blocks every unspecified crawler with 'Disallow: /'")
+        print("  FAIL robots.txt blocks every unspecified crawler with 'Disallow: /'")
+    if declared == [expected_sitemap] and not catch_all_blocked:
+        print("  ok   robots.txt points crawlers at %s" % expected_sitemap)
+
 if LIVE:
     head("9. LIVE: LINKS AND SITEMAP")
     links = set()
