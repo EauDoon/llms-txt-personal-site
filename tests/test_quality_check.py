@@ -209,6 +209,24 @@ class QualityCheckTests(unittest.TestCase):
                 "- [Example profile](/profile.html)\n",
                 encoding="utf-8",
             )
+            (site / "feed.xml").write_text(
+                '<?xml version="1.0" encoding="utf-8"?>\n'
+                '<feed xmlns="http://www.w3.org/2005/Atom">'
+                "<id>https://%s/feed.xml</id>"
+                "<title>Example writing</title>"
+                '<link href="https://%s/feed.xml" rel="self"/>'
+                '<link href="https://%s/"/>'
+                '<author><name>Example</name></author>'
+                "<entry>"
+                "<id>https://%s/profile.html</id>"
+                "<title>Example profile</title>"
+                '<link href="https://%s/profile.html"/>'
+                "<updated>2026-08-30T00:00:00Z</updated>"
+                "</entry>"
+                "<updated>2026-08-30T00:00:00Z</updated>"
+                "</feed>\n" % ((domain,) * 5),
+                encoding="utf-8",
+            )
             (site / "llms.txt").write_text(
                 "# Example\n\n"
                 "## Start here\n\n"
@@ -349,6 +367,51 @@ class QualityCheckTests(unittest.TestCase):
             result = run_gate()
             self.assertNotEqual(result.returncode, 0, result.stdout)
             self.assertIn("search-index.json is missing or invalid", result.stdout)
+
+    def test_atom_feed_drift_fails_the_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            shutil.copytree(ROOT / "scripts", repo / "scripts", ignore=shutil.ignore_patterns("__pycache__"))
+            shutil.copytree(ROOT / "template", repo / "template")
+            (repo / "site.config.json").write_text(
+                (ROOT / "site.config.example.json").read_text(encoding="utf-8"), encoding="utf-8"
+            )
+            build = subprocess.run([sys.executable, str(repo / "scripts" / "build.py")], cwd=repo,
+                                   capture_output=True, text=True, check=False)
+            self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
+
+            def run_gate() -> subprocess.CompletedProcess[str]:
+                return subprocess.run([sys.executable, str(repo / "scripts" / "quality_check.py")],
+                                      cwd=repo, capture_output=True, text=True, check=False)
+
+            passed = run_gate()
+            self.assertEqual(passed.returncode, 0, passed.stdout + passed.stderr)
+            self.assertIn("feed.xml is a valid Atom feed for yourname.com", passed.stdout)
+
+            feed_path = repo / "site" / "feed.xml"
+            original = feed_path.read_text(encoding="utf-8")
+            name = json.loads((ROOT / "site.config.example.json").read_text(encoding="utf-8"))["FULL_NAME"]
+            broken = [
+                (original.replace("2026-01-01T00:00:00Z", "2026-01-01"),
+                 "is not an RFC 3339 UTC timestamp"),
+                (original.replace("<title>%s writing</title>" % name, "<title></title>"),
+                 "feed.xml has no <title>"),
+                (original.replace('rel="self"', 'rel="alternate"'),
+                 "must declare one rel=self link"),
+            ]
+            for text, message in broken:
+                with self.subTest(message=message):
+                    feed_path.write_text(text, encoding="utf-8")
+                    result = run_gate()
+                    self.assertNotEqual(result.returncode, 0, result.stdout)
+                    self.assertIn(message, result.stdout)
+
+            stale = original.replace("/writing/example-depth-page.html", "/writing/removed.html")
+            feed_path.write_text(stale, encoding="utf-8")
+            result = run_gate()
+            self.assertNotEqual(result.returncode, 0, result.stdout)
+            self.assertIn("links to a missing build artifact /writing/removed.html", result.stdout)
+            feed_path.write_text(original, encoding="utf-8")
 
 
 if __name__ == "__main__":
