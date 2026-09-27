@@ -70,6 +70,23 @@ class IdentityEvalTests(unittest.TestCase):
                 for required in question["must_include"]:
                     self.assertIn(self.normalized(required), gold)
 
+    def test_gold_answers_pass_their_own_scorer(self) -> None:
+        for question in load_eval(DATA)["questions"]:
+            with self.subTest(question=question["id"]):
+                result = score_answer(question, question["gold_answer"])
+
+                self.assertEqual(
+                    result["missing"],
+                    [],
+                    "the gold answer does not contain every required phrase",
+                )
+                self.assertEqual(
+                    result["contradictions"],
+                    [],
+                    "the gold answer is rejected by its own contradiction list",
+                )
+                self.assertTrue(result["passed"])
+
     def test_score_requires_all_gold_phrases_and_rejects_known_contradictions(self) -> None:
         questions = {item["id"]: item for item in load_eval(DATA)["questions"]}
 
