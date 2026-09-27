@@ -72,6 +72,54 @@ def fetch_live(path):
     """Return status, headers, body, and any transport error for a live path."""
     return fetch_url("https://" + DOMAIN + path)
 
+ATOM = "{http://www.w3.org/2005/Atom}"
+ATOM_STAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
+
+def feed_issues(root, domain):
+    """Return violations of the Atom structure docs/WRITING.md promises.
+
+    A feed reader that cannot resolve an entry, or that is handed a date the
+    build never validated, silently drops articles. Nothing checked either.
+    """
+    try:
+        feed = ET.parse(os.path.join(root, "feed.xml")).getroot()
+    except (ET.ParseError, OSError) as exc:
+        return ["feed.xml is missing or invalid: %s" % exc]
+    if feed.tag != ATOM + "feed":
+        return ["feed.xml must be a single Atom feed element"]
+    issues = []
+    for field in ("id", "title", "updated"):
+        if feed.findtext(ATOM + field, "").strip() == "":
+            issues.append("feed.xml has no <%s>" % field)
+    stamps = [("", feed.findtext(ATOM + "updated", "").strip())]
+    for entry in feed.findall(ATOM + "entry"):
+        label = entry.findtext(ATOM + "id", "").strip() or "<entry without an id>"
+        for field in ("id", "title", "updated"):
+            if entry.findtext(ATOM + field, "").strip() == "":
+                issues.append("feed.xml entry %s has no <%s>" % (label, field))
+        stamps.append((label, entry.findtext(ATOM + "updated", "").strip()))
+        entry_link = entry.find(ATOM + "link")
+        target = urlsplit(entry_link.get("href", "") if entry_link is not None else "")
+        if target.hostname is None or target.hostname.lower() != domain.lower():
+            issues.append("feed.xml entry %s does not link to the configured site" % label)
+        elif not os.path.isfile(os.path.join(root, unquote(target.path).lstrip("/"))):
+            issues.append("feed.xml entry %s links to a missing build artifact %s" % (label, target.path))
+    self_link = [link for link in feed.findall(ATOM + "link")
+                 if "self" in link.get("rel", "").split()]
+    if len(self_link) != 1 or self_link[0].get("href", "") != "https://%s/feed.xml" % domain:
+        issues.append("feed.xml must declare one rel=self link to https://%s/feed.xml" % domain)
+    for label, stamp in stamps:
+        if not stamp:
+            continue
+        if not ATOM_STAMP.fullmatch(stamp):
+            issues.append("%s <updated> %r is not an RFC 3339 UTC timestamp" % (label or "feed.xml", stamp))
+            continue
+        try:
+            validate_last_updated(stamp[:10])
+        except ValueError:
+            issues.append("%s <updated> %r is not a calendar date" % (label or "feed.xml", stamp))
+    return issues
+
 def head(msg):
     print("\n" + "=" * 68 + "\n" + msg + "\n" + "=" * 68)
 
@@ -329,6 +377,13 @@ for issue in index_issues:
     print("  FAIL %s" % issue)
 if not index_issues:
     print("  ok   search-index.json and search.md describe the same built pages")
+
+feed_problems = feed_issues(R, DOMAIN)
+for issue in feed_problems:
+    fails.append("feed.xml: %s" % issue)
+    print("  FAIL feed.xml %s" % issue)
+if not feed_problems:
+    print("  ok   feed.xml is a valid Atom feed for %s" % DOMAIN)
 
 head("8. SITEMAP MATCHES BUILD OUTPUT")
 sitemap_path = os.path.join(R, "sitemap.xml")
