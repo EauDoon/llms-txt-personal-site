@@ -16,6 +16,7 @@ import re
 import sys
 import xml.etree.ElementTree as ET
 from collections import Counter
+from urllib.parse import unquote, urlsplit
 
 from a2a_agent_card import load_agent_card, validate_agent_card
 from build_sitemap import public_urls, validate_last_updated
@@ -73,6 +74,42 @@ def fetch_live(path):
 
 def head(msg):
     print("\n" + "=" * 68 + "\n" + msg + "\n" + "=" * 68)
+
+def search_index_issues(root):
+    """Return violations of the search index and its static directory contract.
+
+    docs/WRITING.md promises that /search.md still lists every indexed page
+    when a browser cannot load search-index.json. Nothing enforced that, so a
+    stale record could send a reader to a page the build no longer publishes.
+    """
+    try:
+        with open(os.path.join(root, "search-index.json"), encoding="utf-8") as source:
+            records = json.load(source)
+    except (OSError, ValueError) as exc:
+        return ["search-index.json is missing or invalid: %s" % exc]
+    if not isinstance(records, list) or not all(isinstance(record, dict) for record in records):
+        return ["search-index.json must be a list of records"]
+    issues, urls = [], []
+    for record in records:
+        url = record.get("url")
+        parsed = urlsplit(url) if isinstance(url, str) else None
+        if not parsed or not url.startswith("/") or parsed.query or parsed.fragment:
+            issues.append("search-index.json record has an unusable url: %r" % (url,))
+            continue
+        if url in urls:
+            issues.append("search-index.json repeats url %s" % url)
+            continue
+        urls.append(url)
+        if not os.path.isfile(os.path.join(root, unquote(url).lstrip("/"))):
+            issues.append("search-index.json links to a missing build artifact %s" % url)
+    directory = os.path.join(root, "search.md")
+    if not os.path.isfile(directory):
+        return issues + ["search.md is missing from the build"]
+    listed = re.findall(r"^- \[[^\]]*\]\((\S+)\)\s*$", read(directory), re.M)
+    if sorted(listed) != sorted(urls):
+        issues.append("search.md and search-index.json disagree about %s"
+                      % sorted(set(listed) ^ set(urls)))
+    return issues
 
 # Deliberate exceptions, each with its reason.
 ALLOWED = [
@@ -285,6 +322,13 @@ if os.path.exists(lf):
         print("  FAIL llms-full.txt is stale, missing: %s" % missing)
     else:
         print("  ok   llms-full.txt contains every .md source")
+
+index_issues = search_index_issues(R)
+for issue in index_issues:
+    fails.append(issue)
+    print("  FAIL %s" % issue)
+if not index_issues:
+    print("  ok   search-index.json and search.md describe the same built pages")
 
 head("8. SITEMAP MATCHES BUILD OUTPUT")
 sitemap_path = os.path.join(R, "sitemap.xml")

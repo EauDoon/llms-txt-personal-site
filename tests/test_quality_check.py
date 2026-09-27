@@ -193,6 +193,22 @@ class QualityCheckTests(unittest.TestCase):
                 "# Example profile\n\nLast updated: 2026-08-30\n",
                 encoding="utf-8",
             )
+            (site / "profile.html").write_text(
+                '<!doctype html>\n'
+                '<link rel="alternate" type="text/markdown" href="/profile.md">\n'
+                '<link rel="describedby" href="/llms.txt">\n',
+                encoding="utf-8",
+            )
+            (site / "search-index.json").write_text(
+                json.dumps([{"title": "Example profile", "url": "/profile.html",
+                             "text": "Example profile", "type": "page"}]),
+                encoding="utf-8",
+            )
+            (site / "search.md").write_text(
+                "# Search and page directory\n\nLast updated: 2026-08-30\n\n"
+                "- [Example profile](/profile.html)\n",
+                encoding="utf-8",
+            )
             (site / "llms.txt").write_text(
                 "# Example\n\n"
                 "## Start here\n\n"
@@ -214,7 +230,15 @@ class QualityCheckTests(unittest.TestCase):
                 "    <loc>https://%s/profile.md</loc>\n"
                 "    <lastmod>2026-08-30</lastmod>\n"
                 "  </url>\n"
-                "</urlset>\n" % (domain, domain, domain),
+                "  <url>\n"
+                "    <loc>https://%s/profile.html</loc>\n"
+                "    <lastmod>2026-08-30</lastmod>\n"
+                "  </url>\n"
+                "  <url>\n"
+                "    <loc>https://%s/search.md</loc>\n"
+                "    <lastmod>2026-08-30</lastmod>\n"
+                "  </url>\n"
+                "</urlset>\n" % (domain, domain, domain, domain, domain),
                 encoding="utf-8",
             )
             if writing_as_file:
@@ -281,6 +305,50 @@ class QualityCheckTests(unittest.TestCase):
         self.assertIn("FAILURES:", result.stdout)
         self.assertNotIn("Traceback", result.stderr)
         self.assertNotIn("FileNotFoundError", result.stderr)
+
+    def test_search_index_and_static_directory_drift_fails_the_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            shutil.copytree(ROOT / "scripts", repo / "scripts", ignore=shutil.ignore_patterns("__pycache__"))
+            shutil.copytree(ROOT / "template", repo / "template")
+            (repo / "site.config.json").write_text(
+                (ROOT / "site.config.example.json").read_text(encoding="utf-8"), encoding="utf-8"
+            )
+            build = subprocess.run([sys.executable, str(repo / "scripts" / "build.py")], cwd=repo,
+                                   capture_output=True, text=True, check=False)
+            self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
+
+            def run_gate() -> subprocess.CompletedProcess[str]:
+                return subprocess.run([sys.executable, str(repo / "scripts" / "quality_check.py")],
+                                      cwd=repo, capture_output=True, text=True, check=False)
+
+            passed = run_gate()
+            self.assertEqual(passed.returncode, 0, passed.stdout + passed.stderr)
+            self.assertIn("search-index.json and search.md describe the same built pages", passed.stdout)
+
+            index_path = repo / "site" / "search-index.json"
+            directory_path = repo / "site" / "search.md"
+            original_index = index_path.read_text(encoding="utf-8")
+            original_directory = directory_path.read_text(encoding="utf-8")
+
+            records = json.loads(original_index)
+            stale = dict(records[0], url="/removed-page.html")
+            index_path.write_text(json.dumps([stale] + records), encoding="utf-8")
+            result = run_gate()
+            self.assertNotEqual(result.returncode, 0, result.stdout)
+            self.assertIn("search-index.json links to a missing build artifact /removed-page.html", result.stdout)
+            index_path.write_text(original_index, encoding="utf-8")
+
+            directory_path.write_text(original_directory.replace("- [About this site](/about.html)\n", ""), encoding="utf-8")
+            result = run_gate()
+            self.assertNotEqual(result.returncode, 0, result.stdout)
+            self.assertIn("search.md and search-index.json disagree about ['/about.html']", result.stdout)
+            directory_path.write_text(original_directory, encoding="utf-8")
+
+            index_path.unlink()
+            result = run_gate()
+            self.assertNotEqual(result.returncode, 0, result.stdout)
+            self.assertIn("search-index.json is missing or invalid", result.stdout)
 
 
 if __name__ == "__main__":
