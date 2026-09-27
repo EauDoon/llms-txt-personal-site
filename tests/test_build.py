@@ -350,6 +350,27 @@ class BuildTests(unittest.TestCase):
             "LAST_UPDATED": last_updated,
         }
 
+    def test_unfilled_placeholder_stops_the_build_and_keeps_previous_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            template = root / "template"
+            template.mkdir(parents=True)
+            (template / "index.html").write_text("<h1>{{FULL_NAME}}</h1>\n", encoding="utf-8")
+            site = root / "site"
+
+            build_site_staged(str(template), str(site), self.config())
+            original = (site / "content-manifest.json").read_bytes()
+
+            (template / "typo.md").write_text(
+                "# Typo\n\nLast updated: {{LAST_UPDATED}}\n\nRole: {{JOB_TITEL}}\n", encoding="utf-8"
+            )
+            with self.assertRaises(ValueError) as raised:
+                build_site_staged(str(template), str(site), self.config())
+
+            self.assertIn("JOB_TITEL", str(raised.exception))
+            self.assertFalse((site / "typo.md").exists())
+            self.assertEqual((site / "content-manifest.json").read_bytes(), original)
+
     def test_staged_rebuild_removes_renamed_and_deleted_template_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
