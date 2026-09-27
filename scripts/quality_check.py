@@ -75,6 +75,41 @@ def fetch_live(path):
 ATOM = "{http://www.w3.org/2005/Atom}"
 ATOM_STAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
 
+def _schema_org(value):
+    """Return whether a JSON-LD @context names schema.org in any legal form."""
+    if isinstance(value, str):
+        return value.rstrip("/") == "https://schema.org"
+    if isinstance(value, list):
+        return any(_schema_org(item) for item in value)
+    if isinstance(value, dict):
+        return any(_schema_org(item) for item in value.values())
+    return False
+
+def structured_data_issues(document, label):
+    """Return defects that stop a consumer before it reads the declared facts.
+
+    Cross-document @id references stay legal: an Article may name the
+    homepage's #person. What cannot be right is a document that declares no
+    schema.org context, a node with no @type, or one @id declared twice.
+    """
+    issues = []
+    if not _schema_org(document.get("@context")):
+        issues.append("%s does not declare the schema.org context" % label)
+    nodes = document.get("@graph")
+    nodes = nodes if isinstance(nodes, list) else [document]
+    identifiers = []
+    for node in nodes:
+        if not isinstance(node, dict):
+            issues.append("%s has a JSON-LD node that is not an object" % label)
+            continue
+        if not isinstance(node.get("@type"), str) or not node["@type"].strip():
+            issues.append("%s has a JSON-LD node with no @type" % label)
+        if isinstance(node.get("@id"), str) and node["@id"].strip():
+            identifiers.append(node["@id"])
+    duplicates = sorted({value for value in identifiers if identifiers.count(value) > 1})
+    issues.extend("%s declares @id %s more than once" % (label, value) for value in duplicates)
+    return issues
+
 def feed_issues(root, domain):
     """Return violations of the Atom structure docs/WRITING.md promises.
 
@@ -274,8 +309,14 @@ for rel, p in sources():
     for m in re.finditer(r'(?s)<script type="application/ld\+json">(.*?)</script>', read(p)):
         try:
             d = json.loads(m.group(1))
+            issues = (structured_data_issues(d, rel) if isinstance(d, dict)
+                      else ["%s JSON-LD is not an object" % rel])
+            for issue in issues:
+                fails.append(issue)
+                print("  FAIL %s" % issue)
             if isinstance(d, dict) and "@graph" in d:
-                print("  ok   %-40s %s" % (rel, [n.get("@type") for n in d["@graph"]]))
+                if not issues:
+                    print("  ok   %-40s %s" % (rel, [n.get("@type") for n in d["@graph"]]))
             else:
                 linked = d.get("author", {}).get("@id") == "" + "https://" + DOMAIN + "/#person"
                 print("  %-4s %-40s %s author->#person" % ("ok" if linked else "FAIL", rel, d.get("@type")))

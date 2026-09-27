@@ -414,5 +414,45 @@ class QualityCheckTests(unittest.TestCase):
             feed_path.write_text(original, encoding="utf-8")
 
 
+    def test_structured_data_defects_fail_the_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            shutil.copytree(ROOT / "scripts", repo / "scripts", ignore=shutil.ignore_patterns("__pycache__"))
+            shutil.copytree(ROOT / "template", repo / "template")
+            (repo / "site.config.json").write_text(
+                (ROOT / "site.config.example.json").read_text(encoding="utf-8"), encoding="utf-8"
+            )
+            build = subprocess.run([sys.executable, str(repo / "scripts" / "build.py")], cwd=repo,
+                                   capture_output=True, text=True, check=False)
+            self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
+
+            def run_gate() -> subprocess.CompletedProcess[str]:
+                return subprocess.run([sys.executable, str(repo / "scripts" / "quality_check.py")],
+                                      cwd=repo, capture_output=True, text=True, check=False)
+
+            passed = run_gate()
+            self.assertEqual(passed.returncode, 0, passed.stdout + passed.stderr)
+            self.assertIn("index.html", passed.stdout)
+
+            index_path = repo / "site" / "index.html"
+            original = index_path.read_text(encoding="utf-8")
+            broken = [
+                (original.replace('"@context": "https://schema.org"', '"@context": "https://example.invalid/vocab"'),
+                 "index.html does not declare the schema.org context"),
+                (original.replace('"@type": "FAQPage",', ""),
+                 "index.html has a JSON-LD node with no @type"),
+                (original.replace('"@id": "https://yourname.com/#faq"',
+                                  '"@id": "https://yourname.com/#person"'),
+                 "index.html declares @id https://yourname.com/#person more than once"),
+            ]
+            for text, message in broken:
+                with self.subTest(message=message):
+                    index_path.write_text(text, encoding="utf-8")
+                    result = run_gate()
+                    self.assertNotEqual(result.returncode, 0, result.stdout)
+                    self.assertIn(message, result.stdout)
+            index_path.write_text(original, encoding="utf-8")
+
+
 if __name__ == "__main__":
     unittest.main()
