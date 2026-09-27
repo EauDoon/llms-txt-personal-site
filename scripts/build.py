@@ -350,6 +350,10 @@ def build_site(template_dir, out_dir, cfg):
         print("\n  UNFILLED PLACEHOLDERS (add these keys to site.config.json):")
         for k, where in sorted(leftover.items()):
             print("    {{%s}}  in %s" % (k, ", ".join(sorted(where))[:60]))
+        # Publishing {{TOKEN}} verbatim is worse than publishing nothing: it
+        # looks like a fact. Stop before any of it is promoted.
+        raise ValueError("unfilled {{PLACEHOLDER}} tokens remain in the output: %s"
+                         % ", ".join(sorted(leftover)))
     else:
         print("  no unfilled placeholders")
 
@@ -475,7 +479,10 @@ def main():
     if not os.path.isdir(TEMPLATE):
         sys.exit("No template/ directory found.")
 
-    build_site_staged(TEMPLATE, OUT, cfg)
+    try:
+        build_site_staged(TEMPLATE, OUT, cfg)
+    except ValueError as exc:
+        sys.exit(str(exc))
 
     print("\n  done. Next: python scripts/quality_check.py")
 
