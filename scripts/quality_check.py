@@ -624,7 +624,9 @@ if LIVE:
     links = set()
     for rel, p in sources():
         for m in re.finditer(r"https://" + re.escape(DOMAIN) + r"(/[^\s)\"'<>\]]*)?", read(p)):
-            u = (m.group(1) or "/").rstrip(".,;:)")   # strip trailing punctuation
+            # ! and ? end a sentence the same way the Markdown autolinker does.
+            # Leaving them on the path makes --live request a file that was never built.
+            u = (m.group(1) or "/").rstrip(".,;:!?")
             links.add(u)
     sm = read(os.path.join(R, "sitemap.xml"))
     links |= set(re.findall(r"<loc>https://" + re.escape(DOMAIN) + r"(/[^<]*)</loc>", sm))

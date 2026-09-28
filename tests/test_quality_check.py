@@ -354,6 +354,22 @@ class QualityCheckTests(unittest.TestCase):
         self.assertNotIn("Traceback", result.stderr)
         self.assertNotIn("FileNotFoundError", result.stderr)
 
+    def test_live_check_strips_the_same_sentence_punctuation_as_autolink(self) -> None:
+        def prepare(site, domain):
+            profile = site / "profile.md"
+            profile.write_text(
+                profile.read_text(encoding="utf-8")
+                + "\nSee https://%s/profile.md! and https://%s/profile.md?\n" % (domain, domain)
+                + "Query https://%s/profile.md?x=1 stays.\n" % domain,
+                encoding="utf-8",
+            )
+
+        result = self.run_quality_check(live=True, domain="127.0.0.1:9", path="", prepare=prepare)
+        self.assertIn("10. LIVE: LINKS AND SITEMAP", result.stdout)
+        self.assertNotIn("/profile.md!", result.stdout)
+        self.assertIsNone(re.search(r"/profile\.md\?(?:\s|->)", result.stdout), result.stdout)
+        self.assertIn("/profile.md?x=1", result.stdout)
+
     def test_search_index_and_static_directory_drift_fails_the_gate(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
