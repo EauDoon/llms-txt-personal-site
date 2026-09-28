@@ -118,6 +118,16 @@ class WritingHtmlTests(unittest.TestCase):
         self.assertIn('href="https://en.wikipedia.org/wiki/Foo_(bar)"', paren)
         self.assertNotIn("&gt", paren)
 
+    def test_four_space_backtick_line_stays_inside_the_fence(self) -> None:
+        # A closer may be indented by at most three spaces. Four spaces is
+        # sample content; treating it as a closer renders the rest as prose.
+        rendered = md_to_html("```\nline\n    ```\nstill code\n```\n")
+        self.assertEqual(rendered, "<pre><code>line\n    ```\nstill code</code></pre>")
+        listed = md_to_html("- item\n  ```text\n<!-- literal -->\n  ```\nAfter\n")
+        self.assertIn('<pre><code class="language-text">&lt;!-- literal --&gt;</code></pre>', listed)
+        self.assertIn("<p>After</p>", listed)
+        self.assertNotIn("<!-- literal -->", listed)
+
     def test_writing_index_is_generated_from_markdown_not_edited_html(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             site = Path(directory)

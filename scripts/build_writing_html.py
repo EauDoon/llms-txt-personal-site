@@ -75,12 +75,29 @@ def parse_front_matter(md):
     return meta, md
 
 
+def fence_line(line):
+    """Return a fence line indented by at most three spaces, else None.
+
+    Four spaces is sample content. strip() would treat that line as a closer,
+    end the fence early, and render the rest of the sample as prose.
+    """
+    stripped = line.lstrip(" ")
+    if len(line) - len(stripped) > 3 or (stripped[:1].isspace()):
+        return None
+    return stripped
+
+
 def opening_fence(line):
-    return re.fullmatch(r"(`{3,})([^`]*)", line.strip())
+    candidate = fence_line(line)
+    if candidate is None:
+        return None
+    return re.fullmatch(r"(`{3,})([^`]*)", candidate)
 
 
 def closes_fence(line, marker):
-    candidate = line.strip()
+    candidate = fence_line(line)
+    if candidate is None:
+        return False
     return len(candidate) >= len(marker) and candidate.strip("`") == ""
 
 
