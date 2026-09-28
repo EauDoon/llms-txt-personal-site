@@ -102,6 +102,22 @@ class WritingHtmlTests(unittest.TestCase):
         self.assertNotIn("<a href=", spaced)
         self.assertIn("https://example.com/a leftover", spaced)
 
+    def test_image_syntax_is_not_a_bang_followed_by_a_link(self) -> None:
+        # ![alt](url) was parsed as a link, leaving the image marker visible
+        # and publishing the picture URL as an anchor instead of an image.
+        rendered = md_to_html("![Logo](https://example.com/a.png)")
+        self.assertEqual(
+            rendered,
+            '<p><img src="https://example.com/a.png" alt="Logo"></p>',
+        )
+        local = md_to_html("![Logo](/media/a.png)")
+        self.assertEqual(local, '<p><img src="/media/a.png" alt="Logo"></p>')
+        unsafe = md_to_html("![Logo](javascript:alert(1))")
+        self.assertNotIn("<a href=", unsafe)
+        self.assertNotIn("<img", unsafe)
+        self.assertNotIn("!<", unsafe)
+        self.assertIn("Logo", unsafe)
+
     def test_balanced_parentheses_stay_in_link_destinations(self) -> None:
         # Wikipedia-style paths are legal URLs. Stopping at the first ")"
         # publishes a destination that does not exist.
