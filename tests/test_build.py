@@ -371,6 +371,31 @@ class BuildTests(unittest.TestCase):
             self.assertFalse((site / "typo.md").exists())
             self.assertEqual((site / "content-manifest.json").read_bytes(), original)
 
+    def test_unfilled_placeholder_in_script_and_host_rules_is_not_promoted(self) -> None:
+        # The filler rewrites every text file, but the leftover scan only
+        # looked at a few extensions, so a token in search.js or .htaccess
+        # was published as if it were a fact.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            template = root / "template"
+            template.mkdir(parents=True)
+            (template / "index.html").write_text("<h1>{{FULL_NAME}}</h1>\n", encoding="utf-8")
+            site = root / "site"
+            build_site_staged(str(template), str(site), self.config())
+            original = (site / "content-manifest.json").read_bytes()
+
+            (template / "search.js").write_text("const domain = '{{SITE_HOST}}';\n", encoding="utf-8")
+            (template / ".htaccess").write_text("# curl https://{{HOST_NAME}}/profile.md\n", encoding="utf-8")
+            with self.assertRaises(ValueError) as raised:
+                build_site_staged(str(template), str(site), self.config())
+
+            message = str(raised.exception)
+            self.assertIn("SITE_HOST", message)
+            self.assertIn("HOST_NAME", message)
+            self.assertFalse((site / "search.js").exists())
+            self.assertFalse((site / ".htaccess").exists())
+            self.assertEqual((site / "content-manifest.json").read_bytes(), original)
+
     def test_staged_rebuild_removes_renamed_and_deleted_template_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
