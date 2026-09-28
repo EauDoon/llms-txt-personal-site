@@ -575,6 +575,23 @@ class QualityCheckTests(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0, result.stdout)
                 self.assertIn("search-index.json url escapes the build: %s" % url, result.stdout)
 
+    def test_feed_entry_links_cannot_escape_the_build(self) -> None:
+        def prepare(site, domain):
+            (site / "writing").mkdir()
+            path = site / "feed.xml"
+            text = path.read_text(encoding="utf-8")
+            path.write_text(
+                text.replace(
+                    "https://%s/profile.html" % domain,
+                    "https://%s/writing/../profile.html" % domain,
+                ),
+                encoding="utf-8",
+            )
+
+        result = self.run_quality_check(prepare=prepare)
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("has an invalid same-site path", result.stdout)
+
     def test_page_head_metadata_defects_fail_the_gate(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
