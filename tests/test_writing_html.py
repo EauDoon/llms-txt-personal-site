@@ -8,7 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from build_writing_html import md_to_html, page_description, run
+from build_writing_html import md_to_html, page_description, render_page, run
 
 
 class WritingHtmlTests(unittest.TestCase):
@@ -182,6 +182,27 @@ class WritingHtmlTests(unittest.TestCase):
         self.assertIn('<pre><code class="language-text">&lt;!-- literal --&gt;</code></pre>', listed)
         self.assertIn("<p>After</p>", listed)
         self.assertNotIn("<!-- literal -->", listed)
+
+    def test_description_keeps_the_opening_sentence_without_a_heading(self) -> None:
+        # The description skipped line 0 on the assumption that it was the
+        # title. A page with no heading therefore published an empty
+        # description and dropped its only sentence.
+        rendered = render_page(
+            "notes",
+            "The opening fact is enough. The rest is detail.\n",
+            {
+                "DOMAIN": "person.example",
+                "FULL_NAME": "Signed Person",
+                "EMAIL": "signed@person.example",
+                "LAST_UPDATED": "2026-08-31",
+                "JOB_TITLE": "Signed Role",
+            },
+        )
+        self.assertIn(
+            '<meta name="description" content="The opening fact is enough.">',
+            rendered,
+        )
+        self.assertNotIn("The rest is detail.", rendered.split('name="description"', 1)[1].split(">", 1)[0])
 
     def test_page_description_stops_at_the_first_sentence(self) -> None:
         # A domain or email contains a period that is not the end of the
