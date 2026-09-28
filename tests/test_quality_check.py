@@ -734,6 +734,19 @@ class QualityCheckTests(unittest.TestCase):
                  "about.html has no non-empty <meta name=description>"),
                 (re.sub(r'<link rel="canonical"[^>]*>\n?', "", original),
                  "about.html has no <link rel=canonical>"),
+                # Any non-empty href used to pass. The canonical has to be this page.
+                (original.replace(
+                    'href="https://yourname.com/about.html"',
+                    'href="https://evil.example/about.html"',
+                    1,
+                ),
+                 "about.html canonical is not https://yourname.com/about.html"),
+                (original.replace(
+                    'href="https://yourname.com/about.html"',
+                    'href="/about.html"',
+                    1,
+                ),
+                 "about.html canonical is not https://yourname.com/about.html"),
                 (original.replace('<html lang="en">', "<html>"),
                  "about.html has no non-empty <html lang>"),
                 (re.sub(r"<title>.*?</title>", "<title></title>", original, flags=re.S),

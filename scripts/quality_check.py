@@ -381,7 +381,7 @@ class _Head(HTMLParser):
         self.lang = None
         self.description = None
         self.robots = None
-        self.canonical = None
+        self.canonicals = []
         self.title = ""
         self.in_title = False
 
@@ -398,7 +398,9 @@ class _Head(HTMLParser):
             elif name == "robots" and self.robots is None:
                 self.robots = values.get("content", "").strip() or None
         elif tag == "link" and "canonical" in values.get("rel", "").lower().split():
-            self.canonical = values.get("href", "").strip() or None
+            href = values.get("href", "").strip()
+            if href:
+                self.canonicals.append(href)
 
     def handle_startendtag(self, tag, attrs):
         self.handle_starttag(tag, attrs)
@@ -429,15 +431,23 @@ for rel, p in sources():
     indexed = "noindex" not in (head_facts.robots or "").lower()
     if indexed and not head_facts.description:
         problems.append("%s has no non-empty <meta name=description>" % rel)
-    if indexed and not head_facts.canonical:
-        problems.append("%s has no <link rel=canonical>" % rel)
+    # index.html is served at /. Any other non-empty href, including another
+    # host or a root-relative path, tells a crawler this page lives elsewhere.
+    expected_canonical = "https://%s/" % DOMAIN if rel == "index.html" else (
+        "https://%s/%s" % (DOMAIN, quote(rel, safe="/-._~"))
+    )
+    if indexed and head_facts.canonicals != [expected_canonical]:
+        if not head_facts.canonicals:
+            problems.append("%s has no <link rel=canonical>" % rel)
+        else:
+            problems.append("%s canonical is not %s" % (rel, expected_canonical))
     for problem in problems:
         fails.append(problem)
         print("  FAIL %s" % problem)
     if not problems:
         print("  ok   %-40s lang=%s desc=%s canonical=%s"
               % (rel, head_facts.lang, "yes" if head_facts.description else "noindex",
-                 head_facts.canonical or "none"))
+                 head_facts.canonicals[0] if head_facts.canonicals else "none"))
 
 head("4. STRUCTURED DATA")
 for rel, p in sources():
