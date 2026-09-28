@@ -181,6 +181,44 @@ def feed_issues(root, domain):
             issues.append("%s <updated> %r is not a calendar date" % (label or "feed.xml", stamp))
     return issues
 
+class _JsonLd(HTMLParser):
+    """Collect every JSON-LD script, not only one exact tag spelling."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=False)
+        self.blocks = []
+        self._buffer = None
+
+    def handle_starttag(self, tag, attrs):
+        if tag != "script":
+            return
+        values = {key.lower(): value or "" for key, value in attrs}
+        media = values.get("type", "").split(";", 1)[0].strip().lower()
+        if media == "application/ld+json":
+            self._buffer = []
+
+    def handle_data(self, data):
+        if self._buffer is not None:
+            self._buffer.append(data)
+
+    def handle_endtag(self, tag):
+        if tag == "script" and self._buffer is not None:
+            self.blocks.append("".join(self._buffer))
+            self._buffer = None
+
+
+def json_ld_blocks(document):
+    """Return JSON-LD bodies, including tags with parameters or other attributes.
+
+    A regex for `<script type="application/ld+json">` skips a charset parameter
+    or an id, so a block that does not parse never reaches the gate.
+    """
+    parser = _JsonLd()
+    parser.feed(document)
+    parser.close()
+    return parser.blocks
+
+
 def head(msg):
     print("\n" + "=" * 68 + "\n" + msg + "\n" + "=" * 68)
 
@@ -405,9 +443,9 @@ head("4. STRUCTURED DATA")
 for rel, p in sources():
     if not rel.endswith(".html") or rel == "404.html":
         continue
-    for m in re.finditer(r'(?s)<script type="application/ld\+json">(.*?)</script>', read(p)):
+    for block in json_ld_blocks(read(p)):
         try:
-            d = json.loads(m.group(1))
+            d = json.loads(block)
             issues = (structured_data_issues(d, rel) if isinstance(d, dict)
                       else ["%s JSON-LD is not an object" % rel])
             for issue in issues:

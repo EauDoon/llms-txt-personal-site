@@ -499,6 +499,22 @@ class QualityCheckTests(unittest.TestCase):
                     self.assertIn(message, result.stdout)
             index_path.write_text(original, encoding="utf-8")
 
+    def test_json_ld_with_extra_script_attributes_is_still_checked(self) -> None:
+        # The gate only matched <script type="application/ld+json"> exactly.
+        # A charset parameter or another attribute hid a block that does not parse.
+        def prepare(site, domain):
+            path = site / "index.html"
+            path.write_text(
+                path.read_text(encoding="utf-8").replace(
+                    "</head>",
+                    '<script id="extra" type="application/ld+json; charset=utf-8">{</script>\n</head>',
+                ),
+                encoding="utf-8",
+            )
+
+        result = self.run_quality_check(prepare=prepare)
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("index.html JSON-LD invalid", result.stdout)
 
     def test_llms_full_byte_drift_fails_the_gate(self) -> None:
         for email in ("you@yourname.com", "o'hara@yourname.com"):
