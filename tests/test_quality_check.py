@@ -530,6 +530,30 @@ class QualityCheckTests(unittest.TestCase):
                 self.assertIn("llms-full.txt does not contain the current bytes of: ['now.md']", stale.stdout)
                 page.write_text(original, encoding="utf-8")
 
+    def test_llms_full_does_not_treat_another_page_as_this_page(self) -> None:
+        # Containment is the wrong check. now.md can be replaced by the bytes
+        # of profile.md, which are already in the bundle, and the gate still
+        # says the full-text file is current.
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            shutil.copytree(ROOT / "scripts", repo / "scripts", ignore=shutil.ignore_patterns("__pycache__"))
+            shutil.copytree(ROOT / "template", repo / "template")
+            (repo / "site.config.json").write_text(
+                (ROOT / "site.config.example.json").read_text(encoding="utf-8"), encoding="utf-8"
+            )
+            build = subprocess.run([sys.executable, str(repo / "scripts" / "build.py")], cwd=repo,
+                                   capture_output=True, text=True, check=False)
+            self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
+            profile = (repo / "site" / "profile.md").read_text(encoding="utf-8")
+            (repo / "site" / "now.md").write_text(profile, encoding="utf-8")
+            result = subprocess.run([sys.executable, str(repo / "scripts" / "quality_check.py")],
+                                    cwd=repo, capture_output=True, text=True, check=False)
+            self.assertNotEqual(result.returncode, 0, result.stdout)
+            self.assertIn(
+                "llms-full.txt does not contain the current bytes of: ['now.md']",
+                result.stdout,
+            )
+
     def test_robots_sitemap_directive_drift_fails_the_gate(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)

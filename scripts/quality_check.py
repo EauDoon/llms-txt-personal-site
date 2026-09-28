@@ -17,7 +17,7 @@ import sys
 import xml.etree.ElementTree as ET
 from collections import Counter
 from html.parser import HTMLParser
-from urllib.parse import unquote, urlsplit
+from urllib.parse import quote, unquote, urlsplit
 
 from a2a_agent_card import load_agent_card, validate_agent_card
 from build import fill
@@ -498,6 +498,25 @@ for rel, p in sources():
         print("  FAIL %-40s invalid Last updated date" % rel)
 print("  (files with a date are not listed)")
 
+def source_sections(bundle):
+    """Map each llms-full.txt SOURCE URL to the bytes published under it.
+
+    The separator before the next header is two newlines added by the builder,
+    not part of the page. A page whose text merely occurs inside another page
+    has no section of its own.
+    """
+    header = re.compile(r"={70}\n# SOURCE: (\S+)\n={70}\n\n")
+    matches = list(header.finditer(bundle))
+    sections = {}
+    for index, match in enumerate(matches):
+        start = match.end()
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(bundle)
+        if index + 1 < len(matches) and bundle[end - 2:end] == "\n\n":
+            end -= 2
+        sections.setdefault(match.group(1), []).append(bundle[start:end])
+    return sections
+
+
 head("8. GENERATED FILE IS IN SYNC")
 lf = os.path.join(R, "llms-full.txt")
 if os.path.exists(lf):
@@ -507,12 +526,18 @@ if os.path.exists(lf):
     # that one token and nothing else. Derive both with the builder's own rule.
     escaped = fill("{{EMAIL}}", _cfg, plain_text=False)
     plain = fill("{{EMAIL}}", _cfg, plain_text=True)
+    sections = source_sections(t)
     missing = []
     for rel, p in sources():
         if not rel.endswith(".md") or rel in ("404.md",):
             continue
         text = read(p)
-        if text not in t and text.replace(escaped, plain) not in t:
+        acceptable = {text}
+        if escaped and escaped != plain:
+            acceptable.add(text.replace(escaped, plain))
+        url = "https://%s/%s" % (DOMAIN, quote(rel, safe="/-._~"))
+        bodies = sections.get(url, [])
+        if len(bodies) != 1 or bodies[0] not in acceptable:
             missing.append(rel)
     if missing:
         fails.append("llms-full.txt does not contain the current bytes of: %s" % missing)
