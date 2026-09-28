@@ -1,6 +1,7 @@
 """Offline build audit: byte inventory, local HTML links, fragments, and metadata."""
 import argparse
 import json
+import re
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import unquote, urljoin, urlsplit
@@ -83,6 +84,13 @@ def audit(site_dir):
     for path, document in documents.items():
         page_url = urljoin(base, path.relative_to(root).as_posix())
         for link in document.links:
+            if re.search(r"[.,;:!]$", link):
+                # A greedy autolinker once published https://host/path. as the
+                # destination, so every sentence-ending link resolved nowhere.
+                errors.append(
+                    "%s: link target %r ends in sentence punctuation"
+                    % (path.relative_to(root), link)
+                )
             try:
                 parsed = urlsplit(urljoin(page_url, link))
                 if parsed.scheme in {"mailto", "data"}:

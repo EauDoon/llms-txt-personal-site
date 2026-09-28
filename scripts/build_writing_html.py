@@ -41,6 +41,27 @@ def script_json(value):
             .replace(">", "\\u003e").replace("&", "\\u0026"))
 
 
+# Punctuation that ends a sentence rather than a URL. A bare link followed by
+# "text." must point at the address, not at a path whose last character is a
+# full stop, so the punctuation stays outside the anchor.
+LINK_TRAILING = ".,;:!?"
+
+
+def autolink(match):
+    """Wrap a bare URL, leaving sentence punctuation outside the anchor.
+
+    A full stop is a legal path character, so a greedy match publishes
+    https://example.com. as the destination and the link resolves nowhere.
+    """
+    url = match.group(0)
+    trimmed = url.rstrip(LINK_TRAILING)
+    # A bare scheme with nothing after it is not a URL worth linking.
+    if not re.match(r"https?://[^/?#]+", trimmed):
+        return url
+    tail = url[len(trimmed):]
+    return '<a href="%s">%s</a>%s' % (trimmed, trimmed, tail)
+
+
 def parse_front_matter(md):
     md = re.sub(r'^[\s\ufeff]+', '', md)
     m = re.match(r"\s*<!--(.*?)-->", md, re.DOTALL)
@@ -162,7 +183,7 @@ def md_to_html(md):
                 return placeholder
             return '<a href="%s">%s</a>' % (escaped_target, label)
         s = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", link, s)
-        s = re.sub(r"(?<![\">=/\w])(https?://[^\s<),]+)", r'<a href="\1">\1</a>', s)
+        s = re.sub(r"(?<![\">=/\w])(https?://[^\s<),]+)", autolink, s)
         for placeholder, inert_text in inert_links:
             s = s.replace(placeholder, inert_text)
         for marker, code in literal_code:
