@@ -136,11 +136,21 @@ def feed_issues(root, domain):
                 issues.append("feed.xml entry %s has no <%s>" % (label, field))
         stamps.append((label, entry.findtext(ATOM + "updated", "").strip()))
         entry_link = entry.find(ATOM + "link")
-        target = urlsplit(entry_link.get("href", "") if entry_link is not None else "")
-        if target.hostname is None or target.hostname.lower() != domain.lower():
+        href = entry_link.get("href", "") if entry_link is not None else ""
+        try:
+            target = urlsplit(href)
+        except ValueError:
+            target = None
+        if target is None or target.hostname is None or target.hostname.lower() != domain.lower():
             issues.append("feed.xml entry %s does not link to the configured site" % label)
-        elif not os.path.isfile(os.path.join(root, unquote(target.path).lstrip("/"))):
-            issues.append("feed.xml entry %s links to a missing build artifact %s" % (label, target.path))
+        else:
+            # Same hole as the search index: writing/../profile.html is a real
+            # file once the kernel resolves "..".
+            local = _local_path(href, domain, root)
+            if local == "invalid":
+                issues.append("feed.xml entry %s has an invalid same-site path" % label)
+            elif local is None or not local.is_file():
+                issues.append("feed.xml entry %s links to a missing build artifact %s" % (label, target.path))
     self_link = [link for link in feed.findall(ATOM + "link")
                  if "self" in link.get("rel", "").split()]
     if len(self_link) != 1 or self_link[0].get("href", "") != "https://%s/feed.xml" % domain:
