@@ -95,10 +95,15 @@ def opening_fence(line):
 
 
 def closes_fence(line, marker):
+    """A closer is a long enough run of backticks, then only spaces or tabs.
+
+    `strip("`")` treats a trailing space as content, so the fence never
+    closes and the rest of the page is rendered as code.
+    """
     candidate = fence_line(line)
     if candidate is None:
         return False
-    return len(candidate) >= len(marker) and candidate.strip("`") == ""
+    return re.fullmatch(r"`{%d,}[ \t]*" % len(marker), candidate) is not None
 
 
 def strip_guidance_comments(md):

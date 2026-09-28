@@ -118,6 +118,19 @@ class WritingHtmlTests(unittest.TestCase):
         self.assertIn('href="https://en.wikipedia.org/wiki/Foo_(bar)"', paren)
         self.assertNotIn("&gt", paren)
 
+    def test_closing_fence_may_have_trailing_whitespace(self) -> None:
+        # A closing fence is backticks and nothing else, but CommonMark allows
+        # spaces or a tab after them. Leaving those on the line keeps the fence
+        # open, so the rest of the page is published as code.
+        rendered = md_to_html("```\ncode\n``` \nAfter the fence.\n")
+        self.assertEqual(rendered, "<pre><code>code</code></pre>\n<p>After the fence.</p>")
+        tabbed = md_to_html("```python\ncode\n```\t\nAfter the fence.\n")
+        self.assertEqual(
+            tabbed,
+            '<pre><code class="language-python">code</code></pre>\n<p>After the fence.</p>',
+        )
+        self.assertNotIn("After the fence.", rendered.split("</code>")[0])
+
     def test_four_space_backtick_line_stays_inside_the_fence(self) -> None:
         # A closer may be indented by at most three spaces. Four spaces is
         # sample content; treating it as a closer renders the rest as prose.
