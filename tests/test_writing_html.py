@@ -217,6 +217,17 @@ class WritingHtmlTests(unittest.TestCase):
             "you@yourname.com is the only confirmed address.",
         )
         self.assertEqual(page_description("Title\nLast updated: 2026-01-01\nOne fact. Another fact."), "One fact.")
+        # A closing quote or parenthesis sits between the stop and the next
+        # sentence. Treating only ". " plus a capital as a boundary publishes
+        # both sentences as the description.
+        self.assertEqual(
+            page_description('Title\nShe said "Go now." Then she left the room.'),
+            'She said "Go now."',
+        )
+        self.assertEqual(
+            page_description("Title\nThe result is final. (See the note.) More follows here."),
+            "The result is final.",
+        )
 
     def test_writing_index_is_generated_from_markdown_not_edited_html(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

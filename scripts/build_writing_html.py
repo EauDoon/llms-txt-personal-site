@@ -444,10 +444,14 @@ def first_sentence(text):
 
     A period inside an email or hostname is not a boundary: the next word
     there is lowercase. A new sentence in this site's prose starts with a
-    capital letter.
+    capital letter. A closing quote or parenthesis can sit between the stop
+    and that next sentence, as in `now." Then` or `final. (See`.
     """
     text = " ".join(text.split())
-    return re.split(r"(?<=[.!?])\s+(?=[A-Z])", text, maxsplit=1)[0]
+    # Keep the stop and any closing quote or parenthesis. Splitting on that
+    # closer would publish `now.` and drop the quote that belongs to it.
+    match = re.search(r'(?<=[.!?])[\'")\]]*(?=\s+[A-Z("])', text)
+    return text[:match.end()] if match else text
 
 
 def page_description(rendered, heading=None):
