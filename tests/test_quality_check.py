@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import html
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -196,8 +197,14 @@ class QualityCheckTests(unittest.TestCase):
             site.mkdir()
             (site / "index.html").write_text(
                 '<!doctype html>\n'
+                '<html lang="en">\n'
+                '<head>\n'
+                '<title>Example | Example</title>\n'
+                '<meta name="description" content="An example page.">\n'
+                '<link rel="canonical" href="https://example.test/">\n'
                 '<link rel="alternate" type="text/markdown" href="/profile.md">\n'
-                '<link rel="describedby" href="/llms.txt">\n',
+                '<link rel="describedby" href="/llms.txt">\n'
+                '</head>\n',
                 encoding="utf-8",
             )
             (site / "profile.md").write_text(
@@ -206,8 +213,14 @@ class QualityCheckTests(unittest.TestCase):
             )
             (site / "profile.html").write_text(
                 '<!doctype html>\n'
+                '<html lang="en">\n'
+                '<head>\n'
+                '<title>Example profile | Example</title>\n'
+                '<meta name="description" content="An example profile page.">\n'
+                '<link rel="canonical" href="https://example.test/profile.html">\n'
                 '<link rel="alternate" type="text/markdown" href="/profile.md">\n'
-                '<link rel="describedby" href="/llms.txt">\n',
+                '<link rel="describedby" href="/llms.txt">\n'
+                '</head>\n',
                 encoding="utf-8",
             )
             (site / "search-index.json").write_text(
@@ -329,7 +342,7 @@ class QualityCheckTests(unittest.TestCase):
         )
 
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
-        self.assertIn("9. LIVE: LINKS AND SITEMAP", result.stdout)
+        self.assertIn("10. LIVE: LINKS AND SITEMAP", result.stdout)
         self.assertIn(
             "A2A is disabled locally but the live Agent Card path returned",
             result.stdout,
@@ -537,6 +550,65 @@ class QualityCheckTests(unittest.TestCase):
                     self.assertNotEqual(result.returncode, 0, result.stdout)
                     self.assertIn(message, result.stdout)
             robots_path.write_text(original, encoding="utf-8")
+
+
+    def test_page_head_metadata_defects_fail_the_gate(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            shutil.copytree(ROOT / "scripts", repo / "scripts", ignore=shutil.ignore_patterns("__pycache__"))
+            shutil.copytree(ROOT / "template", repo / "template")
+            (repo / "site.config.json").write_text(
+                (ROOT / "site.config.example.json").read_text(encoding="utf-8"), encoding="utf-8"
+            )
+            build = subprocess.run([sys.executable, str(repo / "scripts" / "build.py")], cwd=repo,
+                                   capture_output=True, text=True, check=False)
+            self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
+
+            def run_gate() -> subprocess.CompletedProcess[str]:
+                return subprocess.run([sys.executable, str(repo / "scripts" / "quality_check.py")],
+                                      cwd=repo, capture_output=True, text=True, check=False)
+
+            passed = run_gate()
+            self.assertEqual(passed.returncode, 0, passed.stdout + passed.stderr)
+            self.assertIn("3. PAGE HEAD METADATA", passed.stdout)
+
+            page_path = repo / "site" / "about.html"
+            original = page_path.read_text(encoding="utf-8")
+            broken = [
+                (re.sub(r'<meta name="description"[^>]*>\n?', "", original),
+                 "about.html has no non-empty <meta name=description>"),
+                (original.replace('<meta name="description" content=', '<meta name="description" content="" data-x=', 1),
+                 "about.html has no non-empty <meta name=description>"),
+                (re.sub(r'<link rel="canonical"[^>]*>\n?', "", original),
+                 "about.html has no <link rel=canonical>"),
+                (original.replace('<html lang="en">', "<html>"),
+                 "about.html has no non-empty <html lang>"),
+                (re.sub(r"<title>.*?</title>", "<title></title>", original, flags=re.S),
+                 "about.html has no non-empty <title>"),
+            ]
+            for text, message in broken:
+                with self.subTest(message=message):
+                    page_path.write_text(text, encoding="utf-8")
+                    result = run_gate()
+                    self.assertNotEqual(result.returncode, 0, result.stdout)
+                    self.assertIn(message, result.stdout)
+            page_path.write_text(original, encoding="utf-8")
+
+            # 404.html is noindex, so it is deliberately not required to carry
+            # a description or a canonical.
+            not_found = run_gate()
+            self.assertEqual(not_found.returncode, 0, not_found.stdout + not_found.stderr)
+
+    def test_every_indexable_built_page_declares_a_description(self) -> None:
+        for name in ("about.md", "changelog.md", "contact.md", "experience.md",
+                     "faq.md", "focus.md", "now.md", "press.md", "products.md",
+                     "profile.md", "writing/example-depth-page.md"):
+            with self.subTest(page=name):
+                rendered = (ROOT / "example" / name).with_suffix(".html").read_text(encoding="utf-8")
+                match = re.search(r'<meta name="description" content="([^"]*)"', rendered)
+                self.assertIsNotNone(match, name)
+                self.assertTrue(match.group(1).strip(), name)
+                self.assertIn("<link rel=\"canonical\"", rendered, name)
 
 
 if __name__ == "__main__":

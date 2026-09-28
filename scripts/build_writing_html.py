@@ -318,6 +318,26 @@ def visible_markdown_text(md):
     return markdown_display(md)[0]
 
 
+# Lines that restate the page rather than describe it, so they make a poor
+# meta description.
+DESCRIPTION_NOISE = re.compile(r"^(Last updated:|\d{4}-\d{2}-\d{2}\b|By\s)")
+
+
+def page_description(rendered):
+    """Return a page's first real sentence, or '' when it has none.
+
+    A description has to say something. Publishing an empty one leaves a search
+    result or an assistant with nothing to summarize the page from, so an
+    article that declares no `desc` borrows its own leading prose instead.
+    """
+    lines = [line.strip() for line in rendered.splitlines() if line.strip()]
+    for line in lines[1:]:
+        if DESCRIPTION_NOISE.match(line):
+            continue
+        return " ".join(line.split())
+    return ""
+
+
 def reading_estimate(md):
     # ponytail: whitespace words at 220/min; use locale-aware segmentation if needed.
     words = len(visible_markdown_text(md).split())
@@ -425,13 +445,13 @@ def render_page(slug, source, cfg, style=""):
 
     meta, md = parse_front_matter(source)
     title = meta.get("title") or slug.replace("-", " ").title()
-    desc = meta.get("desc", "")
+    content, outline = article_outline(md_to_html(md))
+    desc = meta.get("desc") or page_description(markdown_display(md)[0])
     about = [a.strip() for a in meta.get("about", "").split(",") if a.strip()]
     modified = validate_last_updated(meta.get("updated") or cfg.get("LAST_UPDATED"))
     published = validate_last_updated(meta["published"]) if meta.get("published") else None
     if published and published > modified:
         raise ValueError("article published date cannot follow updated date")
-    content, outline = article_outline(md_to_html(md))
     return SHELL.format(
         title=html.escape(title, quote=True),
         desc=html.escape(desc, quote=True),

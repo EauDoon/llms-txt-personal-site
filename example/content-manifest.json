@@ -21,8 +21,8 @@
     },
     {
       "path": "about.html",
-      "bytes": 3204,
-      "sha256": "b849cb07a62abceae44090ecbd9fd0244ca21c9e736c3032bf5d3b988748668a"
+      "bytes": 3526,
+      "sha256": "8e10f6d3b8c36f2465e1f6dbe01796ae22a0cde01cfaa14635e149f9367c6eb3"
     },
     {
       "path": "about.md",
@@ -31,8 +31,8 @@
     },
     {
       "path": "changelog.html",
-      "bytes": 2985,
-      "sha256": "cfa95daa0ad0de8bc63424a944e73216484961e107ae4ef055a9a1d7f9048a2d"
+      "bytes": 3139,
+      "sha256": "a21b3c85f0f2007de925f7a63be93deb6ec51aaa6c6fd99040d70854ce1f01f7"
     },
     {
       "path": "changelog.md",
@@ -41,8 +41,8 @@
     },
     {
       "path": "contact.html",
-      "bytes": 3433,
-      "sha256": "64b96a1f3bfe1af0d90eec93db604fa846796a7a7758c21695ed0ff7bf3ca780"
+      "bytes": 3657,
+      "sha256": "a121c781e7048fd3be8f0ddbc25395f9209ef3cc55c8004f4c83935502d11ae6"
     },
     {
       "path": "contact.md",
@@ -51,8 +51,8 @@
     },
     {
       "path": "experience.html",
-      "bytes": 2685,
-      "sha256": "08dbcd943181ca6db044017dd562b87750e4df9f9ce652c508a1c7c258d6f8d1"
+      "bytes": 2921,
+      "sha256": "eaa935eb23eb66506e6e73e08ccf7b49cc57e9f6251c9b43f39b48d26504ddaf"
     },
     {
       "path": "experience.md",
@@ -61,8 +61,8 @@
     },
     {
       "path": "faq.html",
-      "bytes": 2926,
-      "sha256": "6f65e91fb6274084a4706de922f82c40d08e0f80c7e07bcb29be453ffbfba83f"
+      "bytes": 3105,
+      "sha256": "0912015c8eb5953bdbcdc01d7a21537e4da6e4ca0dcf8b889a818a5faa68bbea"
     },
     {
       "path": "faq.md",
@@ -76,8 +76,8 @@
     },
     {
       "path": "focus.html",
-      "bytes": 2856,
-      "sha256": "0df6bda0744c8312d10480a19332713a71269388dd26d4e4bf811fd162e656a1"
+      "bytes": 3022,
+      "sha256": "d308bdd5aa81dfc6755a3cf5135dd8bd1c885a0c03a7baaa37b0c9357c4d3f5f"
     },
     {
       "path": "focus.md",
@@ -101,8 +101,8 @@
     },
     {
       "path": "now.html",
-      "bytes": 3141,
-      "sha256": "dbdd2aa03e37e2328a7e7e205ecd9349db6ff5daa0f0dc6d860292c9c426df3d"
+      "bytes": 3343,
+      "sha256": "b87668956a081b875f8410115447eef109fc498f65bdece484e647a569d0f812"
     },
     {
       "path": "now.md",
@@ -111,8 +111,8 @@
     },
     {
       "path": "press.html",
-      "bytes": 5937,
-      "sha256": "5db2b4505efe95f5a0f3102c9cfce48d9c6e213877a7d1c72e07eecf650c08c9"
+      "bytes": 6250,
+      "sha256": "b510616ec1674be285dacdbc2b029b067ac762ef5742fec11f013ac71a269684"
     },
     {
       "path": "press.md",
@@ -121,8 +121,8 @@
     },
     {
       "path": "products.html",
-      "bytes": 2570,
-      "sha256": "65a0a6f77466aa76eafa45c841637e53d4c916014aae53d14a6bc53f97daa7a5"
+      "bytes": 2763,
+      "sha256": "abd352eb2facf7c771a61ac19decdf0ddba6d673a92dd64ceef895b27b486c9e"
     },
     {
       "path": "products.md",
@@ -131,8 +131,8 @@
     },
     {
       "path": "profile.html",
-      "bytes": 3649,
-      "sha256": "db410d697e377bcf7e60456def6e24f7e989ec4150b9b5759813d43694855c67"
+      "bytes": 3840,
+      "sha256": "22255a02ee4aa303f2b08647ce4da7d42b909fd4d3d62c36866e385bae70e4dc"
     },
     {
       "path": "profile.md",
@@ -151,8 +151,8 @@
     },
     {
       "path": "search.html",
-      "bytes": 3769,
-      "sha256": "59720100da302efdb38c926888ecfb501ed492d0a7934645c0ce27e64bfe9345"
+      "bytes": 3961,
+      "sha256": "5838cd50351613065c275965ce8dd014b9c70d02b456b61080bd8b6c445b2014"
     },
     {
       "path": "search.js",
@@ -171,8 +171,8 @@
     },
     {
       "path": "topics.html",
-      "bytes": 2033,
-      "sha256": "e17b184636afef9afcc0258c25675a3794819a0219ef8b659971adea2eac11e8"
+      "bytes": 2210,
+      "sha256": "37b44ec4f0322a5a6615e3fc7c74510df8f492bbd9221f0ce8a3163f011ae047"
     },
     {
       "path": "topics.md",
@@ -186,8 +186,8 @@
     },
     {
       "path": "writing/example-depth-page.html",
-      "bytes": 6812,
-      "sha256": "432f5a4325a017bfee7f4fdee315223f61af94c89ea3fe5c2ed4644279c170d2"
+      "bytes": 7397,
+      "sha256": "d6d0844249dfb022919745519d30ba5fc368ed153cfdcef93f4f86beff671c29"
     },
     {
       "path": "writing/example-depth-page.md",
@@ -196,8 +196,8 @@
     },
     {
       "path": "writing.html",
-      "bytes": 2387,
-      "sha256": "1307ec10994708862f1cee42d6b26e520278b1b429aa8769e259a2040136d194"
+      "bytes": 2576,
+      "sha256": "4dd96ebbf2c50e717670354bd06f7c8acbce33de798cdb8b4a74b7ab5d159fb3"
     },
     {
       "path": "writing.md",
