@@ -91,6 +91,21 @@ class WritingHtmlTests(unittest.TestCase):
         self.assertIn('<a href="https://a.test/x.b/c?d=1">', rendered)
         self.assertIn("</a>. done", rendered)
 
+    def test_balanced_parentheses_stay_in_link_destinations(self) -> None:
+        # Wikipedia-style paths are legal URLs. Stopping at the first ")"
+        # publishes a destination that does not exist.
+        rendered = md_to_html(
+            "See [wiki](https://en.wikipedia.org/wiki/Foo_(bar)).\n\n"
+            "Bare https://en.wikipedia.org/wiki/Foo_(bar)."
+        )
+
+        self.assertEqual(rendered.count('href="https://en.wikipedia.org/wiki/Foo_(bar)"'), 2)
+        self.assertNotIn('href="https://en.wikipedia.org/wiki/Foo_(bar"', rendered)
+        self.assertIn("</a>.", rendered)
+        wrapped = md_to_html("(see https://example.com/a).")
+        self.assertIn('href="https://example.com/a"', wrapped)
+        self.assertNotIn('href="https://example.com/a)"', wrapped)
+
     def test_writing_index_is_generated_from_markdown_not_edited_html(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             site = Path(directory)

@@ -182,8 +182,15 @@ def md_to_html(md):
                 inert_links.append((placeholder, "%s (%s)" % (label, escaped_target)))
                 return placeholder
             return '<a href="%s">%s</a>' % (escaped_target, label)
-        s = re.sub(r"\[([^\]]+)\]\(([^)]+)\)", link, s)
-        s = re.sub(r"(?<![\">=/\w])(https?://[^\s<),]+)", autolink, s)
+        # One level of parentheses is part of the destination. Cutting at the
+        # first ")" turns https://en.wikipedia.org/wiki/Foo_(bar) into a path
+        # that never existed.
+        s = re.sub(r"\[([^\]]+)\]\(((?:[^()]|\([^()]*\))+)\)", link, s)
+        s = re.sub(
+            r"(?<![\">=/\w])(https?://[^\s<),()]+(?:\([^\s<)]*\)[^\s<),()]*)*)",
+            autolink,
+            s,
+        )
         for placeholder, inert_text in inert_links:
             s = s.replace(placeholder, inert_text)
         for marker, code in literal_code:
