@@ -129,8 +129,13 @@ def feed_issues(root, domain):
         if feed.findtext(ATOM + field, "").strip() == "":
             issues.append("feed.xml has no <%s>" % field)
     stamps = [("", feed.findtext(ATOM + "updated", "").strip())]
+    seen_ids = []
     for entry in feed.findall(ATOM + "entry"):
         label = entry.findtext(ATOM + "id", "").strip() or "<entry without an id>"
+        if label != "<entry without an id>":
+            if label in seen_ids:
+                issues.append("feed.xml repeats entry id %s" % label)
+            seen_ids.append(label)
         for field in ("id", "title", "updated"):
             if entry.findtext(ATOM + field, "").strip() == "":
                 issues.append("feed.xml entry %s has no <%s>" % (label, field))
