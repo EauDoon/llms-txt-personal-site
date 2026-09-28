@@ -2,6 +2,7 @@
 import html
 import json
 import hashlib
+import re
 import unicodedata
 from pathlib import Path
 from urllib.parse import quote, unquote
@@ -47,7 +48,6 @@ def date_labels(entry, cfg):
 
 def topic_key(topic):
     return unicodedata.normalize('NFC', ' '.join(topic.split())).casefold()
-
 
 def topic_id(topic):
     return 'topic-' + hashlib.sha256(topic_key(topic).encode('utf-8')).hexdigest()[:20]
@@ -109,15 +109,32 @@ def build_topics(site_dir, cfg, entries):
             markdown += '- [%s](%s)\n' % (markdown_label(entry['title']), entry['source'])
         body += '</ul></section>'
         markdown += '\n'
-    (Path(site_dir) / 'topics.html').write_text(page('Topics', body, cfg), encoding='utf-8', newline='')
+    (Path(site_dir) / 'topics.html').write_text(
+        page('Topics', body, cfg,
+             desc="Published writing by %s, grouped by the topics its author supplied." % cfg["FULL_NAME"],
+             canonical="https://%s/topics.html" % cfg["DOMAIN"]),
+        encoding='utf-8', newline='')
     (Path(site_dir) / 'topics.md').write_text(markdown, encoding='utf-8', newline='')
 
 
-def page(title, body, cfg, source=None, heading=True):
+# Lines that restate the page rather than describe it, so they are not a
+# useful meta description.
+DESCRIPTION_NOISE = re.compile(r"^(Last updated:|\d{4}-\d{2}-\d{2}\.?)$")
+
+
+def page(title, body, cfg, source=None, heading=True, desc=None, canonical=None):
     esc = html.escape
+    description = (
+        '<meta name="description" content="%s">' % esc(desc, quote=True) if desc else ''
+    )
+    # An undeclared canonical lets a host or scraper pick one, so a page that
+    # names no canonical states its own address.
+    canonical_link = (
+        '<link rel="canonical" href="%s">' % esc(canonical, quote=True) if canonical else ''
+    )
     return '''<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>%s | %s</title><link rel="describedby" href="/llms.txt">
+<title>%s | %s</title>%s%s<link rel="describedby" href="/llms.txt">
 <link rel="alternate" type="application/atom+xml" href="/feed.xml" title="Writing feed">
 <link rel="alternate" type="text/markdown" href="%s" title="Source in Markdown">
 <style>
@@ -137,7 +154,8 @@ pre,.table-scroll { overflow-x: auto; max-width: 100%%; } pre { padding: 1rem; b
 </style></head><body><a class="skip" href="#main-content">Skip to content</a>
 <nav aria-label="Site"><a href="/">%s</a> · <a href="/writing.html">Writing</a> · <a href="/topics.html">Topics</a> · <a href="/search.html">Search</a> · <a href="/llms.txt">Machine-readable index</a></nav>
 <main id="main-content">%s%s</main></body></html>
-''' % (esc(title), esc(cfg["FULL_NAME"]), esc(source or '/' + title.lower() + '.md', quote=True),
+''' % (esc(title), esc(cfg["FULL_NAME"]), description, canonical_link,
+       esc(source or '/' + title.lower() + '.md', quote=True),
        esc(cfg["FULL_NAME"]), '<h1>%s</h1>' % esc(title) if heading else '', body)
 
 
@@ -154,7 +172,11 @@ def run(site_dir, cfg):
     body += '<p>Latest declared article dates first. Articles without dates follow in title order.</p>'
     body += '<p><a href="/feed.xml">Subscribe to the writing feed</a> in an Atom reader.</p>'
     body += '<ul>%s</ul>' % "".join(rows) if rows else '<p>No writing pages have been published.</p>'
-    (Path(site_dir) / "writing.html").write_text(page("Writing", body, cfg), encoding="utf-8", newline="")
+    (Path(site_dir) / "writing.html").write_text(
+        page("Writing", body, cfg,
+             desc="An index of published writing by %s, with dates, topics, and Markdown sources." % cfg["FULL_NAME"],
+             canonical="https://%s/writing.html" % cfg["DOMAIN"]),
+        encoding="utf-8", newline="")
     markdown = "# Writing\n\nLast updated: %s\n\n" % cfg["LAST_UPDATED"]
     markdown += "\n".join(("- [%s](%s)" % (markdown_label(entry["title"]), entry["source"])) + (": " + html.escape(entry["description"], quote=False) if entry["description"] else "")
                           + ' (' + '; '.join(label + ': ' + date for label, date in date_labels(entry, cfg)) + ')' for entry in entries)
@@ -236,7 +258,11 @@ def build_search(site_dir, cfg, entries):
 <p id="search-status" role="status" aria-live="polite">All published pages. Search requires JavaScript.</p>
 <button id="search-retry" type="button" hidden>Retry search</button>
 <ul id="search-results">%s</ul><button id="search-more" type="button" hidden>Show more results</button><script src="/search.js" defer></script>''' % (options, links)
-    (Path(site_dir) / "search.html").write_text(page("Search", body, cfg), encoding="utf-8", newline="")
+    (Path(site_dir) / "search.html").write_text(
+        page("Search", body, cfg,
+             desc="Search the published pages of %s. Search runs in the browser and needs no account." % cfg["FULL_NAME"],
+             canonical="https://%s/search.html" % cfg["DOMAIN"]),
+        encoding="utf-8", newline="")
     markdown = "# Search and page directory\n\nLast updated: %s\n\nSearch runs locally in the browser at /search.html. Published pages:\n\n" % cfg["LAST_UPDATED"]
     markdown += "\n".join("- [%s](%s)" % (markdown_label(record["title"]), record["url"]) for record in records)
     (Path(site_dir) / "search.md").write_text(markdown + "\n", encoding="utf-8", newline="")

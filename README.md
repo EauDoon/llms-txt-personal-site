@@ -134,6 +134,8 @@ The build follows the [llms.txt v2 proposal](https://llmstxt.org/). Its checks c
 
 HTML pages advertise their Markdown version with `rel="alternate"` and the index with `rel="describedby"`. The supplied hosting rules also expose the index through HTTP `Link` headers.
 
+Every indexable page must also declare a document language, a title, a meta description, and a canonical URL. The builder derives each description from the page's own leading prose rather than a separate string, so a description cannot drift away from the page it describes. A page marked `noindex`, such as `404.html`, is exempt because a search result would never show it.
+
 These are structural and consistency checks. They do not verify sources, prove a biography is accurate, or measure whether an assistant will use it.
 
 ## Check answers against your sources

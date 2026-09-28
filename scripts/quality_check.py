@@ -16,6 +16,7 @@ import re
 import sys
 import xml.etree.ElementTree as ET
 from collections import Counter
+from html.parser import HTMLParser
 from urllib.parse import unquote, urlsplit
 
 from a2a_agent_card import load_agent_card, validate_agent_card
@@ -303,7 +304,74 @@ if EMAIL:
     else:
         print("  ok   email %s" % sorted(found))
 
-head("3. STRUCTURED DATA")
+head("3. PAGE HEAD METADATA")
+class _Head(HTMLParser):
+    """Collect the head facts every indexable page has to declare."""
+
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.lang = None
+        self.description = None
+        self.robots = None
+        self.canonical = None
+        self.title = ""
+        self.in_title = False
+
+    def handle_starttag(self, tag, attrs):
+        values = {key.lower(): value or "" for key, value in attrs}
+        if tag == "html":
+            self.lang = values.get("lang", "").strip() or None
+        elif tag == "title":
+            self.in_title = True
+        elif tag == "meta":
+            name = (values.get("name") or values.get("property") or "").lower()
+            if name == "description" and self.description is None:
+                self.description = values.get("content", "").strip() or None
+            elif name == "robots" and self.robots is None:
+                self.robots = values.get("content", "").strip() or None
+        elif tag == "link" and "canonical" in values.get("rel", "").lower().split():
+            self.canonical = values.get("href", "").strip() or None
+
+    def handle_startendtag(self, tag, attrs):
+        self.handle_starttag(tag, attrs)
+
+    def handle_data(self, data):
+        if self.in_title:
+            self.title += data
+
+    def handle_endtag(self, tag):
+        if tag == "title":
+            self.in_title = False
+
+
+for rel, p in sources():
+    if not rel.endswith(".html"):
+        continue
+    head_facts = _Head()
+    head_facts.feed(read(p))
+    head_facts.close()
+    head_facts.title = head_facts.title.strip()
+    problems = []
+    if not head_facts.lang:
+        problems.append("%s has no non-empty <html lang>" % rel)
+    if not head_facts.title:
+        problems.append("%s has no non-empty <title>" % rel)
+    # A page marked noindex is not an indexable result, so a description would
+    # never be shown. Only indexable pages are required to carry one.
+    indexed = "noindex" not in (head_facts.robots or "").lower()
+    if indexed and not head_facts.description:
+        problems.append("%s has no non-empty <meta name=description>" % rel)
+    if indexed and not head_facts.canonical:
+        problems.append("%s has no <link rel=canonical>" % rel)
+    for problem in problems:
+        fails.append(problem)
+        print("  FAIL %s" % problem)
+    if not problems:
+        print("  ok   %-40s lang=%s desc=%s canonical=%s"
+              % (rel, head_facts.lang, "yes" if head_facts.description else "noindex",
+                 head_facts.canonical or "none"))
+
+head("4. STRUCTURED DATA")
 for rel, p in sources():
     if not rel.endswith(".html") or rel == "404.html":
         continue
@@ -327,7 +395,7 @@ for rel, p in sources():
             fails.append("%s JSON-LD invalid" % rel)
             print("  FAIL %-40s %s" % (rel, e))
 
-head("4. LLMS.TXT V2")
+head("5. LLMS.TXT V2")
 llms_path = os.path.join(R, "llms.txt")
 if not os.path.isfile(llms_path):
     fails.append("llms.txt is missing")
@@ -355,7 +423,7 @@ for rel, p in sources():
         fails.append("%s does not advertise %s" % (rel, markdown))
         print("  FAIL %-40s missing Markdown alternate" % rel)
 
-head("5. OPTIONAL A2A V1 AGENT CARD")
+head("6. OPTIONAL A2A V1 AGENT CARD")
 card_path = os.path.join(R, ".well-known", "agent-card.json")
 if not os.path.exists(card_path):
     print("  ok   disabled; no Agent Card is published for this static site")
@@ -375,7 +443,7 @@ else:
         if agent_card.get("signatures"):
             print("  note signature fields are present; cryptographic verification is external")
 
-head("6. LAST-UPDATED DATES")
+head("7. LAST-UPDATED DATES")
 configured_lastmod = _cfg.get("LAST_UPDATED")
 try:
     expected_lastmod = validate_last_updated(configured_lastmod)
@@ -400,7 +468,7 @@ for rel, p in sources():
         print("  FAIL %-40s invalid Last updated date" % rel)
 print("  (files with a date are not listed)")
 
-head("7. GENERATED FILE IS IN SYNC")
+head("8. GENERATED FILE IS IN SYNC")
 lf = os.path.join(R, "llms-full.txt")
 if os.path.exists(lf):
     t = read(lf)
@@ -436,7 +504,7 @@ for issue in feed_problems:
 if not feed_problems:
     print("  ok   feed.xml is a valid Atom feed for %s" % DOMAIN)
 
-head("8. SITEMAP MATCHES BUILD OUTPUT")
+head("9. SITEMAP MATCHES BUILD OUTPUT")
 sitemap_path = os.path.join(R, "sitemap.xml")
 try:
     root = ET.parse(sitemap_path).getroot()
@@ -522,7 +590,7 @@ else:
         print("  ok   robots.txt points crawlers at %s" % expected_sitemap)
 
 if LIVE:
-    head("9. LIVE: LINKS AND SITEMAP")
+    head("10. LIVE: LINKS AND SITEMAP")
     links = set()
     for rel, p in sources():
         for m in re.finditer(r"https://" + re.escape(DOMAIN) + r"(/[^\s)\"'<>\]]*)?", read(p)):

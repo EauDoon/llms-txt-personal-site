@@ -4,7 +4,13 @@ from pathlib import Path
 from urllib.parse import quote
 
 from build_catalog import page
-from build_writing_html import article_outline, markdown_display, md_to_html, parse_front_matter
+from build_writing_html import (
+    article_outline,
+    markdown_display,
+    md_to_html,
+    page_description,
+    parse_front_matter,
+)
 
 RESERVED = {'index', 'writing', 'search', 'topics'}
 
@@ -22,4 +28,8 @@ def run(site_dir, cfg):
             content = '<h1>%s</h1>' % html.escape(title) + content
         route = '/' + quote(source.name, safe='-._~')
         content = outline + content + '<p><a href="%s">Read the original Markdown source</a></p>' % route
-        target.write_text(page(title, content, cfg, source=route, heading=False), encoding='utf-8', newline='')
+        target.write_text(
+            page(title, content, cfg, source=route, heading=False,
+                 desc=page_description(markdown_display(body)[0]),
+                 canonical="https://%s%s" % (cfg["DOMAIN"], route[:-3] + ".html")),
+            encoding='utf-8', newline='')
