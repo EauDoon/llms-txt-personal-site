@@ -106,6 +106,21 @@ class WritingHtmlTests(unittest.TestCase):
         self.assertIn('href="https://example.com/a"', wrapped)
         self.assertNotIn('href="https://example.com/a)"', wrapped)
 
+    def test_angle_bracket_url_inside_a_markdown_link_stays_one_anchor(self) -> None:
+        # The autolinker runs on text that is already an anchor. A label or
+        # destination written as <https://...> is escaped to &lt;...&gt; and
+        # then wrapped in a second anchor, so the markup is no longer HTML.
+        label = md_to_html("[see <https://example.com/a>](https://example.com/b)")
+        self.assertEqual(
+            label,
+            '<p><a href="https://example.com/b">see &lt;https://example.com/a&gt;</a></p>',
+        )
+        destination = md_to_html("[Docs](<https://example.com/a>)")
+        self.assertEqual(
+            destination,
+            '<p><a href="https://example.com/a">Docs</a></p>',
+        )
+
     def test_angle_bracket_urls_do_not_include_the_escaped_closer(self) -> None:
         # The source is escaped before autolinking, so <https://example.com/a>
         # becomes a destination of https://example.com/a&gt and the semicolon
