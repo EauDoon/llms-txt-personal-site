@@ -91,6 +91,17 @@ class WritingHtmlTests(unittest.TestCase):
         self.assertIn('<a href="https://a.test/x.b/c?d=1">', rendered)
         self.assertIn("</a>. done", rendered)
 
+    def test_markdown_link_title_is_not_part_of_the_href(self) -> None:
+        # The destination ends at the first space. A title, or a stray second
+        # token, was published inside the href, so the link resolved nowhere.
+        rendered = md_to_html('[Docs](https://example.com/a "The title")')
+        self.assertEqual(rendered, '<p><a href="https://example.com/a">Docs</a></p>')
+        single = md_to_html("[Docs](https://example.com/a 'The title')")
+        self.assertEqual(single, '<p><a href="https://example.com/a">Docs</a></p>')
+        spaced = md_to_html("[Docs](https://example.com/a leftover)")
+        self.assertNotIn("<a href=", spaced)
+        self.assertIn("https://example.com/a leftover", spaced)
+
     def test_balanced_parentheses_stay_in_link_destinations(self) -> None:
         # Wikipedia-style paths are legal URLs. Stopping at the first ")"
         # publishes a destination that does not exist.

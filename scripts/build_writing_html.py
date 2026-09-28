@@ -47,6 +47,46 @@ def script_json(value):
 LINK_TRAILING = ".,;:!?"
 
 
+def _quoted_title(value):
+    """Return whether leftover destination text is a markdown link title."""
+    return (
+        len(value) >= 2
+        and "\n" not in value
+        and (
+            (value[0] == value[-1] == '"')
+            or (value[0] == value[-1] == "'")
+            or (value[0] == "(" and value[-1] == ")")
+        )
+    )
+
+
+def markdown_destination(target):
+    """Return the URL, dropping a title that would otherwise sit in the href.
+
+    A space ends an unbracketed destination. What follows must be a quoted
+    title; a stray second token is not a URL. Angle brackets delimit the
+    destination and are not part of it.
+    """
+    target = target.strip()
+    if not target:
+        return None
+    if target[0] == "<":
+        match = re.fullmatch(r"<([^<>]*)>(?:\s+(.+))?", target, re.S)
+        if not match:
+            return None
+        destination, title = match.group(1).strip(), match.group(2)
+        if title is not None and not _quoted_title(title.strip()):
+            return None
+        return destination or None
+    match = re.fullmatch(r"(\S+)(?:\s+(.+))?", target, re.S)
+    if not match:
+        return None
+    destination, title = match.group(1), match.group(2)
+    if title is not None and not _quoted_title(title.strip()):
+        return None
+    return destination
+
+
 def autolink(match):
     """Wrap a bare URL, leaving sentence punctuation outside the anchor.
 
@@ -188,17 +228,13 @@ def md_to_html(md):
         rendered_links = []
         def link(match):
             label, escaped_target = match.groups()
-            target = restore_entities(html.unescape(escaped_target), escaped=False).strip()
-            # [Docs](<https://example.com/a>) is one destination. Leaving the
-            # brackets in the href makes the autolinker nest a second anchor.
-            href = escaped_target
-            if len(target) >= 2 and target[0] == "<" and target[-1] == ">":
-                inner = target[1:-1].strip()
-                if inner:
-                    target = inner
-                    href = html.escape(inner, quote=True)
+            raw = restore_entities(html.unescape(escaped_target), escaped=False).strip()
+            # A title or a second token used to be copied into the href.
+            # Angle brackets stay delimiters, as in [Docs](<https://example.com/a>).
+            target = markdown_destination(raw)
+            href = escaped_target if target == raw else html.escape(target or "", quote=True)
             try:
-                scheme = urlsplit(target).scheme.lower()
+                scheme = urlsplit(target).scheme.lower() if target is not None else "unsafe"
             except ValueError:
                 scheme = "unsafe"
             unsafe = (
