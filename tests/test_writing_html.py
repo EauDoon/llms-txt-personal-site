@@ -68,6 +68,29 @@ class WritingHtmlTests(unittest.TestCase):
             md_to_html("[query](HTTPS://example.test/path?x=1&y=2)"),
         )
 
+    def test_bare_url_autolink_excludes_sentence_punctuation(self) -> None:
+        # A full stop is a legal path character, so a greedy match publishes a
+        # destination that resolves nowhere.
+        for markdown, expected in (
+            ("See https://employer.example.com. Next", '<a href="https://employer.example.com">'),
+            ("More https://a.test/b, here", '<a href="https://a.test/b">'),
+            ("End https://a.test/b! Now", '<a href="https://a.test/b">'),
+            ("Q https://a.test/b? Then", '<a href="https://a.test/b">'),
+            ("Semi https://a.test/b; Next", '<a href="https://a.test/b">'),
+        ):
+            with self.subTest(markdown=markdown):
+                self.assertIn(expected, md_to_html(markdown))
+                for terminator in ".,;:!?":
+                    self.assertNotIn(
+                        '<a href="https://a.test/b%s"' % terminator, md_to_html(markdown)
+                    )
+
+    def test_bare_url_autolink_keeps_interior_path_characters(self) -> None:
+        rendered = md_to_html("Path https://a.test/x.b/c?d=1. done")
+
+        self.assertIn('<a href="https://a.test/x.b/c?d=1">', rendered)
+        self.assertIn("</a>. done", rendered)
+
     def test_writing_index_is_generated_from_markdown_not_edited_html(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             site = Path(directory)
