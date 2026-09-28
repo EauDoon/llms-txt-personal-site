@@ -253,11 +253,38 @@ def md_to_html(md):
             placeholder = '<span data-rendered-link="%d"></span>' % len(rendered_links)
             rendered_links.append((placeholder, '<a href="%s">%s</a>' % (href, label)))
             return placeholder
+        def image(match):
+            # ![alt](url) is an image. The link parser otherwise consumes
+            # [alt](url) and leaves the "!" in the page as a broken link.
+            alt, escaped_target = match.groups()
+            raw = restore_entities(html.unescape(escaped_target), escaped=False).strip()
+            target = markdown_destination(raw)
+            try:
+                scheme = urlsplit(target).scheme.lower() if target else "unsafe"
+            except ValueError:
+                scheme = "unsafe"
+            safe = (
+                target
+                and scheme in {"", "http", "https"}
+                and not target.startswith("//")
+                and "\\" not in target
+                and not any(ord(character) < 0x20 or ord(character) == 0x7f for character in target)
+            )
+            if not safe:
+                placeholder = '<span data-inert-markdown-link="%d"></span>' % len(inert_links)
+                inert_links.append((placeholder, "%s (%s)" % (alt, escaped_target)))
+                return placeholder
+            src = escaped_target if target == raw else html.escape(target, quote=True)
+            placeholder = '<span data-rendered-link="%d"></span>' % len(rendered_links)
+            rendered_links.append((placeholder, '<img src="%s" alt="%s">' % (src, alt)))
+            return placeholder
         # One level of parentheses is part of the destination. Cutting at the
         # first ")" turns https://en.wikipedia.org/wiki/Foo_(bar) into a path
         # that never existed.
         url_body = r"https?://[^\s<),()]+(?:\([^\s<)]*\)[^\s<),()]*)*"
-        s = re.sub(r"\[([^\]]+)\]\(((?:[^()]|\([^()]*\))+)\)", link, s)
+        destination = r"\(((?:[^()]|\([^()]*\))+)\)"
+        s = re.sub(r"!\[([^\]]*)\]" + destination, image, s)
+        s = re.sub(r"\[([^\]]+)\]" + destination, link, s)
 
         def bracketed(match):
             # HTML escaping already turned the angle brackets into entities.
