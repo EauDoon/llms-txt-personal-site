@@ -185,9 +185,18 @@ def md_to_html(md):
         s = "".join(parts)
         s = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
         inert_links = []
+        rendered_links = []
         def link(match):
             label, escaped_target = match.groups()
             target = restore_entities(html.unescape(escaped_target), escaped=False).strip()
+            # [Docs](<https://example.com/a>) is one destination. Leaving the
+            # brackets in the href makes the autolinker nest a second anchor.
+            href = escaped_target
+            if len(target) >= 2 and target[0] == "<" and target[-1] == ">":
+                inner = target[1:-1].strip()
+                if inner:
+                    target = inner
+                    href = html.escape(inner, quote=True)
             try:
                 scheme = urlsplit(target).scheme.lower()
             except ValueError:
@@ -203,7 +212,11 @@ def md_to_html(md):
                 placeholder = '<span data-inert-markdown-link="%d"></span>' % len(inert_links)
                 inert_links.append((placeholder, "%s (%s)" % (label, escaped_target)))
                 return placeholder
-            return '<a href="%s">%s</a>' % (escaped_target, label)
+            # Hold the anchor out of the autolink pass. A label that itself
+            # contains <https://...> would otherwise be wrapped again.
+            placeholder = '<span data-rendered-link="%d"></span>' % len(rendered_links)
+            rendered_links.append((placeholder, '<a href="%s">%s</a>' % (href, label)))
+            return placeholder
         # One level of parentheses is part of the destination. Cutting at the
         # first ")" turns https://en.wikipedia.org/wiki/Foo_(bar) into a path
         # that never existed.
@@ -224,6 +237,8 @@ def md_to_html(md):
         s = re.sub(r"(?<![\">=/\w])(" + url_body + r")", autolink, s)
         for placeholder, inert_text in inert_links:
             s = s.replace(placeholder, inert_text)
+        for placeholder, rendered in rendered_links:
+            s = s.replace(placeholder, rendered)
         for marker, code in literal_code:
             s = s.replace(marker, code)
         return restore_entities(s)
