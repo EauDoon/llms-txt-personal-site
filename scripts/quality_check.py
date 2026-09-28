@@ -632,11 +632,24 @@ else:
             print("  FAIL robots.txt Sitemap is %s, not %s" % (value, expected_sitemap))
     # A bare Disallow: / for unspecified agents contradicts the file's own
     # header, which states the site is meant to be crawled and cited.
-    catch_all_blocked, in_catch_all = False, False
+    # Consecutive User-agent lines are one group. Remembering only the latest
+    # agent misses Disallow: / when * is listed beside another crawler.
+    # The colon may have no space after it: Disallow:/ is the same rule.
+    catch_all_blocked = False
+    agents, started_rules = [], False
     for line in lines:
+        if not line or line.startswith("#"):
+            if not line:
+                agents, started_rules = [], False
+            continue
         if line.casefold().startswith("user-agent:"):
-            in_catch_all = line.split(":", 1)[1].strip() == "*"
-        elif in_catch_all and line.casefold() == "disallow: /":
+            if started_rules:
+                agents, started_rules = [], False
+            agents.append(line.split(":", 1)[1].strip())
+            continue
+        started_rules = True
+        directive, _, value = line.partition(":")
+        if directive.casefold() == "disallow" and value.strip() == "/" and "*" in agents:
             catch_all_blocked = True
     if catch_all_blocked:
         fails.append("robots.txt blocks every unspecified crawler with 'Disallow: /'")

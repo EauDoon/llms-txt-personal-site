@@ -585,6 +585,15 @@ class QualityCheckTests(unittest.TestCase):
                  "robots.txt declares no Sitemap"),
                 (original.replace("User-agent: *\nAllow: /", "User-agent: *\nDisallow: /"),
                  "robots.txt blocks every unspecified crawler with 'Disallow: /'"),
+                # The same group names * and another agent. The check kept only
+                # the latest agent, so Disallow: / was not applied to *.
+                (original.replace(
+                    "User-agent: *\nAllow: /",
+                    "User-agent: *\nUser-agent: Bingbot\nDisallow: /",
+                ),
+                 "robots.txt blocks every unspecified crawler with 'Disallow: /'"),
+                (original.replace("User-agent: *\nAllow: /", "User-agent: *\nDisallow:/"),
+                 "robots.txt blocks every unspecified crawler with 'Disallow: /'"),
             ]
             for text, message in broken:
                 with self.subTest(message=message):
