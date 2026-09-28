@@ -8,7 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
-from build_writing_html import md_to_html, run
+from build_writing_html import md_to_html, page_description, run
 
 
 class WritingHtmlTests(unittest.TestCase):
@@ -127,6 +127,20 @@ class WritingHtmlTests(unittest.TestCase):
         self.assertIn('<pre><code class="language-text">&lt;!-- literal --&gt;</code></pre>', listed)
         self.assertIn("<p>After</p>", listed)
         self.assertNotIn("<!-- literal -->", listed)
+
+    def test_page_description_stops_at_the_first_sentence(self) -> None:
+        # A domain or email contains a period that is not the end of the
+        # sentence. The following sentence must not be published as the
+        # description of the page.
+        rendered = (
+            "Title\n"
+            "you@yourname.com is the only confirmed address. Any other address is not."
+        )
+        self.assertEqual(
+            page_description(rendered),
+            "you@yourname.com is the only confirmed address.",
+        )
+        self.assertEqual(page_description("Title\nLast updated: 2026-01-01\nOne fact. Another fact."), "One fact.")
 
     def test_writing_index_is_generated_from_markdown_not_edited_html(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

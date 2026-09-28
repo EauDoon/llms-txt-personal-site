@@ -21,8 +21,8 @@
     },
     {
       "path": "about.html",
-      "bytes": 3526,
-      "sha256": "8e10f6d3b8c36f2465e1f6dbe01796ae22a0cde01cfaa14635e149f9367c6eb3"
+      "bytes": 3361,
+      "sha256": "e28dd66a011160406a545586d596d3f572e60a15c3f67bcbaa94e1f52d98fea4"
     },
     {
       "path": "about.md",
@@ -41,8 +41,8 @@
     },
     {
       "path": "contact.html",
-      "bytes": 3657,
-      "sha256": "a121c781e7048fd3be8f0ddbc25395f9209ef3cc55c8004f4c83935502d11ae6"
+      "bytes": 3579,
+      "sha256": "92982d73e7e28b0f1cfb3b1dff4a6cd938cbd3b5db0915a0ca8344c4c992e752"
     },
     {
       "path": "contact.md",
@@ -51,8 +51,8 @@
     },
     {
       "path": "experience.html",
-      "bytes": 2921,
-      "sha256": "eaa935eb23eb66506e6e73e08ccf7b49cc57e9f6251c9b43f39b48d26504ddaf"
+      "bytes": 2837,
+      "sha256": "f6a087fb72220089241dab0bfb40e9f5e6a7ad8a587986afdd43c8ca04bfee25"
     },
     {
       "path": "experience.md",
@@ -61,8 +61,8 @@
     },
     {
       "path": "faq.html",
-      "bytes": 3105,
-      "sha256": "0912015c8eb5953bdbcdc01d7a21537e4da6e4ca0dcf8b889a818a5faa68bbea"
+      "bytes": 3062,
+      "sha256": "06cc4acfc7c89d2c5e4557ee0e089ec9adfd9e1397a9e7cb987a0b5593820825"
     },
     {
       "path": "faq.md",
@@ -101,8 +101,8 @@
     },
     {
       "path": "now.html",
-      "bytes": 3343,
-      "sha256": "b87668956a081b875f8410115447eef109fc498f65bdece484e647a569d0f812"
+      "bytes": 3276,
+      "sha256": "3545c5276c0316dc46d5cbdb2a71bf86021ab4034c7809af79f31dfcccdc02ce"
     },
     {
       "path": "now.md",
@@ -111,8 +111,8 @@
     },
     {
       "path": "press.html",
-      "bytes": 6250,
-      "sha256": "b510616ec1674be285dacdbc2b029b067ac762ef5742fec11f013ac71a269684"
+      "bytes": 6103,
+      "sha256": "9b07274fbcf57c59e8c7dbea4bc5ff8fe6eda7c9abdd0c4bb2a66eb190f66111"
     },
     {
       "path": "press.md",
@@ -121,8 +121,8 @@
     },
     {
       "path": "products.html",
-      "bytes": 2763,
-      "sha256": "abd352eb2facf7c771a61ac19decdf0ddba6d673a92dd64ceef895b27b486c9e"
+      "bytes": 2722,
+      "sha256": "7a55451006b8da8962000d09ffda23652837c8c993f8f93b96d251d682c94317"
     },
     {
       "path": "products.md",
@@ -131,8 +131,8 @@
     },
     {
       "path": "profile.html",
-      "bytes": 3840,
-      "sha256": "22255a02ee4aa303f2b08647ce4da7d42b909fd4d3d62c36866e385bae70e4dc"
+      "bytes": 3761,
+      "sha256": "8896482b50317cf0dc65fae937266d1e483b313c4517b2b68d20a382dca5e703"
     },
     {
       "path": "profile.md",
@@ -186,8 +186,8 @@
     },
     {
       "path": "writing/example-depth-page.html",
-      "bytes": 7397,
-      "sha256": "d6d0844249dfb022919745519d30ba5fc368ed153cfdcef93f4f86beff671c29"
+      "bytes": 7043,
+      "sha256": "8246e41ab2472d72faeb9271d5b0f4b764aa0189ad40877697b4e2b903dc6dda"
     },
     {
       "path": "writing/example-depth-page.md",
