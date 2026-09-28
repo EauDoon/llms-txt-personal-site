@@ -185,12 +185,21 @@ def md_to_html(md):
         # One level of parentheses is part of the destination. Cutting at the
         # first ")" turns https://en.wikipedia.org/wiki/Foo_(bar) into a path
         # that never existed.
+        url_body = r"https?://[^\s<),()]+(?:\([^\s<)]*\)[^\s<),()]*)*"
         s = re.sub(r"\[([^\]]+)\]\(((?:[^()]|\([^()]*\))+)\)", link, s)
-        s = re.sub(
-            r"(?<![\">=/\w])(https?://[^\s<),()]+(?:\([^\s<)]*\)[^\s<),()]*)*)",
-            autolink,
-            s,
-        )
+
+        def bracketed(match):
+            # HTML escaping already turned the angle brackets into entities.
+            # Autolinking the bare URL would swallow "&gt" and publish a path
+            # that ends in that entity.
+            url = match.group(1)
+            trimmed = url.rstrip(LINK_TRAILING)
+            if not re.match(r"https?://[^/?#]+", trimmed):
+                return match.group(0)
+            return '<a href="%s">%s</a>%s' % (trimmed, trimmed, url[len(trimmed):])
+
+        s = re.sub(r"&lt;(" + url_body + r")&gt;", bracketed, s)
+        s = re.sub(r"(?<![\">=/\w])(" + url_body + r")", autolink, s)
         for placeholder, inert_text in inert_links:
             s = s.replace(placeholder, inert_text)
         for marker, code in literal_code:
