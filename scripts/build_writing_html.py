@@ -356,18 +356,30 @@ def visible_markdown_text(md):
 DESCRIPTION_NOISE = re.compile(r"^(Last updated:|\d{4}-\d{2}-\d{2}\b|By\s)")
 
 
+def first_sentence(text):
+    """Return text through the first sentence boundary.
+
+    A period inside an email or hostname is not a boundary: the next word
+    there is lowercase. A new sentence in this site's prose starts with a
+    capital letter.
+    """
+    text = " ".join(text.split())
+    return re.split(r"(?<=[.!?])\s+(?=[A-Z])", text, maxsplit=1)[0]
+
+
 def page_description(rendered):
     """Return a page's first real sentence, or '' when it has none.
 
     A description has to say something. Publishing an empty one leaves a search
     result or an assistant with nothing to summarize the page from, so an
     article that declares no `desc` borrows its own leading prose instead.
+    The rest of that paragraph is a second sentence and must not ride along.
     """
     lines = [line.strip() for line in rendered.splitlines() if line.strip()]
     for line in lines[1:]:
         if DESCRIPTION_NOISE.match(line):
             continue
-        return " ".join(line.split())
+        return first_sentence(line)
     return ""
 
 
