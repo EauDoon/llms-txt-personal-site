@@ -30,6 +30,9 @@ TEMPLATE = os.path.join(ROOT, "template")
 OUT = os.path.join(ROOT, "site")
 CONFIG = os.path.join(ROOT, "site.config.json")
 WINDOWS_REPARSE_POINT = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x0400)
+# Copied through as bytes. Every other template file is text and can carry a
+# {{PLACEHOLDER}}, including scripts and host rules that have no such suffix.
+BINARY_SUFFIXES = (".png", ".jpg", ".jpeg", ".gif", ".ico", ".webp", ".pdf")
 REQUIRED_CONFIG = (
     "DOMAIN",
     "FULL_NAME",
@@ -322,7 +325,7 @@ def build_site(template_dir, out_dir, cfg):
         if relative.replace('\\', '/').casefold() in excluded:
             continue
         os.makedirs(os.path.dirname(dst), exist_ok=True)
-        if src.lower().endswith((".png", ".jpg", ".jpeg", ".gif", ".ico", ".webp", ".pdf")):
+        if src.lower().endswith(BINARY_SUFFIXES):
             with open(src, "rb") as a, open(dst, "wb") as b:
                 b.write(a.read())
         else:
@@ -340,7 +343,9 @@ def build_site(template_dir, out_dir, cfg):
     leftover = {}
     for dirpath, _, files in os.walk(out_dir):
         for f in files:
-            if not f.endswith((".md", ".txt", ".html", ".xml", ".json")):
+            # Match the copier: every non-binary file was filled, so a token
+            # left in search.js, .htaccess, or _headers is still unfilled.
+            if f.lower().endswith(BINARY_SUFFIXES):
                 continue
             with open(os.path.join(dirpath, f), encoding="utf-8", errors="ignore") as source:
                 t = source.read()
