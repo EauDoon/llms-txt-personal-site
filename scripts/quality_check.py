@@ -23,7 +23,7 @@ from a2a_agent_card import load_agent_card, validate_agent_card
 from build import fill
 from build_sitemap import public_urls, validate_last_updated
 from http_client import fetch_url
-from llms_txt import has_link_relation, markdown_alternate, validate_llms_txt
+from llms_txt import _local_path, has_link_relation, markdown_alternate, validate_llms_txt
 from email_addresses import address_key, contact_values, validate_email_address
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -185,7 +185,13 @@ def search_index_issues(root):
             issues.append("search-index.json repeats url %s" % url)
             continue
         urls.append(url)
-        if not os.path.isfile(os.path.join(root, unquote(url).lstrip("/"))):
+        # os.path.join("site", "writing/../profile.html") is the profile page,
+        # so a lexical ".." still looks like a published file. Reject it before
+        # the filesystem resolves the path.
+        local = _local_path("https://local.invalid" + url, "local.invalid", root)
+        if local == "invalid":
+            issues.append("search-index.json url escapes the build: %s" % url)
+        elif local is None or not local.is_file():
             issues.append("search-index.json links to a missing build artifact %s" % url)
     directory = os.path.join(root, "search.md")
     if not os.path.isfile(directory):
