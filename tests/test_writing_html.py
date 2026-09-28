@@ -106,6 +106,18 @@ class WritingHtmlTests(unittest.TestCase):
         self.assertIn('href="https://example.com/a"', wrapped)
         self.assertNotIn('href="https://example.com/a)"', wrapped)
 
+    def test_angle_bracket_urls_do_not_include_the_escaped_closer(self) -> None:
+        # The source is escaped before autolinking, so <https://example.com/a>
+        # becomes a destination of https://example.com/a&gt and the semicolon
+        # is left behind as sentence punctuation.
+        rendered = md_to_html("See <https://example.com/a>.")
+        self.assertIn('<a href="https://example.com/a">https://example.com/a</a>.', rendered)
+        self.assertNotIn("&gt", rendered)
+        self.assertNotIn("&lt;", rendered)
+        paren = md_to_html("See <https://en.wikipedia.org/wiki/Foo_(bar)>.")
+        self.assertIn('href="https://en.wikipedia.org/wiki/Foo_(bar)"', paren)
+        self.assertNotIn("&gt", paren)
+
     def test_writing_index_is_generated_from_markdown_not_edited_html(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             site = Path(directory)
