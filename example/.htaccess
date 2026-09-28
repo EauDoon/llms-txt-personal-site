@@ -103,7 +103,7 @@ AddDefaultCharset UTF-8
 </FilesMatch>
 
 # Anchored so it cannot also catch a legitimate name such as /.gitignore.
-RedirectMatch 404 ^/\.git
+RedirectMatch 404 ^/\.git(?:/|$)
 
 # Custom 404. Keeps agents on a page that explains where the canonical facts are.
 ErrorDocument 404 /404.html
