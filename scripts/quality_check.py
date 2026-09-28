@@ -139,10 +139,13 @@ def feed_issues(root, domain):
         href = entry_link.get("href", "") if entry_link is not None else ""
         try:
             target = urlsplit(href)
+            port = target.port
         except ValueError:
-            target = None
+            target, port = None, None
         if target is None or target.hostname is None or target.hostname.lower() != domain.lower():
             issues.append("feed.xml entry %s does not link to the configured site" % label)
+        elif target.scheme.lower() != "https" or port not in (None, 443) or target.username or target.password:
+            issues.append("feed.xml entry %s does not use the canonical HTTPS origin" % label)
         else:
             # Same hole as the search index: writing/../profile.html is a real
             # file once the kernel resolves "..".
