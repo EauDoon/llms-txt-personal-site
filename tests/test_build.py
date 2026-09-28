@@ -755,6 +755,18 @@ class BuildTests(unittest.TestCase):
                             load_config()
                         self.assertIn(missing_key, REQUIRED_CONFIG)
 
+    def test_git_redirect_does_not_match_neighboring_dot_paths(self) -> None:
+        # The comment says the rule is anchored so it cannot catch /.gitignore.
+        # ^/\.git still matches every path that merely starts with /.git.
+        rules = (ROOT / "template" / ".htaccess").read_text(encoding="utf-8")
+        match = re.search(r"^RedirectMatch\s+404\s+(\S+)\s*$", rules, re.M)
+        self.assertIsNotNone(match)
+        pattern = re.compile(match.group(1))
+        for path in ("/.git", "/.git/", "/.git/config", "/.git/HEAD"):
+            self.assertTrue(pattern.search(path), path)
+        for path in ("/.gitignore", "/.github", "/.github/workflows/quality-check.yml", "/llms.txt"):
+            self.assertFalse(pattern.search(path), path)
+
 
 if __name__ == "__main__":
     unittest.main()
