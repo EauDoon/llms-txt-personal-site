@@ -629,6 +629,17 @@ class QualityCheckTests(unittest.TestCase):
         self.assertIn("T99:99:99Z", result.stdout)
         self.assertIn("is not an RFC 3339 UTC timestamp", result.stdout)
 
+    def test_feed_rejects_duplicate_entry_ids(self) -> None:
+        def prepare(site, domain):
+            path = site / "feed.xml"
+            text = path.read_text(encoding="utf-8")
+            entry = text[text.index("<entry>"):text.index("</entry>") + len("</entry>")]
+            path.write_text(text.replace("</feed>", entry + "</feed>"), encoding="utf-8")
+
+        result = self.run_quality_check(prepare=prepare)
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("repeats entry id https://example.test/profile.html", result.stdout)
+
     def test_page_head_metadata_defects_fail_the_gate(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
