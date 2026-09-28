@@ -180,6 +180,7 @@ class QualityCheckTests(unittest.TestCase):
         live: bool = False,
         domain: str = "example.test",
         path: str | None = None,
+        prepare=None,
     ) -> subprocess.CompletedProcess[str]:
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
@@ -289,6 +290,8 @@ class QualityCheckTests(unittest.TestCase):
             )
             if writing_as_file:
                 (site / "writing").write_text("not a directory\n", encoding="utf-8")
+            if prepare:
+                prepare(site, domain)
 
             (repo / "site.config.json").write_text(
                 json.dumps({"DOMAIN": domain, "LAST_UPDATED": "2026-08-30"}),
@@ -551,6 +554,26 @@ class QualityCheckTests(unittest.TestCase):
                     self.assertIn(message, result.stdout)
             robots_path.write_text(original, encoding="utf-8")
 
+    def test_search_index_rejects_paths_that_leave_the_build(self) -> None:
+        def prepare(site, domain, url):
+            # The intermediate directory has to exist or the kernel never
+            # resolves "..", which would hide the escape as a missing file.
+            (site / "writing").mkdir()
+            index = site / "search-index.json"
+            records = json.loads(index.read_text(encoding="utf-8"))
+            records[0]["url"] = url
+            index.write_text(json.dumps(records), encoding="utf-8")
+            directory = site / "search.md"
+            directory.write_text(
+                directory.read_text(encoding="utf-8").replace("/profile.html", url),
+                encoding="utf-8",
+            )
+
+        for url in ("/writing/../profile.html", "/writing/%2e%2e/profile.html"):
+            with self.subTest(url=url):
+                result = self.run_quality_check(prepare=lambda site, domain, url=url: prepare(site, domain, url))
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertIn("search-index.json url escapes the build: %s" % url, result.stdout)
 
     def test_page_head_metadata_defects_fail_the_gate(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
