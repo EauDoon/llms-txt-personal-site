@@ -164,6 +164,12 @@ def feed_issues(root, domain):
         if not ATOM_STAMP.fullmatch(stamp):
             issues.append("%s <updated> %r is not an RFC 3339 UTC timestamp" % (label or "feed.xml", stamp))
             continue
+        hour, minute, second = (int(part) for part in stamp[11:19].split(":"))
+        # 60 is the leap second RFC 3339 allows. 99:99:99 matches the digit
+        # pattern and is not a time.
+        if hour > 23 or minute > 59 or second > 60:
+            issues.append("%s <updated> %r is not an RFC 3339 UTC timestamp" % (label or "feed.xml", stamp))
+            continue
         try:
             validate_last_updated(stamp[:10])
         except ValueError:

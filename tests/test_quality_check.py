@@ -616,6 +616,19 @@ class QualityCheckTests(unittest.TestCase):
                 self.assertNotEqual(result.returncode, 0, result.stdout)
                 self.assertIn("does not use the canonical HTTPS origin", result.stdout)
 
+    def test_feed_rejects_impossible_clock_times(self) -> None:
+        def prepare(site, domain):
+            path = site / "feed.xml"
+            path.write_text(
+                path.read_text(encoding="utf-8").replace("T00:00:00Z", "T99:99:99Z"),
+                encoding="utf-8",
+            )
+
+        result = self.run_quality_check(prepare=prepare)
+        self.assertNotEqual(result.returncode, 0, result.stdout)
+        self.assertIn("T99:99:99Z", result.stdout)
+        self.assertIn("is not an RFC 3339 UTC timestamp", result.stdout)
+
     def test_page_head_metadata_defects_fail_the_gate(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
