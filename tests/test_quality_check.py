@@ -592,6 +592,30 @@ class QualityCheckTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0, result.stdout)
         self.assertIn("has an invalid same-site path", result.stdout)
 
+    def test_feed_entry_links_use_the_canonical_https_origin(self) -> None:
+        def prepare(site, domain, href):
+            path = site / "feed.xml"
+            path.write_text(
+                path.read_text(encoding="utf-8").replace(
+                    '<link href="https://%s/profile.html"/>' % domain,
+                    '<link href="%s"/>' % href,
+                ),
+                encoding="utf-8",
+            )
+
+        domain = "example.test"
+        for href in (
+            "http://%s/profile.html" % domain,
+            "https://%s:444/profile.html" % domain,
+            "https://user@%s/profile.html" % domain,
+        ):
+            with self.subTest(href=href):
+                result = self.run_quality_check(
+                    prepare=lambda site, domain, href=href: prepare(site, domain, href)
+                )
+                self.assertNotEqual(result.returncode, 0, result.stdout)
+                self.assertIn("does not use the canonical HTTPS origin", result.stdout)
+
     def test_page_head_metadata_defects_fail_the_gate(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
