@@ -21,7 +21,7 @@ def run(site_dir, cfg):
         if source.stem in RESERVED or target.exists():
             continue
         _, body = parse_front_matter(source.read_text(encoding='utf-8'))
-        _, heading = markdown_display(body)
+        rendered_text, heading = markdown_display(body)
         title = heading or source.stem.replace('-', ' ').title()
         content, outline = article_outline(md_to_html(body))
         if not heading:
@@ -30,6 +30,6 @@ def run(site_dir, cfg):
         content = outline + content + '<p><a href="%s">Read the original Markdown source</a></p>' % route
         target.write_text(
             page(title, content, cfg, source=route, heading=False,
-                 desc=page_description(markdown_display(body)[0]),
+                 desc=page_description(rendered_text, heading=heading),
                  canonical="https://%s%s" % (cfg["DOMAIN"], route[:-3] + ".html")),
             encoding='utf-8', newline='')

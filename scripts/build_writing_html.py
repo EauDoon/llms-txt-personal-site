@@ -450,16 +450,22 @@ def first_sentence(text):
     return re.split(r"(?<=[.!?])\s+(?=[A-Z])", text, maxsplit=1)[0]
 
 
-def page_description(rendered):
+def page_description(rendered, heading=None):
     """Return a page's first real sentence, or '' when it has none.
 
     A description has to say something. Publishing an empty one leaves a search
     result or an assistant with nothing to summarize the page from, so an
     article that declares no `desc` borrows its own leading prose instead.
     The rest of that paragraph is a second sentence and must not ride along.
+
+    Callers that know the rendered heading pass it. Line 0 is the title only
+    when it is that heading; a page with no heading starts on its first sentence.
     """
     lines = [line.strip() for line in rendered.splitlines() if line.strip()]
-    for line in lines[1:]:
+    title = " ".join(heading.split()) if heading else ""
+    if heading is None or (title and lines and lines[0] == title):
+        lines = lines[1:]
+    for line in lines:
         if DESCRIPTION_NOISE.match(line):
             continue
         return first_sentence(line)
@@ -573,8 +579,9 @@ def render_page(slug, source, cfg, style=""):
 
     meta, md = parse_front_matter(source)
     title = meta.get("title") or slug.replace("-", " ").title()
+    rendered_text, rendered_heading = markdown_display(md)
     content, outline = article_outline(md_to_html(md))
-    desc = meta.get("desc") or page_description(markdown_display(md)[0])
+    desc = meta.get("desc") or page_description(rendered_text, heading=rendered_heading)
     about = [a.strip() for a in meta.get("about", "").split(",") if a.strip()]
     modified = validate_last_updated(meta.get("updated") or cfg.get("LAST_UPDATED"))
     published = validate_last_updated(meta["published"]) if meta.get("published") else None
