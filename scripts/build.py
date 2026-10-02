@@ -274,9 +274,8 @@ def is_link_like(path):
     return bool(attributes & WINDOWS_REPARSE_POINT)
 
 
-def build_site(template_dir, out_dir, cfg):
-    """Build a complete site into an empty staging directory."""
-    cfg = dict(cfg, EMAIL_URI=quote(cfg.get("EMAIL", ""), safe="@"))
+def template_files(template_dir):
+    """Inventory bounded, regular sources before any template bytes are read."""
     if not os.path.lexists(template_dir):
         raise OSError("template path does not exist: %s" % template_dir)
     if is_link_like(template_dir):
@@ -285,10 +284,11 @@ def build_site(template_dir, out_dir, cfg):
         raise OSError("template path is not a directory: %s" % template_dir)
 
     from build_inventory import MAX_FILES, MAX_FILE_BYTES, MAX_TOTAL_BYTES
-    os.makedirs(out_dir, exist_ok=True)
     n, total_bytes = 0, 0
     sources = []
-    for dirpath, dirs, files in os.walk(template_dir):
+    def walk_error(error):
+        raise error
+    for dirpath, dirs, files in os.walk(template_dir, onerror=walk_error):
         for dirname in dirs:
             path = os.path.join(dirpath, dirname)
             if is_link_like(path):
@@ -296,11 +296,8 @@ def build_site(template_dir, out_dir, cfg):
                     "refusing to build from link-like template path: %s"
                     % os.path.relpath(path, template_dir)
                 )
-        rel = os.path.relpath(dirpath, template_dir)
-        target_dir = out_dir if rel == "." else os.path.join(out_dir, rel)
         for f in files:
             src = os.path.join(dirpath, f)
-            dst = os.path.join(target_dir, f)
             relative = os.path.relpath(src, template_dir)
             if is_link_like(src):
                 raise OSError(
@@ -314,8 +311,17 @@ def build_site(template_dir, out_dir, cfg):
             total_bytes += size
             if n >= MAX_FILES or size > MAX_FILE_BYTES or total_bytes > MAX_TOTAL_BYTES:
                 raise ValueError("template exceeds the file count or byte budget")
-            sources.append((src, dst, relative))
+            sources.append((src, relative))
             n += 1
+    return sources
+
+
+def build_site(template_dir, out_dir, cfg):
+    """Build a complete site into an empty staging directory."""
+    cfg = dict(cfg, EMAIL_URI=quote(cfg.get("EMAIL", ""), safe="@"))
+    sources = [(src, os.path.join(out_dir, relative), relative)
+               for src, relative in template_files(template_dir)]
+    os.makedirs(out_dir, exist_ok=True)
 
     from publishing import publication_exclusions
     excluded = publication_exclusions(sources, fill, cfg)
