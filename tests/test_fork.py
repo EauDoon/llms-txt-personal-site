@@ -2,18 +2,74 @@ from __future__ import annotations
 
 import importlib.util
 import json
+import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(ROOT / "scripts"))
 SCRIPT = ROOT / "scripts" / "fork.py"
 
 
 class ForkTests(unittest.TestCase):
+    def test_fork_scan_refuses_links_before_reading_outside_content(self) -> None:
+        module = self.load_module()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            repo, outside = root / "repo", root / "outside"
+            repo.mkdir()
+            outside.mkdir()
+            (outside / "profile.md").write_text("- Area one\n", encoding="utf-8")
+            sample, current = self.customized_config(module)
+            (repo / "site.config.example.json").write_text(json.dumps(sample), encoding="utf-8")
+            (repo / "site.config.json").write_text(json.dumps(current), encoding="utf-8")
+            for linked in (repo / "template", repo / "template" / "nested"):
+                linked.parent.mkdir(exist_ok=True)
+                if os.name == "nt":
+                    result = subprocess.run(["cmd", "/c", "mklink", "/J", str(linked), str(outside)],
+                                            capture_output=True, text=True, timeout=10)
+                    if result.returncode:
+                        self.skipTest("native junction creation is unavailable in this environment")
+                else:
+                    linked.symlink_to(outside, target_is_directory=True)
+                try:
+                    with self.subTest(path=linked), patch.object(Path, "read_text", side_effect=AssertionError("template read")):
+                        issues = module.readiness_issues(repo)
+                    self.assertTrue(any("link-like" in issue for issue in issues), issues)
+                finally:
+                    os.rmdir(linked) if os.name == "nt" else linked.unlink()
+
+    def test_fork_scan_applies_builder_budgets_before_reading_templates(self) -> None:
+        module = self.load_module()
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            sample, current = self.customized_config(module)
+            (repo / "site.config.example.json").write_text(json.dumps(sample), encoding="utf-8")
+            (repo / "site.config.json").write_text(json.dumps(current), encoding="utf-8")
+            template = repo / "template"
+            template.mkdir()
+            (template / "one.md").write_bytes(b"a" * 8)
+            (template / "two.md").write_bytes(b"b" * 8)
+            for limit, value in (("MAX_FILE_BYTES", 7), ("MAX_TOTAL_BYTES", 15), ("MAX_FILES", 1)):
+                with self.subTest(limit=limit), patch("build_inventory." + limit, value), patch.object(
+                    Path, "read_text", side_effect=AssertionError("template read")
+                ):
+                    issues = module.readiness_issues(repo)
+                self.assertTrue(any("budget" in issue for issue in issues), issues)
+
+            with patch("build.os.scandir", side_effect=PermissionError("template denied")), patch.object(
+                Path, "read_text", side_effect=AssertionError("template read")
+            ):
+                self.assertEqual(module.readiness_issues(repo), ["template denied"])
+                with self.assertRaisesRegex(PermissionError, "template denied"):
+                    module.template_files(template)
+
     def load_module(self):
         self.assertTrue(SCRIPT.is_file(), "one-sitting fork command is missing")
         spec = importlib.util.spec_from_file_location("fork_under_test", SCRIPT)

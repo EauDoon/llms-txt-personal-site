@@ -7,6 +7,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from build import template_files
+
 REPO = Path(__file__).resolve().parents[1]
 
 CONFIG_KEYS_TO_REPLACE = (
@@ -160,11 +162,20 @@ def readiness_issues(repo=REPO):
         if current.get(key) is not True:
             issues.append("site.config.json: %s must be true" % key)
 
+    # The readiness scan runs before the builder, so enforce the same source
+    # boundaries before either scanner reads template content.
+    try:
+        sources = template_files(repo / "template")
+    except (OSError, ValueError) as exc:
+        return issues + [str(exc)]
+    template_sources = [("template/" + Path(relative).as_posix(),
+                         Path(source).read_text(encoding="utf-8", errors="ignore"))
+                        for source, relative in sources]
+    content_by_path = dict(template_sources)
     for relative, markers in STARTER_MARKERS.items():
-        path = repo / relative
-        if not path.is_file():
+        if relative not in content_by_path:
             continue
-        content = path.read_text(encoding="utf-8", errors="ignore")
+        content = content_by_path[relative]
         for marker in markers:
             if marker in content:
                 issues.append("%s: remove starter marker %r" % (relative, marker))
@@ -174,25 +185,15 @@ def readiness_issues(repo=REPO):
             issues.append("%s: replace or remove the starter file" % relative)
 
     category_sources = [("site.config.json", json.dumps(current))]
-    template = repo / "template"
-    if template.is_dir():
-        template_sources = [
-            (
-                path.relative_to(repo).as_posix(),
-                path.read_text(encoding="utf-8", errors="ignore"),
-            )
-            for path in sorted(template.rglob("*"))
-            if path.is_file()
-        ]
-        category_sources.extend(template_sources)
-        for relative, content in template_sources:
-            if relative in STARTER_FILES:
-                continue
-            for marker in GLOBAL_STARTER_MARKERS:
-                if marker in content:
-                    issues.append(
-                        "%s: remove starter marker %r" % (relative, marker)
-                    )
+    category_sources.extend(template_sources)
+    for relative, content in template_sources:
+        if relative in STARTER_FILES:
+            continue
+        for marker in GLOBAL_STARTER_MARKERS:
+            if marker in content:
+                issues.append(
+                    "%s: remove starter marker %r" % (relative, marker)
+                )
     for relative, content in category_sources:
         lowered = content.casefold()
         for phrase in CATEGORY_QUERY_PHRASES:
