@@ -13,6 +13,14 @@ class NoRedirectHandler(HTTPRedirectHandler):
 
 
 OPENER = build_opener(NoRedirectHandler())
+MAX_RESPONSE_BYTES = 20 * 1024 * 1024
+
+
+def read_body(response):
+    body = response.read(MAX_RESPONSE_BYTES + 1)
+    if len(body) > MAX_RESPONSE_BYTES:
+        raise ValueError("Response exceeds the 20 MiB limit")
+    return body
 
 
 def fetch_url(url, timeout=20):
@@ -23,12 +31,12 @@ def fetch_url(url, timeout=20):
             headers={"User-Agent": "llms-txt-personal-site-quality-check/1"},
         )
         with OPENER.open(request, timeout=timeout) as response:
-            return response.status, response.headers, response.read(), ""
+            return response.status, response.headers, read_body(response), ""
     except HTTPError as exc:
         try:
-            body = exc.read()
-        except OSError:
-            body = b""
-        return exc.code, exc.headers, body, ""
+            with exc:
+                return exc.code, exc.headers, read_body(exc), ""
+        except (HTTPException, OSError, ValueError) as error:
+            return 0, {}, b"", str(error)
     except (HTTPException, OSError, ValueError) as exc:
         return 0, {}, b"", str(exc)

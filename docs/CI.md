@@ -1,15 +1,19 @@
 # Continuous integration
 
-CI is **enabled** in this repository. `.github/workflows/quality-check.yml`
-builds the site from the template and runs the quality gate on every push and
-pull request. A failing gate fails the build.
+The [canonical workflow](../.github/workflows/quality-check.yml) runs Python 3.12
+and Node.js 22 on Linux and Windows for pushes to `main` and pull requests.
+It runs the Python and browser-search regressions, builds the sample site, and
+runs the quality gate. A failing gate fails the build.
 
 CI also runs `check_artifacts.py` to validate current bytes and local HTML links,
 and `verify_build.py` to compare two temporary builds. See [Writing and build
 review](WRITING.md) for the exact scope and local commands.
 
-A copy of the workflow is kept here as `github-actions-quality-check.yml` so it
-can be restored if the live one is deleted.
+Use that file's Git history to recover a deleted workflow. There is no second
+copy to drift from the tests or security settings used by CI. Windows tests
+exercise real junction rejection and output replacement; environments that
+cannot create a junction or symlink report an explicit skip, not a pass for
+that check.
 
 ## If your fork cannot push the workflow
 

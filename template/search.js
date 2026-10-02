@@ -99,8 +99,25 @@
     try {
       const response = await fetch("/search-index.json", { credentials: "omit", cache: "no-store", signal: controller.signal });
       if (!response.ok) throw new Error("Search index unavailable");
-      const text = await response.text();
-      if (text.length > 20 * 1024 * 1024) throw new Error("Search index exceeds the limit");
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder("utf-8", { fatal: true });
+      let text = "", bytes = 0;
+      try {
+        while (true) {
+          const { value, done } = await reader.read();
+          if (done) break;
+          bytes += value.byteLength;
+          if (bytes > 20 * 1024 * 1024) throw new Error("Search index exceeds the limit");
+          text += decoder.decode(value, { stream: true });
+        }
+        text += decoder.decode();
+      } catch (error) {
+        controller.abort();
+        await reader.cancel().catch(() => {});
+        throw error;
+      } finally {
+        reader.releaseLock();
+      }
       const records = JSON.parse(text);
       if (!Array.isArray(records) || records.length > 5000 || records.some(record =>
         !record || typeof record.title !== "string" || typeof record.text !== "string" || record.text.length > 100000

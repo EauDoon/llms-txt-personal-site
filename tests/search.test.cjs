@@ -22,8 +22,8 @@ test('title-only search results omit unrelated body excerpts', async () => {
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../template/search.js'), 'utf8'), {
     document: { querySelector: id => controls[id], createElement: element, createDocumentFragment: element },
     location: { href: 'https://example.test/search.html?q=needle' }, history: {},
-    window: { addEventListener() {} }, URL, AbortController, setTimeout, clearTimeout,
-    fetch: async () => ({ ok: true, text: async () => JSON.stringify(records) }),
+    window: { addEventListener() {} }, URL, AbortController, TextDecoder, setTimeout, clearTimeout,
+    fetch: async () => new Response(JSON.stringify(records)),
   });
   await new Promise(resolve => setImmediate(resolve));
   const results = controls['#search-results'].children[0].children;
