@@ -4,32 +4,60 @@ const fs = require('node:fs');
 const path = require('node:path');
 const vm = require('node:vm');
 
-async function search(query, records) {
+async function search(query, records, response) {
   const element = () => ({
     children: [], value: '', options: [{ value: '' }], listeners: {},
     append(child) { this.children.push(child); },
     replaceChildren(...children) { this.children = children; },
     addEventListener(name, fn) { this.listeners[name] = fn; },
     focus() { this.focused = true; },
+    cloneNode() { return this; },
   });
   const controls = Object.fromEntries(['query', 'page-type', 'topic', 'search-results', 'search-status', 'search-retry', 'search-more']
     .map(id => ['#' + id, element()]));
   controls['#query'].form = element();
+  const fallback = element();
+  controls['#search-results'].children = [fallback];
   const location = { href: 'https://example.test/search.html?q=' + encodeURIComponent(query) };
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../template/search.js'), 'utf8'), {
     document: { querySelector: id => controls[id], createElement: element, createDocumentFragment: element },
     location, history: { pushState(_, __, url) { location.href = url.href; }, replaceState(_, __, url) { location.href = url.href; } },
-    window: { addEventListener() {} }, URL, AbortController, setTimeout, clearTimeout,
-    fetch: async () => ({ ok: true, text: async () => JSON.stringify(records) }),
+    window: { addEventListener() {} }, URL, AbortController, TextDecoder, setTimeout, clearTimeout,
+    fetch: async () => response || new Response(JSON.stringify(records)),
   });
   await new Promise(resolve => setImmediate(resolve));
   return {
-    controls,
+    controls, fallback,
     rows: () => controls['#search-results'].children[0].children,
     titles: () => controls['#search-results'].children[0].children.map(row => row.children[0].textContent),
   };
 }
 const record = (title, text = '', extra = {}) => ({title, text, url: '/' + encodeURIComponent(title) + '.html', type: 'page', topic_keys: [], ...extra});
+
+test('oversized streamed search responses stop reading and preserve fallback', async () => {
+  for (const length of [undefined, '1', String(21 * 1024 * 1024)]) {
+    let reads = 0, cancelled = false;
+    const body = new ReadableStream({
+      pull(controller) { reads++; controller.enqueue(new Uint8Array(1024 * 1024)); },
+      cancel() { cancelled = true; },
+    }, { highWaterMark: 0 });
+    const result = await search('', [], new Response(body, { headers: length ? { 'Content-Length': length } : {} }));
+    assert.equal(reads, 21);
+    assert.equal(cancelled, true);
+    assert.equal(result.controls['#search-results'].children[0], result.fallback);
+    assert.equal(result.controls['#search-retry'].hidden, false);
+    assert.match(result.controls['#search-status'].textContent, /Search is unavailable/);
+  }
+});
+
+test('streamed UTF-8 split across chunks remains searchable', async () => {
+  const bytes = new TextEncoder().encode(JSON.stringify([record('Café')]));
+  const offset = bytes.indexOf(0xc3) + 1;
+  const body = new ReadableStream({ start(controller) {
+    controller.enqueue(bytes.slice(0, offset)); controller.enqueue(bytes.slice(offset)); controller.close();
+  } });
+  assert.deepEqual((await search('cafe', [], new Response(body))).titles(), ['Café']);
+});
 
 test('accent-insensitive matching preserves readable original excerpts', async () => {
   const text = 'Opening '.repeat(30) + 'Café research in Zürich.';

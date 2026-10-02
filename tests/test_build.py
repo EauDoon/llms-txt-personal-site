@@ -5,6 +5,7 @@ import io
 import json
 import os
 import re
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -571,6 +572,61 @@ class BuildTests(unittest.TestCase):
             self.assertIn(str(staging[0]), error.getvalue())
             self.assertIn("staging cleanup failed", error.getvalue())
             self.assertIn("the build failed", error.getvalue())
+
+    @unittest.skipUnless(os.name == "nt", "requires native Windows junctions")
+    def test_native_junction_source_and_output_preserve_previous_site(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            outside = root / "outside"
+            outside.mkdir()
+            (outside / "keep.txt").write_text("must survive\n", encoding="utf-8")
+            template = root / "template"
+            template.mkdir()
+            (template / "index.html").write_text("<h1>New site</h1>\n", encoding="utf-8")
+            site = root / "site"
+            site.mkdir()
+            (site / "previous.txt").write_text("previous build\n", encoding="utf-8")
+            for link in (template / "linked", root / "linked-output"):
+                with self.subTest(location=link.name):
+                    result = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(outside)],
+                                            capture_output=True, text=True, timeout=10)
+                    if result.returncode:
+                        self.skipTest("native junction creation is unavailable in this environment")
+                    try:
+                        self.assertTrue(os.path.isjunction(link))
+                        output = site if link.parent == template else link
+                        with self.assertRaises(OSError):
+                            build_site_staged(str(template), str(output), self.config())
+                        self.assertEqual((outside / "keep.txt").read_text(encoding="utf-8"), "must survive\n")
+                        self.assertEqual((site / "previous.txt").read_text(encoding="utf-8"), "previous build\n")
+                    finally:
+                        os.rmdir(link)
+            self.assertEqual(list(root.glob(".site-build-*")), [])
+            self.assertEqual(list(root.glob(".site-backup-*")), [])
+
+    def test_failed_promotion_restores_previous_output_with_native_moves(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            template = root / "template"
+            template.mkdir()
+            (template / "index.html").write_text("<h1>New site</h1>\n", encoding="utf-8")
+            site = root / "site"
+            site.mkdir()
+            (site / "previous.txt").write_text("previous build\n", encoding="utf-8")
+            real_replace = os.replace
+
+            def replace(source, destination):
+                if Path(source).name.startswith(".site-build-"):
+                    raise PermissionError("promotion denied")
+                return real_replace(source, destination)
+
+            with patch("build.os.replace", side_effect=replace):
+                with self.assertRaisesRegex(PermissionError, "promotion denied"):
+                    build_site_staged(str(template), str(site), self.config())
+            self.assertEqual((site / "previous.txt").read_text(encoding="utf-8"), "previous build\n")
+            self.assertFalse((site / "index.html").exists())
+            self.assertEqual(list(root.glob(".site-build-*")), [])
+            self.assertEqual(list(root.glob(".site-backup-*")), [])
 
     @unittest.skipUnless(hasattr(os, "symlink"), "symlinks are not supported")
     def test_symlinked_template_file_is_rejected_without_replacing_site(self) -> None:

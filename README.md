@@ -103,7 +103,7 @@ After deployment, run:
 python scripts/quality_check.py --live
 ```
 
-This makes requests to the configured domain. It checks the deployed responses as well as the local build. A local pass alone does not establish that the host serves the same files or headers.
+This makes requests to the configured domain. It checks the deployed responses as well as the local build, rejecting response bodies larger than 20 MiB. A local pass alone does not establish that the host serves the same files or headers.
 
 ## How updates work
 
@@ -191,7 +191,7 @@ To build and check the unchanged generic example after initialization:
 python scripts/build.py
 python scripts/quality_check.py
 python -m unittest discover -s tests -v
-node --test tests/search.test.cjs
+node --test tests/*.test.cjs
 ```
 
 These direct commands support template development. They do not run the personal-site readiness checks in `fork.py`.
