@@ -8,12 +8,30 @@ MAX_FILE_BYTES = 20 * 1024 * 1024
 MAX_TOTAL_BYTES = 100 * 1024 * 1024
 
 
+def descendants(root):
+    """Return every path below root, refusing a link before descending into it.
+
+    Path.rglob and os.walk on Python 3.11 treat a Windows junction as an
+    ordinary directory, so they would list and hash files outside the build.
+    build.is_link_like also recognizes junctions through the reparse-point
+    attribute, which works on every supported Python version.
+    """
+    from build import is_link_like  # build imports this module lazily too
+    found, pending = [], [root]
+    while pending:
+        for path in pending.pop().iterdir():
+            if is_link_like(path):
+                raise ValueError("inventory refuses link-like paths")
+            found.append(path)
+            if path.is_dir():
+                pending.append(path)
+    return sorted(found)
+
+
 def inventory(site_dir):
     root = Path(site_dir)
     records, total = [], 0
-    for path in sorted(root.rglob("*")):
-        if path.is_symlink() or (hasattr(path, "is_junction") and path.is_junction()):
-            raise ValueError("inventory refuses link-like paths")
+    for path in descendants(root):
         if not path.is_file() or path == root / "content-manifest.json":
             continue
         size = path.stat().st_size

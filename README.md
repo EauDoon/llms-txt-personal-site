@@ -61,7 +61,7 @@ The new article remains excluded from every public build until its leading metad
 
 ## Build your own site
 
-Use Git and Python 3.12, the version used by this repository's CI. On Windows, use `py -3` in place of `python` if that is how your Python installation is available.
+Use Git and Python 3.11 or newer (CI tests 3.11 to 3.14 on Linux and Windows). On Windows, use `py -3` in place of `python` if that is how your Python installation is available.
 
 ### 1. Initialize your config
 

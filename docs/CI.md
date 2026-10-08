@@ -1,9 +1,22 @@
 # Continuous integration
 
-The [canonical workflow](../.github/workflows/quality-check.yml) runs Python 3.12
-and Node.js 22 on Linux and Windows for pushes to `main` and pull requests.
-It runs the Python and browser-search regressions, builds the sample site, and
-runs the quality gate. A failing gate fails the build.
+The [canonical workflow](../.github/workflows/quality-check.yml) runs on
+pushes to `main` and pull requests. Its matrix covers Linux and Windows on
+Python 3.11, 3.12, 3.13 and 3.14, eight jobs named `check (<os>, <python>)`,
+with Node.js 22 for the browser-search tests. Python 3.11 is the oldest
+supported version. Every job runs the Python and browser-search regressions,
+builds the sample site, and runs the quality gate. A failing gate fails the
+build. Jobs time out after 15 minutes, because Windows on the newest Python is
+the slowest leg.
+
+A concurrency group keyed on the branch cancels a superseded pull request run
+when a newer commit is pushed. Runs on `main` are never cancelled, so every
+merge keeps a complete record.
+
+The workflow actions are pinned to full commit SHAs with the release tag in a
+comment. [Dependabot](../.github/dependabot.yml) opens one grouped pull request
+a week when any pinned action has a newer release. `main` has no branch
+protection, so read that pull request's checks before merging it.
 
 CI also runs `check_artifacts.py` to validate current bytes and local HTML links,
 and `verify_build.py` to compare two temporary builds. See [Writing and build

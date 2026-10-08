@@ -1,0 +1,13 @@
+version: 2
+updates:
+  # Keep the SHA-pinned workflow actions current. One weekly pull request
+  # carries every action bump; CI must be green before it is merged, because
+  # main has no branch protection to enforce that.
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns:
+          - "*"

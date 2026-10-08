@@ -601,7 +601,7 @@ class BuildTests(unittest.TestCase):
                     if result.returncode:
                         self.skipTest("native junction creation is unavailable in this environment")
                     try:
-                        self.assertTrue(os.path.isjunction(link))
+                        self.assertTrue(is_link_like(link))
                         output = site if link.parent == template else link
                         with self.assertRaises(OSError):
                             build_site_staged(str(template), str(output), self.config())
@@ -611,6 +611,48 @@ class BuildTests(unittest.TestCase):
                         os.rmdir(link)
             self.assertEqual(list(root.glob(".site-build-*")), [])
             self.assertEqual(list(root.glob(".site-backup-*")), [])
+
+    @unittest.skipUnless(os.name == "nt", "requires native Windows junctions")
+    def test_inventory_refuses_a_native_junction_on_every_python(self) -> None:
+        # Path.rglob follows junctions on Python 3.11, so the manifest used to
+        # hash files from outside the build there.
+        from build_inventory import inventory
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            outside = root / "outside"
+            outside.mkdir()
+            (outside / "leak.txt").write_text("outside the build\n", encoding="utf-8")
+            out = root / "out"
+            out.mkdir()
+            (out / "a.txt").write_text("inside\n", encoding="utf-8")
+            link = out / "linked"
+            result = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(outside)],
+                                    capture_output=True, text=True, timeout=10)
+            if result.returncode:
+                self.skipTest("native junction creation is unavailable in this environment")
+            try:
+                with self.assertRaisesRegex(ValueError, "link-like"):
+                    inventory(out)
+            finally:
+                os.rmdir(link)
+
+    def test_inventory_does_not_descend_into_a_junction_like_directory(self) -> None:
+        from build_inventory import inventory
+        with tempfile.TemporaryDirectory() as directory:
+            out = Path(directory)
+            (out / "a.txt").write_text("inside\n", encoding="utf-8")
+            linked = out / "linked"
+            linked.mkdir()
+            (linked / "leak.txt").write_text("outside the build\n", encoding="utf-8")
+            self.assertEqual([row["path"] for row in inventory(out)], ["a.txt", "linked/leak.txt"])
+
+            def isjunction(path) -> bool:
+                return os.path.normpath(str(path)) == os.path.normpath(str(linked))
+
+            with patch("build.os.path.isjunction", side_effect=isjunction, create=True), \
+                    patch.object(Path, "read_bytes", side_effect=AssertionError("hashed a file")):
+                with self.assertRaisesRegex(ValueError, "link-like"):
+                    inventory(out)
 
     def test_failed_promotion_restores_previous_output_with_native_moves(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
