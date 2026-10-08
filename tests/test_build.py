@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import io
 import json
 import os
@@ -14,7 +15,12 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
+# tests/ is not a package, so make its helper importable under discover and
+# under `python -m unittest tests.test_build` alike.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import identity_markers
+from identity_markers import contains_marker
 from build import build_site, build_site_staged, is_link_like, json_block, load_config
 from build_llms_full import run as build_llms_full
 from build_sitemap import validate_last_updated
@@ -288,20 +294,22 @@ class BuildTests(unittest.TestCase):
             )
 
     def test_checked_in_example_has_no_reference_identity(self) -> None:
-        markers = (
-            b"straits" + b"x",
-            b"xsgd",
-            b"xusd",
-            b"daniel" + b"oon",
-            b"eau" + b"doon",
-        )
+        paths = [ROOT / "site.config.example.json"]
         for directory in (ROOT / "template", ROOT / "example"):
-            for path in directory.rglob("*"):
-                if not path.is_file():
-                    continue
-                compact = re.sub(rb"[\s_-]+", b"", path.read_bytes().lower())
-                with self.subTest(path=path.relative_to(ROOT)):
-                    self.assertFalse(any(marker in compact for marker in markers))
+            paths.extend(path for path in sorted(directory.rglob("*")) if path.is_file())
+        for path in paths:
+            with self.subTest(path=path.relative_to(ROOT)):
+                self.assertFalse(contains_marker(path.read_bytes()))
+
+    def test_marker_digest_scan_detects_normalized_spellings(self) -> None:
+        canary = {12: frozenset({hashlib.sha256(b"canarymarker").hexdigest()})}
+        with patch.object(identity_markers, "MARKER_DIGESTS", canary):
+            for text in (b"Canary_Marker", b"canary-marker", b"prefix CANARY marker suffix"):
+                with self.subTest(text=text):
+                    self.assertTrue(contains_marker(text))
+            for text in (b"", b"canary", b"a clean generic starter page"):
+                with self.subTest(text=text):
+                    self.assertFalse(contains_marker(text))
 
     def test_missing_writing_generator_fails_the_build(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
