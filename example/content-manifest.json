@@ -6,8 +6,8 @@
   "files": [
     {
       "path": ".htaccess",
-      "bytes": 4474,
-      "sha256": "781b433c8f6094765fe1c216ee35b4dc15a58984f8381fdc73f03875e20edfd0"
+      "bytes": 5118,
+      "sha256": "ce867bdf3a40cae6094659f50db56cb7a3de7b997b518282190ac19b350abd40"
     },
     {
       "path": "404.html",
@@ -16,8 +16,8 @@
     },
     {
       "path": "_headers",
-      "bytes": 885,
-      "sha256": "feefa51bbda26af844b659cc619bf219f808c7c2b5a45f6a06f42bce2cd498ad"
+      "bytes": 1402,
+      "sha256": "f739a4b95773936ed3754a0495c0ba76166c83fbe4216d41145133d7d61acf75"
     },
     {
       "path": "about.html",
@@ -181,8 +181,8 @@
     },
     {
       "path": "vercel.json",
-      "bytes": 1656,
-      "sha256": "71a86d991dde1e12cbd516aac43edecdc0496f0c3d7750d770c1be84c9c9ee97"
+      "bytes": 1872,
+      "sha256": "1a7ac37233c60410be5ecbd79e9e344d9e899498832868ce45c57b4605ba1e3a"
     },
     {
       "path": "writing/example-depth-page.html",

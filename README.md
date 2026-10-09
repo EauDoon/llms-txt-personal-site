@@ -97,6 +97,8 @@ Review `site/` and deploy its contents at the root of the HTTPS domain in your c
 
 The template includes [Apache rules](template/.htaccess), [a `_headers` file](template/_headers), and [Vercel configuration](template/vercel.json) for content types and discovery headers. Use the configuration your host supports and verify the actual responses. The build does not configure hosting or deploy files for you.
 
+All three configs send the same security headers on every response: a Content-Security-Policy that allows only same-origin scripts, inline styles, same-origin requests, and HTTPS or `data:` images, plus `X-Frame-Options: DENY`, a `Permissions-Policy` that turns off the camera, microphone, and geolocation, and `X-Content-Type-Options: nosniff`. The generated pages need nothing more. If you add third-party scripts, fonts, analytics, or embeds, widen the policy in all three files, or browsers will block them. A test keeps the three files in step.
+
 Whatever the host, serve every `.html` file at its own path with a `200` response. Canonical links, `sitemap.xml`, the feed, and `quality_check.py --live` all use the `.html` path, and the live check treats a redirect as a failure. The build does not publish extensionless URLs, so leave options such as Vercel's `cleanUrls` off.
 
 After deployment, run:
@@ -105,7 +107,7 @@ After deployment, run:
 python scripts/quality_check.py --live
 ```
 
-This makes requests to the configured domain. It checks the deployed responses as well as the local build, rejecting response bodies larger than 20 MiB. A local pass alone does not establish that the host serves the same files or headers.
+This makes requests to the configured domain. It checks the deployed responses as well as the local build, rejecting response bodies larger than 20 MiB. A homepage served without `nosniff` or a Content-Security-Policy is reported as a warning, so a deployment made before those headers shipped keeps passing until it is redeployed. A local pass alone does not establish that the host serves the same files or headers.
 
 ## How updates work
 

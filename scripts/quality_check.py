@@ -107,6 +107,13 @@ def fetch_live(path):
     """Return status, headers, body, and any transport error for a live path."""
     return fetch_url("https://" + DOMAIN + path)
 
+def header_values(headers, name):
+    """Return every value sent for one header, however the client stored them."""
+    if hasattr(headers, "get_all"):
+        return list(headers.get_all(name) or [])
+    value = headers.get(name)
+    return [] if value is None else [value]
+
 ATOM = "{http://www.w3.org/2005/Atom}"
 ATOM_STAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
 
@@ -779,6 +786,19 @@ if LIVE:
             fails.append("ownership proof missing: %s" % u)
         print("    %-4s %s" % ("ok" if ok else "FAIL", u))
 
+    # The shipped host configs send these on every response. A deployment made
+    # before they were added still serves correct facts, so a missing header
+    # warns instead of failing until the next redeploy picks it up.
+    status, headers, _, _ = fetch_live("/")
+    if status == 200:
+        nosniff = [value.strip().lower() for value in header_values(headers, "X-Content-Type-Options")] == ["nosniff"]
+        csp = any(value.strip() for value in header_values(headers, "Content-Security-Policy"))
+        for present, label in ((nosniff, "X-Content-Type-Options: nosniff"),
+                               (csp, "Content-Security-Policy")):
+            if not present:
+                warns.append("live homepage is served without %s" % label)
+            print("\n  %-4s homepage sends %s" % ("ok" if present else "WARN", label))
+
     # markdown must render inline, not download
     status, headers, _, _ = fetch_live("/profile.md")
     content_type = headers.get("Content-Type", "").lower()
@@ -797,15 +817,22 @@ if LIVE:
         )
         cache_ok = bool(re.search(r"\bmax-age=\d+", headers.get("Cache-Control", ""), re.IGNORECASE))
         etag_ok = bool(headers.get("ETag"))
+        # Browsers reject a repeated or comma-joined value such as "*, *",
+        # which a host emits when two matching rules both set the header.
+        cors_ok = [value.strip() for value in header_values(headers, "Access-Control-Allow-Origin")] == ["*"]
         card_live = status_ok and content_type_ok
         if not card_live:
             fails.append("live Agent Card is missing or has the wrong content type")
         if not cache_ok:
             fails.append("live Agent Card has no Cache-Control max-age")
+        if status_ok and not cors_ok:
+            fails.append("live Agent Card Access-Control-Allow-Origin is not exactly *")
         if not etag_ok:
             warns.append("live Agent Card has no ETag for conditional requests")
         print("  %-4s A2A Agent Card served as application/a2a+json" % ("ok" if card_live else "FAIL"))
         print("  %-4s A2A Agent Card has Cache-Control max-age" % ("ok" if cache_ok else "FAIL"))
+        if status_ok:
+            print("  %-4s A2A Agent Card sends Access-Control-Allow-Origin: *" % ("ok" if cors_ok else "FAIL"))
         print("  %-4s A2A Agent Card has an ETag" % ("ok" if etag_ok else "WARN"))
         if status_ok:
             with open(card_path, "rb") as local_card:
