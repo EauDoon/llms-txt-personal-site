@@ -1,0 +1,45 @@
+name: release
+
+# Publishes a GitHub Release when a vX.Y.Z tag is pushed. The tag must match
+# scripts/version.py and have a dated CHANGELOG.md section, whose body becomes
+# the release notes. A tag pushed with the default GITHUB_TOKEN does not start
+# workflows, so push release tags with your own credentials.
+on:
+  push:
+    tags: ["v*.*.*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+
+      - name: Check the tag, version and changelog agree
+        run: python scripts/version.py --check-tag "$GITHUB_REF_NAME"
+
+      - name: Run the Python regression tests
+        run: python -m unittest discover -s tests
+
+      - name: Extract the release notes
+        run: python scripts/version.py --notes "${GITHUB_REF_NAME#v}" > "$RUNNER_TEMP/notes.md"
+
+      - name: Publish the GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --notes-file "$RUNNER_TEMP/notes.md"

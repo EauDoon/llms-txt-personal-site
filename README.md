@@ -241,8 +241,19 @@ That command is the only supported way to update `example/`. It reads only `site
 | [`docs/CI.md`](docs/CI.md) | CI setup and workflow troubleshooting. |
 | [`CONTRIBUTING.md`](CONTRIBUTING.md) | The local check sequence and the rules for changes. |
 | [`SECURITY.md`](SECURITY.md) | How to report a vulnerability and what is in scope. |
+| [`CHANGELOG.md`](CHANGELOG.md) | What changed in each release. |
 
 The [GitHub Actions workflow](.github/workflows/quality-check.yml) runs tests, builds the sample site, and checks its output on pushes to `main` and pull requests. For contributions, explain the problem, include a minimal reproduction when relevant, and run these checks. Use synthetic examples; do not include credentials or private biographical details in issues or pull requests.
+
+## Versioning and releases
+
+The template follows [Semantic Versioning](https://semver.org/). [`scripts/version.py`](scripts/version.py) is the only place the version is written; every script's `--version`, the live checker's User-Agent, and the `generator` field of `content-manifest.json` read it there, so a fork can tell which release built its site. Changes are recorded in [CHANGELOG.md](CHANGELOG.md).
+
+- **MAJOR** for a removed or renamed config key, a changed output path or URL, or a default gate rule that fails a site that used to pass.
+- **MINOR** for new optional config keys, outputs, or checks that existing sites pass.
+- **PATCH** for fixes that change none of the above.
+
+A release is an annotated `vX.Y.Z` tag on `main`. Before tagging, set the version, give the `[Unreleased]` entries a dated `## [X.Y.Z] - YYYY-MM-DD` heading, and run `python scripts/regenerate_example.py`. `python scripts/version.py --check-tag vX.Y.Z` must pass. Pushing the tag runs the [release workflow](.github/workflows/release.yml), which repeats that check and the tests, then publishes a GitHub Release whose notes are that changelog section. The manifest's own `"version": 1` is its file format and changes independently.
 
 ## License
 

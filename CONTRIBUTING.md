@@ -42,6 +42,7 @@ Preview the build with `python -m http.server 8000 --bind 127.0.0.1 --directory 
 
 - Keep Python 3.11 working. CI tests 3.11 to 3.14 on Linux and Windows.
 - Never hand-edit `example/` and never copy a real site into it. After changing `template/`, the builder, or the sample config, run `python scripts/regenerate_example.py` and commit the result.
+- Record every user-visible change under `[Unreleased]` in [CHANGELOG.md](CHANGELOG.md). Releases follow the SemVer contract in the README; maintainers set the version in `scripts/version.py` only when cutting a release.
 - Use synthetic data in issues, pull requests, tests, and examples. Do not post real biographical details, credentials, private handles, or the contents of a private `quality.local.json`.
 
 ## Reporting Bugs

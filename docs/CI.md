@@ -18,6 +18,23 @@ comment. [Dependabot](../.github/dependabot.yml) opens one grouped pull request
 a week when any pinned action has a newer release. `main` has no branch
 protection, so read that pull request's checks before merging it.
 
+The [release workflow](../.github/workflows/release.yml) runs only when a
+`vX.Y.Z` tag is pushed. It checks that the tag equals `v` plus the version in
+`scripts/version.py`, that the version is final, and that `CHANGELOG.md` has a
+dated section for it, then runs the Python tests on Linux and publishes a
+GitHub Release with that section as its notes. Its job alone gets `contents:
+write`; everything else stays read-only. A tag created with the workflow's
+own `GITHUB_TOKEN` does not trigger workflows, so push release tags with your
+own credentials. If the workflow fails after the tag exists, publish by hand:
+
+```bash
+python scripts/version.py --notes X.Y.Z > notes.md
+gh release create vX.Y.Z --verify-tag --title vX.Y.Z --notes-file notes.md
+```
+
+`tests/test_version.py` runs in every CI job, so a version, changelog, or
+manifest generator that disagree fails the pull request before a tag exists.
+
 CI also runs `check_artifacts.py` to validate current bytes and local HTML links,
 and `verify_build.py` to compare two temporary builds. See [Writing and build
 review](WRITING.md) for the exact scope and local commands.
