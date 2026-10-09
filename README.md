@@ -97,6 +97,8 @@ Review `site/` and deploy its contents at the root of the HTTPS domain in your c
 
 The template includes [Apache rules](template/.htaccess), [a `_headers` file](template/_headers), and [Vercel configuration](template/vercel.json) for content types and discovery headers. Use the configuration your host supports and verify the actual responses. The build does not configure hosting or deploy files for you.
 
+Whatever the host, serve every `.html` file at its own path with a `200` response. Canonical links, `sitemap.xml`, the feed, and `quality_check.py --live` all use the `.html` path, and the live check treats a redirect as a failure. The build does not publish extensionless URLs, so leave options such as Vercel's `cleanUrls` off.
+
 After deployment, run:
 
 ```bash
