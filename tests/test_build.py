@@ -235,63 +235,21 @@ class BuildTests(unittest.TestCase):
         self.assertIn(r"\u003c/script\u003e", match.group(1).lower())
 
     def test_example_is_exact_rebuild_from_example_config(self) -> None:
-        config = json.loads(
-            (ROOT / "site.config.example.json").read_text(encoding="utf-8")
-        )
-        config = dict(config, **json_block(config))
+        # One comparator: scripts/regenerate_example.py --check reports the
+        # same differences and a plain run repairs them.
+        import regenerate_example
 
         with tempfile.TemporaryDirectory() as directory:
             generated = Path(directory) / "site"
-            build_site(str(ROOT / "template"), str(generated), config)
+            regenerate_example.generate(generated)
+            differences = regenerate_example.differences(generated, ROOT / "example")
 
-            expected_files = {
-                path.relative_to(ROOT / "example")
-                for path in (ROOT / "example").rglob("*")
-                if path.is_file()
-            }
-            generated_files = {
-                path.relative_to(generated)
-                for path in generated.rglob("*")
-                if path.is_file()
-            }
-            differences = [
-                "missing generated file: %s" % path.as_posix()
-                for path in sorted(expected_files - generated_files)
-            ]
-            differences.extend(
-                "unexpected generated file: %s" % path.as_posix()
-                for path in sorted(generated_files - expected_files)
-            )
-
-            for path in sorted(expected_files & generated_files):
-                expected = (ROOT / "example" / path).read_bytes()
-                actual = (generated / path).read_bytes()
-                if expected == actual:
-                    continue
-                first_changed = next(
-                    (
-                        offset
-                        for offset, (left, right) in enumerate(zip(expected, actual))
-                        if left != right
-                    ),
-                    min(len(expected), len(actual)),
-                )
-                differences.append(
-                    "changed file: %s at byte %d (expected %r, generated %r)"
-                    % (
-                        path.as_posix(),
-                        first_changed,
-                        expected[first_changed : first_changed + 80],
-                        actual[first_changed : first_changed + 80],
-                    )
-                )
-
-            self.assertEqual(
-                differences,
-                [],
-                "site.config.example.json rebuild differs from example/:\n"
-                + "\n".join(differences),
-            )
+        self.assertEqual(
+            differences,
+            [],
+            "site.config.example.json rebuild differs from example/; run "
+            "python scripts/regenerate_example.py:\n" + "\n".join(differences),
+        )
 
     def test_checked_in_example_has_no_reference_identity(self) -> None:
         paths = [ROOT / "site.config.example.json"]

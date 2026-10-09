@@ -196,6 +196,15 @@ node --test tests/*.test.cjs
 
 These direct commands support template development. They do not run the personal-site readiness checks in `fork.py`.
 
+[`example/`](example/) is generated, and the tests compare it with a fresh build of the sample config byte for byte. After any change to `template/`, the builder, or `site.config.example.json`, regenerate it with:
+
+```bash
+python scripts/regenerate_example.py --check   # list drift and exit 1 if example/ is stale
+python scripts/regenerate_example.py           # rewrite example/ from the sample config
+```
+
+That command is the only supported way to update `example/`. It reads only `site.config.example.json`, so it cannot copy a real identity into the public example. Never hand-edit `example/` or sync it from a deployed site.
+
 | Path | What to edit or inspect |
 | --- | --- |
 | [`site.config.example.json`](site.config.example.json) | Available config fields and their guidance. |
