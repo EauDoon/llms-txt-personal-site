@@ -23,7 +23,26 @@ This repository is a personal site template. Contributors are expected to fork i
 
 ## Local Setup
 
-The site is a static project. Clone the fork, install dependencies with the package manager of choice, and run the local dev server. See the README for the exact commands.
+The tooling uses only the Python standard library, so there is nothing to install. You need Git, Python 3.11 or newer, and Node.js 22 or newer for the browser-search tests. Run the same checks as CI from the repository root:
+
+```bash
+python -m unittest discover -s tests
+node --test tests/*.test.cjs
+python -c "import shutil; shutil.copyfile('site.config.example.json', 'site.config.json')"
+python scripts/build.py
+python scripts/quality_check.py
+python scripts/check_artifacts.py
+python scripts/verify_build.py
+python scripts/regenerate_example.py --check
+```
+
+Preview the build with `python -m http.server 8000 --bind 127.0.0.1 --directory site` and open `http://127.0.0.1:8000`. On Windows, use `py -3` in place of `python` if that is how Python is installed.
+
+## Rules for Changes
+
+- Keep Python 3.11 working. CI tests 3.11 to 3.14 on Linux and Windows.
+- Never hand-edit `example/` and never copy a real site into it. After changing `template/`, the builder, or the sample config, run `python scripts/regenerate_example.py` and commit the result.
+- Use synthetic data in issues, pull requests, tests, and examples. Do not post real biographical details, credentials, private handles, or the contents of a private `quality.local.json`.
 
 ## Reporting Bugs
 

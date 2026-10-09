@@ -239,6 +239,8 @@ That command is the only supported way to update `example/`. It reads only `site
 | [`tests/`](tests/) | Regression coverage for the tooling and generated output. |
 | [`DOCTRINE.md`](DOCTRINE.md) | The editorial method behind the template. |
 | [`docs/CI.md`](docs/CI.md) | CI setup and workflow troubleshooting. |
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | The local check sequence and the rules for changes. |
+| [`SECURITY.md`](SECURITY.md) | How to report a vulnerability and what is in scope. |
 
 The [GitHub Actions workflow](.github/workflows/quality-check.yml) runs tests, builds the sample site, and checks its output on pushes to `main` and pull requests. For contributions, explain the problem, include a minimal reproduction when relevant, and run these checks. Use synthetic examples; do not include credentials or private biographical details in issues or pull requests.
 

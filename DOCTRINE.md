@@ -32,6 +32,8 @@ An agent answering "what is X's job title" may fetch exactly one page. If your t
 
 The cost is real: changing your title means changing it in seven places. Run a `grep` for the old value and fix all of them, or you will publish a site that contradicts itself, which is worse than one that is merely out of date.
 
+This template now keeps the repeated fields (title, employer, contact details, and checked absences) in `site.config.json` and fills every copy at build time, so one edit covers those; any narrative sentence that restates a fact in its own words still needs the `grep`.
+
 ## 3. State what is not true
 
 Every public person has a stale fact circulating. Old title, old employer, an advisor listing from a project that no longer exists.
