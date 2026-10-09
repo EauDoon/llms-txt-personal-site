@@ -133,7 +133,7 @@ def page(title, body, cfg, source=None, heading=True, desc=None, canonical=None)
         '<link rel="canonical" href="%s">' % esc(canonical, quote=True) if canonical else ''
     )
     return '''<!doctype html>
-<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<html lang="%s"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>%s | %s</title>%s%s<link rel="describedby" href="/llms.txt">
 <link rel="alternate" type="application/atom+xml" href="/feed.xml" title="Writing feed">
 <link rel="alternate" type="text/markdown" href="%s" title="Source in Markdown">
@@ -154,7 +154,8 @@ pre,.table-scroll { overflow-x: auto; max-width: 100%%; } pre { padding: 1rem; b
 </style></head><body><a class="skip" href="#main-content">Skip to content</a>
 <nav aria-label="Site"><a href="/">%s</a> · <a href="/writing.html">Writing</a> · <a href="/topics.html">Topics</a> · <a href="/search.html">Search</a> · <a href="/llms.txt">Machine-readable index</a></nav>
 <main id="main-content">%s%s</main></body></html>
-''' % (esc(title), esc(cfg["FULL_NAME"]), description, canonical_link,
+''' % (esc(cfg.get("SITE_LANGUAGE") or "en", quote=True),
+       esc(title), esc(cfg["FULL_NAME"]), description, canonical_link,
        esc(source or '/' + title.lower() + '.md', quote=True),
        esc(cfg["FULL_NAME"]), '<h1>%s</h1>' % esc(title) if heading else '', body)
 

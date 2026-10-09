@@ -14,4 +14,5 @@
 
 ## Environment
 
-<!-- OS, language or runtime version, repo commit if known -->
+<!-- OS, Python version, and the output of: python scripts/version.py -->
+<!-- If the problem is in a built site, the "generator" line of site/content-manifest.json helps too. -->

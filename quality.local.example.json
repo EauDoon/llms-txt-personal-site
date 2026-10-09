@@ -1,0 +1,15 @@
+{
+  "_comment": "Copy to quality.local.json, which Git ignores, then run python scripts/quality_check.py. Every key is optional.",
+
+  "_forbidden_note": "Strings that must never appear anywhere in the build, matched literally and ignoring case, in every text file and file name, dot-directories included. A hit is reported by entry number and file, never by its text. Keep this file private: a public fork would publish whatever it lists.",
+  "forbidden": [],
+
+  "_allowed_note": "Deliberate exceptions. Each entry is a regular expression with a nonempty reason. A rule match within 120 characters of an allowed match is accepted, for example a proper noun that uses a British spelling.",
+  "allowed": [],
+
+  "_style_note": "Writing-style rules, both on by default. em_dash fails em and en dashes; american_spelling fails common British spellings outside URLs. Set either to false to turn it off.",
+  "style": {
+    "em_dash": true,
+    "american_spelling": true
+  }
+}

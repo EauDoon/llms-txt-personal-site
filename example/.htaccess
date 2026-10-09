@@ -60,6 +60,14 @@ AddDefaultCharset UTF-8
   Header always set Referrer-Policy "strict-origin-when-cross-origin"
   Header always set Link "</llms.txt>; rel=describedby"
 
+  # The pages need only same-origin scripts (search.js), inline <style>, a
+  # data: SVG favicon and same-origin fetches. JSON-LD blocks are data, not
+  # scripts. Widen this if you add third-party scripts, fonts or embeds, and
+  # keep _headers and vercel.json in step.
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'"
+  Header always set X-Frame-Options "DENY"
+  Header always set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+
   # HTTPS is forced unconditionally below, so tell browsers not to try plaintext
   # at all. Remove this line if the site ever needs to be reachable over HTTP.
   Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"

@@ -46,9 +46,12 @@
 
   "LAST_UPDATED": "2026-01-01",
 
+  "SITE_LANGUAGE": "en",
+  "_language_note": "Optional. The language tag of the published pages, used for every html lang attribute and for article inLanguage. Use a tag such as en, de or pt-BR. It defaults to en when absent.",
+
   "_a2a_note": "A static personal site is not an A2A server. Leave A2A_AGENT_CARD_PATH absent unless this domain fronts a real A2A v1 endpoint. See README.md.",
 
-  "_verification_note": "Site-verification tokens are per-domain. Get your own from Google Search Console and Bing Webmaster Tools, then put them in verification below. Never reuse someone else's.",
+  "_verification_note": "Site-verification tokens are per-domain. Get your own from Google Search Console and Bing Webmaster Tools, generate your own IndexNow key, then put them in verification below. Never reuse someone else's. The build publishes each nonempty value: bing_msvalidate as a msvalidate.01 meta tag on the homepage, google_html_file (for example google0123456789abcdef.html) as that file at the site root, and indexnow_key as <key>.txt at the site root. The files stay out of sitemap.xml, and quality_check.py --live confirms they are served.",
   "verification": {
     "bing_msvalidate": "",
     "google_html_file": "",

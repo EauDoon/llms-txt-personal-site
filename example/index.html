@@ -9,8 +9,6 @@
 <meta name="author" content="Your Full Name">
 <link rel="canonical" href="https://yourname.com/">
 
-<!-- Site-verification meta tags go here. Removed from this example copy:
-     a verification token belongs to one domain and must not be forked. -->
 
 <meta property="og:type" content="profile">
 <meta property="og:title" content="Your Full Name: Your Exact Job Title, Your Employer">
@@ -181,8 +179,10 @@
   p { margin: 0 0 1rem; }
   ul { margin: 0 0 1rem; padding-left: 1.15rem; }
   li { margin-bottom: .35rem; }
-  a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
-  a:hover { border-bottom-color: currentColor; }
+  a { color: var(--accent); text-decoration: underline; text-underline-offset: .15em; }
+  :focus-visible { outline: 3px solid currentColor; outline-offset: 4px; }
+  .skip { position: absolute; left: 1rem; top: -5rem; padding: .5rem; background: var(--bg); }
+  .skip:focus { top: .5rem; }
   code { background: var(--code-bg); padding: .1em .35em; border-radius: 3px; font-size: .9em; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
   table { border-collapse: collapse; width: 100%; margin: 0 0 1rem; font-size: .95rem; }
   th, td { text-align: left; padding: .55rem .7rem; border-bottom: 1px solid var(--line); vertical-align: top; }
@@ -197,11 +197,14 @@
 </style>
 </head>
 <body>
+<a class="skip" href="#main-content">Skip to content</a>
 <div class="wrap">
 <header>
   <h1>Your Full Name</h1>
   <p class="lede">One sentence. What you do, for whom, where. This is the single most quoted line on the site.</p>
 </header>
+
+<main id="main-content">
 
 <!-- GUIDANCE, delete this block.
      Keep the human page short. Its job is to carry the JSON-LD above and to
@@ -238,6 +241,7 @@
   <li><a href="/writing/example-depth-page.html">Example Depth Page</a></li>
 </ul>
 <!-- END GENERATED WRITING INDEX -->
+</main>
 
 <footer>
   <p>Contact: <a href="mailto:you@yourname.com">you@yourname.com</a></p>

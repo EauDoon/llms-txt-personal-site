@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import json
-import re
 import subprocess
 import sys
 import unittest
@@ -11,7 +10,10 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA = ROOT / "eval" / "identity_questions.json"
 SCRIPT = ROOT / "scripts" / "score_identity_eval.py"
 sys.path.insert(0, str(ROOT / "scripts"))
+# tests/ is not a package; make its helper importable however the suite runs.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from identity_markers import contains_marker
 from score_identity_eval import load_eval, score_answer
 
 
@@ -36,15 +38,7 @@ class IdentityEvalTests(unittest.TestCase):
         self.assertNotIn("scores", dataset)
         self.assertNotIn("runs", dataset)
 
-        markers = (
-            b"straits" + b"x",
-            b"xsgd",
-            b"xusd",
-            b"daniel" + b"oon",
-            b"eau" + b"doon",
-        )
-        compact = re.sub(rb"[\s_-]+", b"", DATA.read_bytes().lower())
-        self.assertFalse(any(marker in compact for marker in markers))
+        self.assertFalse(contains_marker(DATA.read_bytes()))
 
         for question in questions:
             with self.subTest(question=question["id"]):

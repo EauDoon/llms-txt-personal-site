@@ -44,8 +44,10 @@
   p { margin: 0 0 1rem; }
   ul { margin: 0 0 1rem; padding-left: 1.15rem; }
   li { margin-bottom: .35rem; }
-  a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
-  a:hover { border-bottom-color: currentColor; }
+  a { color: var(--accent); text-decoration: underline; text-underline-offset: .15em; }
+  :focus-visible { outline: 3px solid currentColor; outline-offset: 4px; }
+  .skip { position: absolute; left: 1rem; top: -5rem; padding: .5rem; background: var(--bg); }
+  .skip:focus { top: .5rem; }
   code { background: var(--code-bg); padding: .1em .35em; border-radius: 3px; font-size: .9em; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
   table { border-collapse: collapse; width: 100%; margin: 0 0 1rem; font-size: .95rem; }
   th, td { text-align: left; padding: .55rem .7rem; border-bottom: 1px solid var(--line); vertical-align: top; }
@@ -60,11 +62,13 @@
 </style>
 </head>
 <body>
+<a class="skip" href="#main-content">Skip to content</a>
 <div class="wrap">
 <header>
 <h1>Page not found</h1>
 <p class="loc">That URL does not exist on yourname.com.</p>
 </header>
+<main id="main-content">
 <p>If you are looking for facts about Your Full Name, start here:</p>
 <ul>
 <li><a href="/profile.md">profile.md</a>: the canonical profile</li>
@@ -74,8 +78,10 @@
 <li><a href="/contact.md">contact.md</a>: how to get in touch</li>
 <li><a href="/">Homepage</a></li>
 </ul>
-<hr>
-<p class="loc">Contact: <a href="mailto:you@yourname.com">you@yourname.com</a></p>
+</main>
+<footer>
+<p>Contact: <a href="mailto:you@yourname.com">you@yourname.com</a></p>
+</footer>
 </div>
 </body>
 </html>

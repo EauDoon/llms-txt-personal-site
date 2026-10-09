@@ -3,16 +3,22 @@
 
     python scripts/build.py
 
-Runs six steps:
-  1. fill placeholders from site.config.json
+Builds into a sibling staging directory in nine steps, then replaces site/:
+  1. fill placeholders from site.config.json into every template file and
+     publish any configured search-engine verification proofs
   2. publish an explicitly configured, validated A2A v1 Agent Card
   3. index every writing/*.md page in llms.txt
   4. generate an HTML companion for every writing/*.md page
-  5. concatenate everything into llms-full.txt
-  6. generate sitemap.xml from the public files that were built
+  5. generate readable HTML companions for the core root pages
+  6. generate the writing directory, topic pages, search index and Atom feed
+  7. concatenate every Markdown page into llms-full.txt
+  8. generate sitemap.xml from the public files that were built
+  9. write content-manifest.json, the byte inventory of the output
 
-Then run scripts/quality_check.py before you deploy.
+A failure in any step leaves the previous site/ in place. Then run
+scripts/quality_check.py before you deploy.
 """
+import argparse
 import json
 import os
 import re
@@ -22,8 +28,9 @@ import sys
 import tempfile
 from urllib.parse import quote, urlsplit
 
-from build_sitemap import validate_last_updated
+from build_sitemap import validate_last_updated, verification_files
 from email_addresses import validate_email_address
+from version import __version__
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATE = os.path.join(ROOT, "template")
@@ -32,7 +39,13 @@ CONFIG = os.path.join(ROOT, "site.config.json")
 WINDOWS_REPARSE_POINT = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x0400)
 # Copied through as bytes. Every other template file is text and can carry a
 # {{PLACEHOLDER}}, including scripts and host rules that have no such suffix.
-BINARY_SUFFIXES = (".png", ".jpg", ".jpeg", ".gif", ".ico", ".webp", ".pdf")
+# .svg is text on purpose: it is XML and may carry a placeholder.
+BINARY_SUFFIXES = (
+    ".png", ".jpg", ".jpeg", ".gif", ".ico", ".webp", ".avif", ".bmp", ".pdf",
+    ".woff", ".woff2", ".ttf", ".otf", ".eot",
+    ".mp3", ".mp4", ".webm", ".ogg", ".wav",
+    ".zip", ".gz",
+)
 REQUIRED_CONFIG = (
     "DOMAIN",
     "FULL_NAME",
@@ -54,17 +67,28 @@ REQUIRED_CONFIG = (
     "ABSENCE_BYLINED_ARTICLE",
     "LAST_UPDATED",
 )
+# Optional SITE_LANGUAGE sets <html lang> and Article inLanguage on every page.
+DEFAULT_SITE_LANGUAGE = "en"
 
 
-class ScriptSafeJson(str):
+class PreEscapedMarkup(str):
+    """Markup the builder generated and escaped itself; fill() inserts it as is."""
+
+
+class ScriptSafeJson(PreEscapedMarkup):
     """JSON serialized for direct insertion into an HTML script element."""
 
 
 def load_config():
     if not os.path.exists(CONFIG):
         sys.exit("No site.config.json. Copy site.config.example.json to site.config.json and fill it in.")
-    with open(CONFIG, encoding="utf-8") as f:
-        cfg = json.load(f)
+    try:
+        with open(CONFIG, encoding="utf-8") as f:
+            cfg = json.load(f)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        sys.exit("site.config.json is not valid JSON: %s" % exc)
+    except OSError as exc:
+        sys.exit("site.config.json could not be read: %s" % exc)
     if not isinstance(cfg, dict):
         sys.exit("site.config.json must contain an object")
     missing = [key for key in REQUIRED_CONFIG if not isinstance(cfg.get(key), str) or not cfg[key].strip()]
@@ -80,9 +104,18 @@ def load_config():
     try:
         validate_last_updated(cfg["LAST_UPDATED"])
         validate_public_contacts(cfg)
+        validate_site_language(cfg.get("SITE_LANGUAGE", DEFAULT_SITE_LANGUAGE))
+        verification_files(cfg)
     except ValueError as exc:
         sys.exit(str(exc))
     return cfg
+
+
+def validate_site_language(value):
+    """Accept a BCP 47 style language tag such as en, de or pt-BR."""
+    if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*", value):
+        raise ValueError("SITE_LANGUAGE must be a language tag such as en, de or pt-BR")
+    return value
 
 
 def validate_public_contacts(cfg):
@@ -128,7 +161,7 @@ def fill(text, cfg, plain_text=False):
             return m.group(0)          # leave unknown tokens visible rather than blanking them
         if isinstance(val, (list, dict)):
             return m.group(0)
-        if isinstance(val, ScriptSafeJson):
+        if isinstance(val, PreEscapedMarkup):
             return str(val)
         if key == 'EMAIL' and plain_text:
             return str(val)
@@ -316,15 +349,74 @@ def template_files(template_dir):
     return sources
 
 
+def unpublishable_markdown(relative):
+    """Return why a published Markdown source cannot be built, or None.
+
+    Only root pages and articles directly under writing/ reach llms-full.txt,
+    llms.txt, search, the feed and the HTML companions. The sitemap lists every
+    published file, so a nested page would be advertised but missing from
+    everything that describes the site. The match is case-sensitive, so
+    Writing/x.md is refused on every operating system.
+    """
+    path = relative.replace("\\", "/")
+    if not path.lower().endswith(".md"):
+        return None
+    parts = path.split("/")
+    if len(parts) == 1 or (len(parts) == 2 and parts[0] == "writing"):
+        return None
+    return (
+        "template Markdown must sit at the template root or directly in writing/: %s "
+        "would be listed in sitemap.xml but missing from llms-full.txt, llms.txt, "
+        "search and the feed" % path
+    )
+
+
+def verification_meta(cfg):
+    """Return the homepage's Bing ownership meta tag, or nothing."""
+    verification_files(cfg)  # validates every token before any is published
+    token = (cfg.get("verification") or {}).get("bing_msvalidate", "")
+    return PreEscapedMarkup('<meta name="msvalidate.01" content="%s">' % token if token else "")
+
+
+def write_verification_files(out_dir, cfg):
+    """Publish the configured Google and IndexNow proofs at the site root.
+
+    A proof placed in template/ by hand would be checked as a page and listed
+    in the sitemap; one written into site/ is removed by the next clean build.
+    """
+    verification = cfg.get("verification") or {}
+    proofs = []
+    if verification.get("google_html_file"):
+        name = verification["google_html_file"]
+        proofs.append((name, "google-site-verification: %s" % name))
+    if verification.get("indexnow_key"):
+        proofs.append((verification["indexnow_key"] + ".txt", verification["indexnow_key"]))
+    for name, content in proofs:
+        with open(os.path.join(out_dir, name), "w", encoding="utf-8", newline="") as proof:
+            proof.write(content)
+
+
 def build_site(template_dir, out_dir, cfg):
     """Build a complete site into an empty staging directory."""
-    cfg = dict(cfg, EMAIL_URI=quote(cfg.get("EMAIL", ""), safe="@"))
+    # Derived values are always set, so a template token for them is filled
+    # even when a caller passes a bare config.
+    cfg = dict(cfg, EMAIL_URI=quote(cfg.get("EMAIL", ""), safe="@"),
+               SITE_LANGUAGE=cfg.get("SITE_LANGUAGE") or DEFAULT_SITE_LANGUAGE,
+               VERIFICATION_META=verification_meta(cfg))
     sources = [(src, os.path.join(out_dir, relative), relative)
                for src, relative in template_files(template_dir)]
     os.makedirs(out_dir, exist_ok=True)
 
     from publishing import publication_exclusions
     excluded = publication_exclusions(sources, fill, cfg)
+    for _, _, relative in sources:
+        # Drafts never reach the output, so only published Markdown has to fit
+        # the flat layout every generator reads.
+        if relative.replace('\\', '/').casefold() in excluded:
+            continue
+        problem = unpublishable_markdown(relative)
+        if problem:
+            raise ValueError(problem)
     copied = 0
     plain_email_sources = {}
     for src, dst, relative in sources:
@@ -335,8 +427,14 @@ def build_site(template_dir, out_dir, cfg):
             with open(src, "rb") as a, open(dst, "wb") as b:
                 b.write(a.read())
         else:
-            with open(src, encoding="utf-8") as source:
-                t = source.read()
+            try:
+                with open(src, encoding="utf-8") as source:
+                    t = source.read()
+            except UnicodeDecodeError as exc:
+                raise ValueError(
+                    "template file is not UTF-8 text: %s; add its suffix to "
+                    "BINARY_SUFFIXES or convert it" % relative.replace('\\', '/')
+                ) from exc
             filled = fill(t, cfg, plain_text=src.lower().endswith('.txt'))
             if src.lower().endswith('.md') and '{{EMAIL}}' in t:
                 plain_email_sources[relative.replace('\\', '/')] = (filled, fill(t, cfg, plain_text=True))
@@ -345,6 +443,7 @@ def build_site(template_dir, out_dir, cfg):
         copied += 1
 
     print("  filled %d files into site/" % copied)
+    write_verification_files(out_dir, cfg)
 
     leftover = {}
     for dirpath, _, files in os.walk(out_dir):
@@ -483,7 +582,10 @@ def build_site_staged(template_dir, output_dir, cfg):
                 )
 
 
-def main():
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
+    parser.parse_args(argv)
     cfg = load_config()
     cfg = dict(cfg, **json_block(cfg))
 
@@ -492,11 +594,13 @@ def main():
 
     try:
         build_site_staged(TEMPLATE, OUT, cfg)
-    except ValueError as exc:
-        sys.exit(str(exc))
+    except (ValueError, OSError) as exc:
+        print("build failed: %s" % exc, file=sys.stderr)
+        return 1
 
     print("\n  done. Next: python scripts/quality_check.py")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -1,23 +1,24 @@
 {
   "version": 1,
+  "generator": "llms-txt-personal-site 1.0.0",
   "site": "https://yourname.com/",
   "reviewed_date": "2026-01-01",
   "scope": "Built public files, excluding this manifest. Hashes establish byte identity, not factual verification or authorship.",
   "files": [
     {
       "path": ".htaccess",
-      "bytes": 4474,
-      "sha256": "781b433c8f6094765fe1c216ee35b4dc15a58984f8381fdc73f03875e20edfd0"
+      "bytes": 5118,
+      "sha256": "ce867bdf3a40cae6094659f50db56cb7a3de7b997b518282190ac19b350abd40"
     },
     {
       "path": "404.html",
-      "bytes": 3623,
-      "sha256": "9461ee8d17e960c8b31842488c3e18c0a3d647a06b2714985ecc3c53338abb41"
+      "bytes": 3863,
+      "sha256": "b96f861d3843273d75ec433fcc5ff8c50e200d6d5460bfe523e4aeb20466f331"
     },
     {
       "path": "_headers",
-      "bytes": 885,
-      "sha256": "feefa51bbda26af844b659cc619bf219f808c7c2b5a45f6a06f42bce2cd498ad"
+      "bytes": 1402,
+      "sha256": "f739a4b95773936ed3754a0495c0ba76166c83fbe4216d41145133d7d61acf75"
     },
     {
       "path": "about.html",
@@ -86,8 +87,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 9713,
-      "sha256": "673d619902a313954403dc1a0169ff188a2258920cd665ec9a080b8f74502312"
+      "bytes": 9802,
+      "sha256": "1a334d35c5dbf42ed546b67320b0516be432ada4630b5d32f1c4a8f82635da20"
     },
     {
       "path": "llms-full.txt",
@@ -181,13 +182,13 @@
     },
     {
       "path": "vercel.json",
-      "bytes": 1655,
-      "sha256": "c23f25344aa1560d78d91689cdf35eeaff743cd954aba54391ee198df35c6eea"
+      "bytes": 1872,
+      "sha256": "1a7ac37233c60410be5ecbd79e9e344d9e899498832868ce45c57b4605ba1e3a"
     },
     {
       "path": "writing/example-depth-page.html",
-      "bytes": 7043,
-      "sha256": "8246e41ab2472d72faeb9271d5b0f4b764aa0189ad40877697b4e2b903dc6dda"
+      "bytes": 7191,
+      "sha256": "8e7e141a8ee0d7953740498026a50e6247a5ec43f3d160fe36561eaacd579a17"
     },
     {
       "path": "writing/example-depth-page.md",

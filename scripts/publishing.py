@@ -65,8 +65,11 @@ def publication_exclusions(sources, fill, cfg):
         path = PurePosixPath(relative.replace('\\', '/'))
         if not path.parts or path.parts[0].casefold() != 'writing' or path.suffix.casefold() != '.md':
             continue
-        with open(source, encoding='utf-8') as stream:
-            text = stream.read()
+        try:
+            with open(source, encoding='utf-8') as stream:
+                text = stream.read()
+        except UnicodeDecodeError as exc:
+            raise ValueError('template file is not UTF-8 text: %s' % path) from exc
         raw, _ = article_metadata(text)
         if raw['status'] == 'draft':
             excluded.update((str(path).casefold(), str(path.with_suffix('.html')).casefold()))
@@ -110,6 +113,15 @@ def review_articles(template, cfg):
                 meta, body = article_metadata(fill(source, cfg))
                 record.update(status=raw['status'], title=meta.get('title') or path.stem,
                               published=meta.get('published'), updated=meta.get('updated'))
+                if path.parent != writing:
+                    # The builder renders only writing/<name>.md and refuses a
+                    # published nested article; a nested draft is never built.
+                    if raw['status'] == 'published':
+                        record['errors'].append('nested article directories are not built; '
+                                                'move it directly under writing/')
+                    else:
+                        record['warnings'].append('nested drafts are never built; move it '
+                                                  'directly under writing/ before publishing')
                 validate_article_dates(meta, cfg['LAST_UPDATED'])
                 for key in ('title', 'desc', 'about'):
                     if not meta.get(key):

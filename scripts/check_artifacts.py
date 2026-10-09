@@ -7,6 +7,7 @@ from pathlib import Path
 from urllib.parse import unquote, urljoin, urlsplit
 
 from build_inventory import inventory
+from version import __version__
 
 
 class Document(HTMLParser):
@@ -16,20 +17,26 @@ class Document(HTMLParser):
         self.json_text = None
 
     def handle_starttag(self, tag, attrs):
-        values = dict(attrs)
-        if any(key.lower().startswith("on") for key in values):
+        values = {key.lower(): value or "" for key, value in attrs}
+        if any(key.startswith("on") for key in values):
             self.errors.append("inline event-handler attribute")
         identifier = values.get("id")
         if identifier:
             if identifier in self.ids:
                 self.errors.append("duplicate id: " + identifier)
             self.ids.add(identifier)
+        # rel is a token list in any case: "icon", "ICON" and "shortcut icon"
+        # all name a favicon.
+        favicon = tag == "link" and "icon" in values.get("rel", "").casefold().split()
         for key in ("href", "src"):
             if values.get(key):
                 self.links.append(values[key])
-                if values[key].lower().startswith("data:") and not (tag == "link" and values.get("rel") == "icon" and values[key].lower().startswith("data:image/")):
+                if values[key].lower().startswith("data:") and not (favicon and values[key].lower().startswith("data:image/")):
                     self.errors.append("data URL is permitted only for an image favicon")
-        if tag == "script" and values.get("type") == "application/ld+json":
+        # The same normalization as the quality gate: a media-type parameter or
+        # different case still declares JSON-LD, so its body is still parsed.
+        media = values.get("type", "").split(";", 1)[0].strip().casefold()
+        if tag == "script" and media == "application/ld+json":
             self.json_text = ""
 
     def handle_data(self, data):
@@ -118,6 +125,7 @@ def audit(site_dir):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
     parser.add_argument("site", nargs="?", default=str(Path(__file__).resolve().parents[1] / "site"))
     args = parser.parse_args()
     try:

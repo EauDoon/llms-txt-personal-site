@@ -144,7 +144,7 @@ class ForkTests(unittest.TestCase):
                 issues,
             )
 
-    def test_ready_fork_runs_build_then_quality_in_one_command(self) -> None:
+    def test_ready_fork_runs_build_quality_and_audit_in_one_command(self) -> None:
         module = self.load_module()
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
@@ -162,6 +162,7 @@ class ForkTests(unittest.TestCase):
             scripts.mkdir()
             (scripts / "build.py").write_text("", encoding="utf-8")
             (scripts / "quality_check.py").write_text("", encoding="utf-8")
+            (scripts / "check_artifacts.py").write_text("", encoding="utf-8")
 
             commands = []
 
@@ -175,6 +176,7 @@ class ForkTests(unittest.TestCase):
                 [
                     [sys.executable, str(scripts / "build.py")],
                     [sys.executable, str(scripts / "quality_check.py")],
+                    [sys.executable, str(scripts / "check_artifacts.py")],
                 ],
             )
             self.assertTrue(all(item[1]["cwd"] == repo for item in commands))

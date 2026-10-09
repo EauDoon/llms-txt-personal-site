@@ -484,7 +484,7 @@ def reading_estimate(md):
 
 
 SHELL = """<!doctype html>
-<html lang="en">
+<html lang="{lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -509,7 +509,7 @@ SHELL = """<!doctype html>
   "description": {desc_json},
   "url": "https://{domain}/writing/{slug}.html",
   "mainEntityOfPage": "https://{domain}/writing/{slug}.html",
-  "inLanguage": "en",
+  "inLanguage": {lang_json},
 {published_line}
   "dateModified": "{date}",
   "author": {{
@@ -591,7 +591,10 @@ def render_page(slug, source, cfg, style=""):
     published = validate_last_updated(meta["published"]) if meta.get("published") else None
     if published and published > modified:
         raise ValueError("article published date cannot follow updated date")
+    language = cfg.get("SITE_LANGUAGE") or "en"
     return SHELL.format(
+        lang=html.escape(language, quote=True),
+        lang_json=script_json(language),
         title=html.escape(title, quote=True),
         desc=html.escape(desc, quote=True),
         slug=quote(slug, safe="-._~"),

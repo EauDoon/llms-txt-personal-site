@@ -185,14 +185,9 @@ class QualityCheckTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
             scripts = repo / "scripts"
-            scripts.mkdir()
-            shutil.copy2(ROOT / "scripts" / "a2a_agent_card.py", scripts)
-            shutil.copy2(ROOT / "scripts" / "build.py", scripts)
-            shutil.copy2(ROOT / "scripts" / "build_sitemap.py", scripts)
-            shutil.copy2(ROOT / "scripts" / "http_client.py", scripts)
-            shutil.copy2(ROOT / "scripts" / "llms_txt.py", scripts)
-            shutil.copy2(ROOT / "scripts" / "quality_check.py", scripts)
-            shutil.copy2(ROOT / "scripts" / "email_addresses.py", scripts)
+            # Copy every script: a hand-picked list broke whenever the gate's
+            # import chain gained a module.
+            shutil.copytree(ROOT / "scripts", scripts, ignore=shutil.ignore_patterns("__pycache__"))
 
             site = repo / "site"
             site.mkdir()
@@ -569,6 +564,185 @@ class QualityCheckTests(unittest.TestCase):
                 "llms-full.txt does not contain the current bytes of: ['now.md']",
                 result.stdout,
             )
+
+    def test_nested_page_missing_from_generated_files_fails_the_gate(self) -> None:
+        # The builder refuses nested Markdown, but a hand-assembled site can
+        # still carry one with a matching sitemap. The rule and byte scans used
+        # to read only the root and writing/, so every check passed.
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            shutil.copytree(ROOT / "scripts", repo / "scripts", ignore=shutil.ignore_patterns("__pycache__"))
+            shutil.copytree(ROOT / "template", repo / "template")
+            config = json.loads((ROOT / "site.config.example.json").read_text(encoding="utf-8"))
+            (repo / "site.config.json").write_text(json.dumps(config), encoding="utf-8")
+            build = subprocess.run([sys.executable, str(repo / "scripts" / "build.py")], cwd=repo,
+                                   capture_output=True, text=True, check=False)
+            self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
+            notes = repo / "site" / "notes"
+            notes.mkdir()
+            (notes / "x.md").write_text("# Notes\n\nLast updated: %s\n" % config["LAST_UPDATED"],
+                                        encoding="utf-8")
+            import build_sitemap
+            build_sitemap.run(str(repo / "site"), config)
+            result = subprocess.run([sys.executable, str(repo / "scripts" / "quality_check.py")],
+                                    cwd=repo, capture_output=True, text=True, check=False)
+            self.assertNotEqual(result.returncode, 0, result.stdout)
+            self.assertIn("llms-full.txt does not contain the current bytes of: ['notes/x.md']", result.stdout)
+            self.assertIn("sitemap URLs match public build artifacts", result.stdout)
+
+    def test_gate_without_a_usable_config_reports_one_failure(self) -> None:
+        # The gate used to fall back to example.com and print a page of
+        # canonical, feed and sitemap failures that never named the config.
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            shutil.copytree(ROOT / "scripts", repo / "scripts", ignore=shutil.ignore_patterns("__pycache__"))
+            (repo / "site").mkdir()
+            config = repo / "site.config.json"
+            cases = {
+                None: "site.config.json not found; create it with: python scripts/fork.py --init",
+                b'{"DOMAIN": ': "site.config.json is not valid JSON",
+                b"\xff\xfe": "site.config.json is not valid JSON",
+                b"[]": "site.config.json must contain a JSON object",
+                b"{}": "site.config.json must set DOMAIN to a nonempty string",
+                b'{"DOMAIN": "  "}': "site.config.json must set DOMAIN to a nonempty string",
+                b'{"DOMAIN": 7}': "site.config.json must set DOMAIN to a nonempty string",
+                b'{"DOMAIN": "x.test", "verification": {"google_html_file": "../x.html"}}':
+                    "site.config.json: verification.google_html_file is not a valid token",
+            }
+            for raw, expected in cases.items():
+                with self.subTest(raw=raw):
+                    if raw is None:
+                        config.unlink(missing_ok=True)
+                    else:
+                        config.write_bytes(raw)
+                    result = subprocess.run([sys.executable, str(repo / "scripts" / "quality_check.py")],
+                                            cwd=repo, capture_output=True, text=True, check=False)
+                    self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                    failures = [line for line in result.stdout.splitlines() if "FAIL" in line]
+                    self.assertEqual(len(failures), 1, result.stdout)
+                    self.assertIn(expected, failures[0])
+                    self.assertNotIn("example.com", result.stdout + result.stderr)
+                    self.assertNotIn("Traceback", result.stderr)
+
+    def rules_repo(self, directory: str, edit=None) -> Path:
+        """Build the sample site in a temp repo, optionally editing template/ first."""
+        repo = Path(directory)
+        shutil.copytree(ROOT / "scripts", repo / "scripts", ignore=shutil.ignore_patterns("__pycache__"))
+        shutil.copytree(ROOT / "template", repo / "template")
+        shutil.copyfile(ROOT / "site.config.example.json", repo / "site.config.json")
+        if edit:
+            edit(repo / "template")
+        build = subprocess.run([sys.executable, str(repo / "scripts" / "build.py")], cwd=repo,
+                               capture_output=True, text=True, check=False)
+        self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
+        return repo
+
+    def gate(self, repo: Path, rules=None) -> subprocess.CompletedProcess[str]:
+        command = [sys.executable, str(repo / "scripts" / "quality_check.py")]
+        if rules is not None:
+            path = repo / "rules.json"
+            path.write_bytes(rules if isinstance(rules, bytes) else json.dumps(rules).encode("utf-8"))
+            command += ["--rules", str(path)]
+        return subprocess.run(command, cwd=repo, capture_output=True, text=True, check=False)
+
+    def test_forbidden_strings_match_literally_everywhere_without_echoing(self) -> None:
+        secret, decoy = "UniqueCanaryTokenQ7", "zqxv"
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.rules_repo(directory)
+            index = repo / "site" / "search-index.json"
+            records = json.loads(index.read_text(encoding="utf-8"))
+            records[0]["text"] += " %s %s" % (secret, decoy)
+            index.write_text(json.dumps(records), encoding="utf-8")
+
+            passed = self.gate(repo, {"forbidden": []})
+            self.assertEqual(passed.returncode, 0, passed.stdout + passed.stderr)
+
+            result = self.gate(repo, {"forbidden": ["nothing-like-this", secret.lower()]})
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("forbidden string #2 in search-index.json (1)", result.stdout)
+            self.assertNotIn(secret.lower(), (result.stdout + result.stderr).lower())
+
+            # Entries are literal text, not regular expressions.
+            literal = self.gate(repo, {"forbidden": ["zq.v", "zq[x]v"]})
+            self.assertEqual(literal.returncode, 0, literal.stdout + literal.stderr)
+            excused = self.gate(repo, {"forbidden": [decoy],
+                                       "allowed": [{"pattern": secret, "reason": "synthetic test"}]})
+            self.assertEqual(excused.returncode, 0, excused.stdout + excused.stderr)
+
+            card = repo / "site" / ".well-known"
+            card.mkdir()
+            (card / ("notes-%s.txt" % decoy)).write_text("clean\n", encoding="utf-8")
+            named = self.gate(repo, {"forbidden": [decoy],
+                                     "allowed": [{"pattern": secret, "reason": "synthetic test"}]})
+            self.assertEqual(named.returncode, 1, named.stdout + named.stderr)
+            self.assertIn("forbidden string #1 in the file name of a withheld path", named.stdout)
+            self.assertNotIn(decoy, named.stdout + named.stderr)
+
+    def test_default_rules_file_lives_beside_the_scripts(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.rules_repo(directory)
+            (repo / "quality.local.json").write_text(json.dumps({"forbidden": ["Your Full Name"]}), encoding="utf-8")
+            result = self.gate(repo)
+            self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+            self.assertIn("forbidden string #1 in about.md (1)", result.stdout)
+            self.assertRegex(result.stdout, r"and \d+ more file locations")
+            self.assertNotIn("your full name", result.stdout.lower())
+
+    def test_malformed_rules_fail_once_without_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.rules_repo(directory)
+            cases = {
+                b'{"forbidden": [': "rules.json is not valid JSON",
+                b"[]": "rules.json must contain a JSON object",
+                b'{"forbiden": []}': "rules.json has unknown keys: forbiden",
+                b'{"forbidden": "one"}': "forbidden must be a list of strings",
+                b'{"forbidden": ["ok", ""]}': "forbidden string #2 must be a nonempty string",
+                b'{"allowed": [{"pattern": "x"}]}': "allowed entry #1 needs a nonempty reason",
+                b'{"allowed": [{"pattern": "(", "reason": "r"}]}': "allowed entry #1 pattern is not a valid regular expression",
+                b'{"style": {"em_dash": "no"}}': "style.em_dash must be true or false",
+                b'{"style": {"oxford_comma": true}}': "style may set only em_dash and american_spelling",
+            }
+            for raw, expected in cases.items():
+                with self.subTest(raw=raw):
+                    result = self.gate(repo, raw)
+                    self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                    failures = [line for line in result.stdout.splitlines() if "FAIL" in line]
+                    self.assertEqual(len(failures), 1, result.stdout)
+                    self.assertIn(expected, failures[0])
+                    self.assertNotIn("Traceback", result.stderr)
+            missing = subprocess.run([sys.executable, str(repo / "scripts" / "quality_check.py"),
+                                      "--rules", str(repo / "absent.json")],
+                                     cwd=repo, capture_output=True, text=True, check=False)
+            self.assertEqual(missing.returncode, 1)
+            self.assertIn("rules file", missing.stdout)
+            self.assertNotIn("Traceback", missing.stderr)
+
+    def test_each_style_rule_can_be_turned_off(self) -> None:
+        def edit(template: Path) -> None:
+            page = template / "now.md"
+            page.write_text(page.read_text(encoding="utf-8")
+                            + "\nThe colour of the work — a synthetic style sample.\n", encoding="utf-8")
+
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.rules_repo(directory, edit)
+            default = self.gate(repo)
+            self.assertEqual(default.returncode, 1)
+            self.assertIn("FAIL em/en dash", default.stdout)
+            self.assertIn("FAIL British spelling", default.stdout)
+
+            spelling_off = self.gate(repo, {"style": {"american_spelling": False}})
+            self.assertEqual(spelling_off.returncode, 1)
+            self.assertIn("FAIL em/en dash", spelling_off.stdout)
+            self.assertNotIn("FAIL British spelling", spelling_off.stdout)
+            self.assertIn("off  British spelling", spelling_off.stdout)
+
+            both_off = self.gate(repo, {"style": {"em_dash": False, "american_spelling": False}})
+            self.assertEqual(both_off.returncode, 0, both_off.stdout + both_off.stderr)
+
+            example = json.loads((ROOT / "quality.local.example.json").read_text(encoding="utf-8"))
+            shipped = self.gate(repo, example)
+            self.assertIn("FAIL em/en dash", shipped.stdout)
+            self.assertIn("FAIL British spelling", shipped.stdout)
 
     def test_robots_sitemap_directive_drift_fails_the_gate(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

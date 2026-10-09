@@ -1,13 +1,16 @@
 # Cloudflare Pages headers
 # Critical: without these, .md files download instead of rendering in the browser,
 # and some crawlers skip them entirely because the content type is wrong.
+#
+# A request inherits the headers of every rule it matches, and a header set by
+# two matching rules is joined with a comma. Set each catch-all header only in
+# the /* block; Access-Control-Allow-Origin: *, * is rejected by browsers.
 
 /.well-known/agent-card.json
   Content-Type: application/a2a+json; charset=utf-8
   Content-Disposition: inline
   X-Robots-Tag: all
   Cache-Control: public, max-age=3600
-  Access-Control-Allow-Origin: *
 
 /*.md
   Content-Type: text/markdown; charset=utf-8
@@ -29,3 +32,6 @@
   Referrer-Policy: strict-origin-when-cross-origin
   Access-Control-Allow-Origin: *
   Link: </llms.txt>; rel=describedby
+  Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' https: data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'none'
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=()

@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import io
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -14,7 +16,12 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
+# tests/ is not a package, so make its helper importable under discover and
+# under `python -m unittest tests.test_build` alike.
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+import identity_markers
+from identity_markers import contains_marker
 from build import build_site, build_site_staged, is_link_like, json_block, load_config
 from build_llms_full import run as build_llms_full
 from build_sitemap import validate_last_updated
@@ -229,79 +236,39 @@ class BuildTests(unittest.TestCase):
         self.assertIn(r"\u003c/script\u003e", match.group(1).lower())
 
     def test_example_is_exact_rebuild_from_example_config(self) -> None:
-        config = json.loads(
-            (ROOT / "site.config.example.json").read_text(encoding="utf-8")
-        )
-        config = dict(config, **json_block(config))
+        # One comparator: scripts/regenerate_example.py --check reports the
+        # same differences and a plain run repairs them.
+        import regenerate_example
 
         with tempfile.TemporaryDirectory() as directory:
             generated = Path(directory) / "site"
-            build_site(str(ROOT / "template"), str(generated), config)
+            regenerate_example.generate(generated)
+            differences = regenerate_example.differences(generated, ROOT / "example")
 
-            expected_files = {
-                path.relative_to(ROOT / "example")
-                for path in (ROOT / "example").rglob("*")
-                if path.is_file()
-            }
-            generated_files = {
-                path.relative_to(generated)
-                for path in generated.rglob("*")
-                if path.is_file()
-            }
-            differences = [
-                "missing generated file: %s" % path.as_posix()
-                for path in sorted(expected_files - generated_files)
-            ]
-            differences.extend(
-                "unexpected generated file: %s" % path.as_posix()
-                for path in sorted(generated_files - expected_files)
-            )
-
-            for path in sorted(expected_files & generated_files):
-                expected = (ROOT / "example" / path).read_bytes()
-                actual = (generated / path).read_bytes()
-                if expected == actual:
-                    continue
-                first_changed = next(
-                    (
-                        offset
-                        for offset, (left, right) in enumerate(zip(expected, actual))
-                        if left != right
-                    ),
-                    min(len(expected), len(actual)),
-                )
-                differences.append(
-                    "changed file: %s at byte %d (expected %r, generated %r)"
-                    % (
-                        path.as_posix(),
-                        first_changed,
-                        expected[first_changed : first_changed + 80],
-                        actual[first_changed : first_changed + 80],
-                    )
-                )
-
-            self.assertEqual(
-                differences,
-                [],
-                "site.config.example.json rebuild differs from example/:\n"
-                + "\n".join(differences),
-            )
+        self.assertEqual(
+            differences,
+            [],
+            "site.config.example.json rebuild differs from example/; run "
+            "python scripts/regenerate_example.py:\n" + "\n".join(differences),
+        )
 
     def test_checked_in_example_has_no_reference_identity(self) -> None:
-        markers = (
-            b"straits" + b"x",
-            b"xsgd",
-            b"xusd",
-            b"daniel" + b"oon",
-            b"eau" + b"doon",
-        )
+        paths = [ROOT / "site.config.example.json"]
         for directory in (ROOT / "template", ROOT / "example"):
-            for path in directory.rglob("*"):
-                if not path.is_file():
-                    continue
-                compact = re.sub(rb"[\s_-]+", b"", path.read_bytes().lower())
-                with self.subTest(path=path.relative_to(ROOT)):
-                    self.assertFalse(any(marker in compact for marker in markers))
+            paths.extend(path for path in sorted(directory.rglob("*")) if path.is_file())
+        for path in paths:
+            with self.subTest(path=path.relative_to(ROOT)):
+                self.assertFalse(contains_marker(path.read_bytes()))
+
+    def test_marker_digest_scan_detects_normalized_spellings(self) -> None:
+        canary = {12: frozenset({hashlib.sha256(b"canarymarker").hexdigest()})}
+        with patch.object(identity_markers, "MARKER_DIGESTS", canary):
+            for text in (b"Canary_Marker", b"canary-marker", b"prefix CANARY marker suffix"):
+                with self.subTest(text=text):
+                    self.assertTrue(contains_marker(text))
+            for text in (b"", b"canary", b"a clean generic starter page"):
+                with self.subTest(text=text):
+                    self.assertFalse(contains_marker(text))
 
     def test_missing_writing_generator_fails_the_build(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -396,6 +363,65 @@ class BuildTests(unittest.TestCase):
             self.assertFalse((site / "search.js").exists())
             self.assertFalse((site / ".htaccess").exists())
             self.assertEqual((site / "content-manifest.json").read_bytes(), original)
+
+    def test_nested_markdown_is_refused_and_keeps_previous_output(self) -> None:
+        # The sitemap walks the whole build, but llms-full.txt, llms.txt,
+        # search, the feed and the HTML companions read only the root and
+        # writing/, so a nested page used to be advertised and then missing.
+        for nested in ("writing/2026/nested.md", "guides/a.md", "Writing/x.md"):
+            with self.subTest(nested=nested), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                template = root / "template"
+                template.mkdir()
+                (template / "index.html").write_text("<h1>{{FULL_NAME}}</h1>\n", encoding="utf-8")
+                site = root / "site"
+                build_site_staged(str(template), str(site), self.config())
+                before = {path.relative_to(site): path.read_bytes() for path in site.rglob("*") if path.is_file()}
+
+                source = template / nested
+                source.parent.mkdir(parents=True)
+                source.write_text("# Nested\n\nLast updated: {{LAST_UPDATED}}\n", encoding="utf-8")
+                with self.assertRaises(ValueError) as raised:
+                    build_site_staged(str(template), str(site), self.config())
+
+                message = str(raised.exception)
+                self.assertIn(nested, message)
+                self.assertIn("sitemap.xml", message)
+                after = {path.relative_to(site): path.read_bytes() for path in site.rglob("*") if path.is_file()}
+                self.assertEqual(after, before)
+                self.assertEqual(list(root.glob(".site-build-*")), [])
+                self.assertEqual(list(root.glob(".site-backup-*")), [])
+
+    def test_nested_writing_draft_still_builds_without_publishing(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            template = root / "template"
+            (template / "writing" / "drafts").mkdir(parents=True)
+            (template / "index.html").write_text("<h1>{{FULL_NAME}}</h1>\n", encoding="utf-8")
+            (template / "writing" / "drafts" / "idea.md").write_text(
+                "<!--\nstatus: draft\n-->\n# Idea\n", encoding="utf-8")
+            build_site_staged(str(template), str(root / "site"), self.config())
+            self.assertFalse((root / "site" / "writing" / "drafts").exists())
+
+    def test_undecodable_template_text_names_its_path_and_binary_fonts_copy(self) -> None:
+        payload = b"wOF2\x00\x01\x80\xff\xfe binary font bytes\n"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            template = root / "template"
+            (template / "assets").mkdir(parents=True)
+            (template / "index.html").write_text("<h1>{{FULL_NAME}}</h1>\n", encoding="utf-8")
+            (template / "assets" / "x.dat").write_bytes(payload)
+            with self.assertRaisesRegex(ValueError, r"not UTF-8 text: assets/x\.dat"):
+                build_site_staged(str(template), str(root / "site"), self.config())
+            self.assertFalse((root / "site").exists())
+
+            (template / "assets" / "x.dat").unlink()
+            for name in ("font.woff2", "photo.avif", "clip.webm"):
+                (template / "assets" / name).write_bytes(payload)
+            build_site_staged(str(template), str(root / "site"), self.config())
+            for name in ("font.woff2", "photo.avif", "clip.webm"):
+                with self.subTest(name=name):
+                    self.assertEqual((root / "site" / "assets" / name).read_bytes(), payload)
 
     def test_staged_rebuild_removes_renamed_and_deleted_template_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -593,7 +619,7 @@ class BuildTests(unittest.TestCase):
                     if result.returncode:
                         self.skipTest("native junction creation is unavailable in this environment")
                     try:
-                        self.assertTrue(os.path.isjunction(link))
+                        self.assertTrue(is_link_like(link))
                         output = site if link.parent == template else link
                         with self.assertRaises(OSError):
                             build_site_staged(str(template), str(output), self.config())
@@ -603,6 +629,48 @@ class BuildTests(unittest.TestCase):
                         os.rmdir(link)
             self.assertEqual(list(root.glob(".site-build-*")), [])
             self.assertEqual(list(root.glob(".site-backup-*")), [])
+
+    @unittest.skipUnless(os.name == "nt", "requires native Windows junctions")
+    def test_inventory_refuses_a_native_junction_on_every_python(self) -> None:
+        # Path.rglob follows junctions on Python 3.11, so the manifest used to
+        # hash files from outside the build there.
+        from build_inventory import inventory
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            outside = root / "outside"
+            outside.mkdir()
+            (outside / "leak.txt").write_text("outside the build\n", encoding="utf-8")
+            out = root / "out"
+            out.mkdir()
+            (out / "a.txt").write_text("inside\n", encoding="utf-8")
+            link = out / "linked"
+            result = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(outside)],
+                                    capture_output=True, text=True, timeout=10)
+            if result.returncode:
+                self.skipTest("native junction creation is unavailable in this environment")
+            try:
+                with self.assertRaisesRegex(ValueError, "link-like"):
+                    inventory(out)
+            finally:
+                os.rmdir(link)
+
+    def test_inventory_does_not_descend_into_a_junction_like_directory(self) -> None:
+        from build_inventory import inventory
+        with tempfile.TemporaryDirectory() as directory:
+            out = Path(directory)
+            (out / "a.txt").write_text("inside\n", encoding="utf-8")
+            linked = out / "linked"
+            linked.mkdir()
+            (linked / "leak.txt").write_text("outside the build\n", encoding="utf-8")
+            self.assertEqual([row["path"] for row in inventory(out)], ["a.txt", "linked/leak.txt"])
+
+            def isjunction(path) -> bool:
+                return os.path.normpath(str(path)) == os.path.normpath(str(linked))
+
+            with patch("build.os.path.isjunction", side_effect=isjunction, create=True), \
+                    patch.object(Path, "read_bytes", side_effect=AssertionError("hashed a file")):
+                with self.assertRaisesRegex(ValueError, "link-like"):
+                    inventory(out)
 
     def test_failed_promotion_restores_previous_output_with_native_moves(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -810,6 +878,141 @@ class BuildTests(unittest.TestCase):
                         with self.assertRaisesRegex(SystemExit, "missing required keys"):
                             load_config()
                         self.assertIn(missing_key, REQUIRED_CONFIG)
+
+    def cli_repo(self, directory: str, config_text: str | None = None) -> Path:
+        repo = Path(directory) / "repo"
+        shutil.copytree(ROOT / "scripts", repo / "scripts", ignore=shutil.ignore_patterns("__pycache__"))
+        shutil.copytree(ROOT / "template", repo / "template")
+        if config_text is not None:
+            (repo / "site.config.json").write_text(config_text, encoding="utf-8")
+        return repo
+
+    def run_cli(self, repo: Path, script: str, *args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run([sys.executable, str(repo / "scripts" / script), *args], cwd=repo,
+                              capture_output=True, text=True, check=False, timeout=300)
+
+    def test_build_help_prints_usage_and_builds_nothing(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.cli_repo(directory, (ROOT / "site.config.example.json").read_text(encoding="utf-8"))
+            result = self.run_cli(repo, "build.py", "--help")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("usage:", result.stdout)
+            self.assertIn("content-manifest.json", result.stdout)
+            self.assertFalse((repo / "site").exists())
+            self.assertEqual(list(repo.glob(".site-build-*")), [])
+
+    def test_malformed_config_fails_cleanly_in_every_cli_that_reads_it(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.cli_repo(directory, '{"DOMAIN": "example.test",')
+            (repo / "site").mkdir()
+            for script in ("build.py", "quality_check.py", "verify_build.py"):
+                with self.subTest(script=script):
+                    result = self.run_cli(repo, script)
+                    self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                    self.assertIn("not valid JSON", result.stdout + result.stderr)
+                    self.assertNotIn("Traceback", result.stderr)
+
+    def test_link_like_template_root_fails_build_cli_without_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.cli_repo(directory, (ROOT / "site.config.example.json").read_text(encoding="utf-8"))
+            outside = Path(directory) / "outside-template"
+            (repo / "template").rename(outside)
+            link = repo / "template"
+            try:
+                os.symlink(outside, link, target_is_directory=True)
+            except OSError:
+                if os.name != "nt":
+                    self.skipTest("symbolic links are unavailable in this environment")
+                made = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(outside)],
+                                      capture_output=True, text=True, timeout=10)
+                if made.returncode:
+                    self.skipTest("native junction creation is unavailable in this environment")
+            try:
+                result = self.run_cli(repo, "build.py")
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertIn("link-like template root", result.stderr)
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertFalse((repo / "site").exists())
+            finally:
+                if os.path.islink(link):
+                    os.unlink(link)
+                else:
+                    os.rmdir(link)
+
+    def test_load_config_reports_invalid_json_as_a_clean_exit(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = Path(directory) / "site.config.json"
+            for raw in (b'{"DOMAIN": ', b"\xff\xfe not utf-8"):
+                config_path.write_bytes(raw)
+                with self.subTest(raw=raw), patch("build.CONFIG", str(config_path)):
+                    with self.assertRaisesRegex(SystemExit, "site.config.json is not valid JSON"):
+                        load_config()
+
+    def test_configured_verification_proofs_are_published_outside_the_sitemap(self) -> None:
+        sample = json.loads((ROOT / "site.config.example.json").read_text(encoding="utf-8"))
+        tokens = {"bing_msvalidate": "0A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D",
+                  "google_html_file": "google0123456789abcdef.html",
+                  "indexnow_key": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"}
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.cli_repo(directory, json.dumps(dict(sample, verification=tokens)))
+            for script in ("build.py", "quality_check.py", "check_artifacts.py"):
+                with self.subTest(script=script):
+                    result = self.run_cli(repo, script)
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            site = repo / "site"
+            self.assertEqual((site / "google0123456789abcdef.html").read_bytes(),
+                             b"google-site-verification: google0123456789abcdef.html")
+            self.assertEqual((site / "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d.txt").read_bytes(),
+                             b"a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d")
+            index = (site / "index.html").read_text(encoding="utf-8")
+            self.assertEqual(index.count('<meta name="msvalidate.01" content="0A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D">'), 1)
+            sitemap = (site / "sitemap.xml").read_text(encoding="utf-8")
+            self.assertNotIn("google0123456789abcdef", sitemap)
+            self.assertNotIn("a1b2c3d4-e5f6", sitemap)
+            manifest = json.loads((site / "content-manifest.json").read_text(encoding="utf-8"))
+            self.assertIn("google0123456789abcdef.html", [row["path"] for row in manifest["files"]])
+
+    def test_empty_verification_tokens_publish_nothing(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            template = root / "template"
+            template.mkdir()
+            (template / "index.html").write_text("<head>\n{{VERIFICATION_META}}\n</head>\n", encoding="utf-8")
+            build_site_staged(str(template), str(root / "site"), self.config())
+            baseline = sorted(path.name for path in (root / "site").rglob("*"))
+            self.assertFalse([name for name in baseline if name.startswith("google")])
+            for verification in ({}, {"bing_msvalidate": "", "google_html_file": "", "indexnow_key": ""}):
+                with self.subTest(verification=verification):
+                    build_site_staged(str(template), str(root / "site"), dict(self.config(), verification=verification))
+                    self.assertEqual(sorted(path.name for path in (root / "site").rglob("*")), baseline)
+                    self.assertEqual((root / "site" / "index.html").read_text(encoding="utf-8"), "<head>\n\n</head>\n")
+
+    def test_invalid_verification_tokens_are_refused(self) -> None:
+        invalid = [
+            {"google_html_file": "../x.html"},
+            {"google_html_file": "google12345678.html.txt"},
+            {"google_html_file": "googleXYZ12345.html"},
+            {"google_html_file": "index.html"},
+            {"bing_msvalidate": "short"},
+            {"bing_msvalidate": '"><script>'},
+            {"indexnow_key": "../../outside"},
+            {"indexnow_key": 12345678},
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = Path(directory) / "site.config.json"
+            for verification in invalid + ["not an object"]:
+                with self.subTest(verification=verification):
+                    config_path.write_text(json.dumps(dict(self.config(), verification=verification)), encoding="utf-8")
+                    with patch("build.CONFIG", str(config_path)):
+                        with self.assertRaisesRegex(SystemExit, "verification"):
+                            load_config()
+            template = Path(directory) / "template"
+            template.mkdir()
+            (template / "index.html").write_text("<h1>{{FULL_NAME}}</h1>\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "verification.google_html_file"):
+                build_site_staged(str(template), str(Path(directory) / "site"),
+                                  dict(self.config(), verification={"google_html_file": "../x.html"}))
+            self.assertFalse((Path(directory) / "x.html").exists())
 
     def test_git_redirect_does_not_match_neighboring_dot_paths(self) -> None:
         # The comment says the rule is anchored so it cannot catch /.gitignore.

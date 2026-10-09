@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from build import template_files
+from version import __version__
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -206,7 +207,7 @@ def readiness_issues(repo=REPO):
 
 
 def run(repo=REPO, runner=subprocess.run):
-    """Run fork readiness, then the existing build and quality gates."""
+    """Run fork readiness, then the builder, the quality gate and the audit CI runs."""
     repo = Path(repo)
     issues = readiness_issues(repo)
     if issues:
@@ -219,12 +220,13 @@ def run(repo=REPO, runner=subprocess.run):
     commands = (
         [sys.executable, str(repo / "scripts" / "build.py")],
         [sys.executable, str(repo / "scripts" / "quality_check.py")],
+        [sys.executable, str(repo / "scripts" / "check_artifacts.py")],
     )
     for command in commands:
         completed = runner(command, cwd=repo)
         if completed.returncode:
             return completed.returncode
-    print("fork ready: site/ was built and passed the quality gate")
+    print("fork ready: site/ was built and passed the quality gate and artifact audit")
     return 0
 
 
@@ -237,6 +239,7 @@ def main(argv=None):
         action="store_true",
         help="copy site.config.example.json once without overwriting",
     )
+    parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
     args = parser.parse_args(argv)
     return initialize() if args.init else run()
 
