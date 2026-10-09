@@ -75,7 +75,7 @@ This creates `site.config.json` from the [sample config](site.config.example.jso
 
 ### 2. Replace the starter content
 
-Edit `site.config.json` for repeated facts and [`template/`](template/) for narrative content. Replace or remove the example article and sample source entries. If you cannot verify a fact, source, or identifier, omit it or describe the uncertainty.
+Edit `site.config.json` for repeated facts and [`template/`](template/) for narrative content. Replace or remove the example article and sample source entries. If you cannot verify a fact, source, or identifier, omit it or describe the uncertainty. If the site is not written in English, set `SITE_LANGUAGE` to its language tag (for example `de` or `pt-BR`); it becomes the `lang` of every page and the `inLanguage` of every article.
 
 Set `FORK_FACTS_CONFIRMED` to `true` only after the subject has signed off on every published fact and source. Set `FORK_ABSENCES_CONFIRMED` to `true` only after checking the stated absences. These flags record your confirmation; they do not perform verification.
 

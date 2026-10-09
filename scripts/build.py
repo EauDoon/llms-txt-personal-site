@@ -65,6 +65,8 @@ REQUIRED_CONFIG = (
     "ABSENCE_BYLINED_ARTICLE",
     "LAST_UPDATED",
 )
+# Optional SITE_LANGUAGE sets <html lang> and Article inLanguage on every page.
+DEFAULT_SITE_LANGUAGE = "en"
 
 
 class ScriptSafeJson(str):
@@ -96,9 +98,17 @@ def load_config():
     try:
         validate_last_updated(cfg["LAST_UPDATED"])
         validate_public_contacts(cfg)
+        validate_site_language(cfg.get("SITE_LANGUAGE", DEFAULT_SITE_LANGUAGE))
     except ValueError as exc:
         sys.exit(str(exc))
     return cfg
+
+
+def validate_site_language(value):
+    """Accept a BCP 47 style language tag such as en, de or pt-BR."""
+    if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*", value):
+        raise ValueError("SITE_LANGUAGE must be a language tag such as en, de or pt-BR")
+    return value
 
 
 def validate_public_contacts(cfg):
@@ -356,7 +366,10 @@ def unpublishable_markdown(relative):
 
 def build_site(template_dir, out_dir, cfg):
     """Build a complete site into an empty staging directory."""
-    cfg = dict(cfg, EMAIL_URI=quote(cfg.get("EMAIL", ""), safe="@"))
+    # Derived values are always set, so a template token for them is filled
+    # even when a caller passes a bare config.
+    cfg = dict(cfg, EMAIL_URI=quote(cfg.get("EMAIL", ""), safe="@"),
+               SITE_LANGUAGE=cfg.get("SITE_LANGUAGE") or DEFAULT_SITE_LANGUAGE)
     sources = [(src, os.path.join(out_dir, relative), relative)
                for src, relative in template_files(template_dir)]
     os.makedirs(out_dir, exist_ok=True)

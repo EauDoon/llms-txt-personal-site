@@ -76,8 +76,10 @@
   p { margin: 0 0 1rem; }
   ul { margin: 0 0 1rem; padding-left: 1.15rem; }
   li { margin-bottom: .35rem; }
-  a { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent; }
-  a:hover { border-bottom-color: currentColor; }
+  a { color: var(--accent); text-decoration: underline; text-underline-offset: .15em; }
+  :focus-visible { outline: 3px solid currentColor; outline-offset: 4px; }
+  .skip { position: absolute; left: 1rem; top: -5rem; padding: .5rem; background: var(--bg); }
+  .skip:focus { top: .5rem; }
   code { background: var(--code-bg); padding: .1em .35em; border-radius: 3px; font-size: .9em; font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
   table { border-collapse: collapse; width: 100%; margin: 0 0 1rem; font-size: .95rem; }
   th, td { text-align: left; padding: .55rem .7rem; border-bottom: 1px solid var(--line); vertical-align: top; }

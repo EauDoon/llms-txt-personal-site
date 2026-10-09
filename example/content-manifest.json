@@ -11,8 +11,8 @@
     },
     {
       "path": "404.html",
-      "bytes": 3623,
-      "sha256": "9461ee8d17e960c8b31842488c3e18c0a3d647a06b2714985ecc3c53338abb41"
+      "bytes": 3863,
+      "sha256": "b96f861d3843273d75ec433fcc5ff8c50e200d6d5460bfe523e4aeb20466f331"
     },
     {
       "path": "_headers",
@@ -86,8 +86,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 9713,
-      "sha256": "673d619902a313954403dc1a0169ff188a2258920cd665ec9a080b8f74502312"
+      "bytes": 9952,
+      "sha256": "f50e2dd1c17b85a5842325a4a1d1ec6351089234ba520c62132dfa2c26734391"
     },
     {
       "path": "llms-full.txt",
@@ -186,8 +186,8 @@
     },
     {
       "path": "writing/example-depth-page.html",
-      "bytes": 7043,
-      "sha256": "8246e41ab2472d72faeb9271d5b0f4b764aa0189ad40877697b4e2b903dc6dda"
+      "bytes": 7191,
+      "sha256": "8e7e141a8ee0d7953740498026a50e6247a5ec43f3d160fe36561eaacd579a17"
     },
     {
       "path": "writing/example-depth-page.md",
