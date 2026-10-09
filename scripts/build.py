@@ -4,7 +4,8 @@
     python scripts/build.py
 
 Builds into a sibling staging directory in nine steps, then replaces site/:
-  1. fill placeholders from site.config.json into every template file
+  1. fill placeholders from site.config.json into every template file and
+     publish any configured search-engine verification proofs
   2. publish an explicitly configured, validated A2A v1 Agent Card
   3. index every writing/*.md page in llms.txt
   4. generate an HTML companion for every writing/*.md page
@@ -27,7 +28,7 @@ import sys
 import tempfile
 from urllib.parse import quote, urlsplit
 
-from build_sitemap import validate_last_updated
+from build_sitemap import validate_last_updated, verification_files
 from email_addresses import validate_email_address
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -69,7 +70,11 @@ REQUIRED_CONFIG = (
 DEFAULT_SITE_LANGUAGE = "en"
 
 
-class ScriptSafeJson(str):
+class PreEscapedMarkup(str):
+    """Markup the builder generated and escaped itself; fill() inserts it as is."""
+
+
+class ScriptSafeJson(PreEscapedMarkup):
     """JSON serialized for direct insertion into an HTML script element."""
 
 
@@ -99,6 +104,7 @@ def load_config():
         validate_last_updated(cfg["LAST_UPDATED"])
         validate_public_contacts(cfg)
         validate_site_language(cfg.get("SITE_LANGUAGE", DEFAULT_SITE_LANGUAGE))
+        verification_files(cfg)
     except ValueError as exc:
         sys.exit(str(exc))
     return cfg
@@ -154,7 +160,7 @@ def fill(text, cfg, plain_text=False):
             return m.group(0)          # leave unknown tokens visible rather than blanking them
         if isinstance(val, (list, dict)):
             return m.group(0)
-        if isinstance(val, ScriptSafeJson):
+        if isinstance(val, PreEscapedMarkup):
             return str(val)
         if key == 'EMAIL' and plain_text:
             return str(val)
@@ -364,12 +370,38 @@ def unpublishable_markdown(relative):
     )
 
 
+def verification_meta(cfg):
+    """Return the homepage's Bing ownership meta tag, or nothing."""
+    verification_files(cfg)  # validates every token before any is published
+    token = (cfg.get("verification") or {}).get("bing_msvalidate", "")
+    return PreEscapedMarkup('<meta name="msvalidate.01" content="%s">' % token if token else "")
+
+
+def write_verification_files(out_dir, cfg):
+    """Publish the configured Google and IndexNow proofs at the site root.
+
+    A proof placed in template/ by hand would be checked as a page and listed
+    in the sitemap; one written into site/ is removed by the next clean build.
+    """
+    verification = cfg.get("verification") or {}
+    proofs = []
+    if verification.get("google_html_file"):
+        name = verification["google_html_file"]
+        proofs.append((name, "google-site-verification: %s" % name))
+    if verification.get("indexnow_key"):
+        proofs.append((verification["indexnow_key"] + ".txt", verification["indexnow_key"]))
+    for name, content in proofs:
+        with open(os.path.join(out_dir, name), "w", encoding="utf-8", newline="") as proof:
+            proof.write(content)
+
+
 def build_site(template_dir, out_dir, cfg):
     """Build a complete site into an empty staging directory."""
     # Derived values are always set, so a template token for them is filled
     # even when a caller passes a bare config.
     cfg = dict(cfg, EMAIL_URI=quote(cfg.get("EMAIL", ""), safe="@"),
-               SITE_LANGUAGE=cfg.get("SITE_LANGUAGE") or DEFAULT_SITE_LANGUAGE)
+               SITE_LANGUAGE=cfg.get("SITE_LANGUAGE") or DEFAULT_SITE_LANGUAGE,
+               VERIFICATION_META=verification_meta(cfg))
     sources = [(src, os.path.join(out_dir, relative), relative)
                for src, relative in template_files(template_dir)]
     os.makedirs(out_dir, exist_ok=True)
@@ -410,6 +442,7 @@ def build_site(template_dir, out_dir, cfg):
         copied += 1
 
     print("  filled %d files into site/" % copied)
+    write_verification_files(out_dir, cfg)
 
     leftover = {}
     for dirpath, _, files in os.walk(out_dir):

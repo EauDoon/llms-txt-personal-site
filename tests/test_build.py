@@ -948,6 +948,72 @@ class BuildTests(unittest.TestCase):
                     with self.assertRaisesRegex(SystemExit, "site.config.json is not valid JSON"):
                         load_config()
 
+    def test_configured_verification_proofs_are_published_outside_the_sitemap(self) -> None:
+        sample = json.loads((ROOT / "site.config.example.json").read_text(encoding="utf-8"))
+        tokens = {"bing_msvalidate": "0A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D",
+                  "google_html_file": "google0123456789abcdef.html",
+                  "indexnow_key": "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d"}
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.cli_repo(directory, json.dumps(dict(sample, verification=tokens)))
+            for script in ("build.py", "quality_check.py", "check_artifacts.py"):
+                with self.subTest(script=script):
+                    result = self.run_cli(repo, script)
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            site = repo / "site"
+            self.assertEqual((site / "google0123456789abcdef.html").read_bytes(),
+                             b"google-site-verification: google0123456789abcdef.html")
+            self.assertEqual((site / "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d.txt").read_bytes(),
+                             b"a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d")
+            index = (site / "index.html").read_text(encoding="utf-8")
+            self.assertEqual(index.count('<meta name="msvalidate.01" content="0A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D">'), 1)
+            sitemap = (site / "sitemap.xml").read_text(encoding="utf-8")
+            self.assertNotIn("google0123456789abcdef", sitemap)
+            self.assertNotIn("a1b2c3d4-e5f6", sitemap)
+            manifest = json.loads((site / "content-manifest.json").read_text(encoding="utf-8"))
+            self.assertIn("google0123456789abcdef.html", [row["path"] for row in manifest["files"]])
+
+    def test_empty_verification_tokens_publish_nothing(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            template = root / "template"
+            template.mkdir()
+            (template / "index.html").write_text("<head>\n{{VERIFICATION_META}}\n</head>\n", encoding="utf-8")
+            build_site_staged(str(template), str(root / "site"), self.config())
+            baseline = sorted(path.name for path in (root / "site").rglob("*"))
+            self.assertFalse([name for name in baseline if name.startswith("google")])
+            for verification in ({}, {"bing_msvalidate": "", "google_html_file": "", "indexnow_key": ""}):
+                with self.subTest(verification=verification):
+                    build_site_staged(str(template), str(root / "site"), dict(self.config(), verification=verification))
+                    self.assertEqual(sorted(path.name for path in (root / "site").rglob("*")), baseline)
+                    self.assertEqual((root / "site" / "index.html").read_text(encoding="utf-8"), "<head>\n\n</head>\n")
+
+    def test_invalid_verification_tokens_are_refused(self) -> None:
+        invalid = [
+            {"google_html_file": "../x.html"},
+            {"google_html_file": "google12345678.html.txt"},
+            {"google_html_file": "googleXYZ12345.html"},
+            {"google_html_file": "index.html"},
+            {"bing_msvalidate": "short"},
+            {"bing_msvalidate": '"><script>'},
+            {"indexnow_key": "../../outside"},
+            {"indexnow_key": 12345678},
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = Path(directory) / "site.config.json"
+            for verification in invalid + ["not an object"]:
+                with self.subTest(verification=verification):
+                    config_path.write_text(json.dumps(dict(self.config(), verification=verification)), encoding="utf-8")
+                    with patch("build.CONFIG", str(config_path)):
+                        with self.assertRaisesRegex(SystemExit, "verification"):
+                            load_config()
+            template = Path(directory) / "template"
+            template.mkdir()
+            (template / "index.html").write_text("<h1>{{FULL_NAME}}</h1>\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "verification.google_html_file"):
+                build_site_staged(str(template), str(Path(directory) / "site"),
+                                  dict(self.config(), verification={"google_html_file": "../x.html"}))
+            self.assertFalse((Path(directory) / "x.html").exists())
+
     def test_git_redirect_does_not_match_neighboring_dot_paths(self) -> None:
         # The comment says the rule is anchored so it cannot catch /.gitignore.
         # ^/\.git still matches every path that merely starts with /.git.

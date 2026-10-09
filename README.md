@@ -99,6 +99,8 @@ The template includes [Apache rules](template/.htaccess), [a `_headers` file](te
 
 All three configs send the same security headers on every response: a Content-Security-Policy that allows only same-origin scripts, inline styles, same-origin requests, and HTTPS or `data:` images, plus `X-Frame-Options: DENY`, a `Permissions-Policy` that turns off the camera, microphone, and geolocation, and `X-Content-Type-Options: nosniff`. The generated pages need nothing more. If you add third-party scripts, fonts, analytics, or embeds, widen the policy in all three files, or browsers will block them. A test keeps the three files in step.
 
+To prove ownership to search engines, put your own tokens under `verification` in `site.config.json`. The build publishes each nonempty value: `bing_msvalidate` as a `msvalidate.01` meta tag on the homepage, `google_html_file` as that file at the site root, and `indexnow_key` as `<key>.txt` at the site root. It refuses a value that is not a plain token, keeps the proof files out of `sitemap.xml` and the page checks, and `--live` confirms the files are served. Do not place proof files in `template/` or `site/` by hand: the first are checked as pages, and the second disappear on the next clean build.
+
 Whatever the host, serve every `.html` file at its own path with a `200` response. Canonical links, `sitemap.xml`, the feed, and `quality_check.py --live` all use the `.html` path, and the live check treats a redirect as a failure. The build does not publish extensionless URLs, so leave options such as Vercel's `cleanUrls` off.
 
 After deployment, run:

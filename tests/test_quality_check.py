@@ -611,6 +611,8 @@ class QualityCheckTests(unittest.TestCase):
                 b"{}": "site.config.json must set DOMAIN to a nonempty string",
                 b'{"DOMAIN": "  "}': "site.config.json must set DOMAIN to a nonempty string",
                 b'{"DOMAIN": 7}': "site.config.json must set DOMAIN to a nonempty string",
+                b'{"DOMAIN": "x.test", "verification": {"google_html_file": "../x.html"}}':
+                    "site.config.json: verification.google_html_file is not a valid token",
             }
             for raw, expected in cases.items():
                 with self.subTest(raw=raw):
