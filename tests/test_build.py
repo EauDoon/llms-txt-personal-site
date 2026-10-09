@@ -6,6 +6,7 @@ import io
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -877,6 +878,75 @@ class BuildTests(unittest.TestCase):
                         with self.assertRaisesRegex(SystemExit, "missing required keys"):
                             load_config()
                         self.assertIn(missing_key, REQUIRED_CONFIG)
+
+    def cli_repo(self, directory: str, config_text: str | None = None) -> Path:
+        repo = Path(directory) / "repo"
+        shutil.copytree(ROOT / "scripts", repo / "scripts", ignore=shutil.ignore_patterns("__pycache__"))
+        shutil.copytree(ROOT / "template", repo / "template")
+        if config_text is not None:
+            (repo / "site.config.json").write_text(config_text, encoding="utf-8")
+        return repo
+
+    def run_cli(self, repo: Path, script: str, *args: str) -> subprocess.CompletedProcess[str]:
+        return subprocess.run([sys.executable, str(repo / "scripts" / script), *args], cwd=repo,
+                              capture_output=True, text=True, check=False, timeout=300)
+
+    def test_build_help_prints_usage_and_builds_nothing(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.cli_repo(directory, (ROOT / "site.config.example.json").read_text(encoding="utf-8"))
+            result = self.run_cli(repo, "build.py", "--help")
+            self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+            self.assertIn("usage:", result.stdout)
+            self.assertIn("content-manifest.json", result.stdout)
+            self.assertFalse((repo / "site").exists())
+            self.assertEqual(list(repo.glob(".site-build-*")), [])
+
+    def test_malformed_config_fails_cleanly_in_every_cli_that_reads_it(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.cli_repo(directory, '{"DOMAIN": "example.test",')
+            (repo / "site").mkdir()
+            for script in ("build.py", "quality_check.py", "verify_build.py"):
+                with self.subTest(script=script):
+                    result = self.run_cli(repo, script)
+                    self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                    self.assertIn("not valid JSON", result.stdout + result.stderr)
+                    self.assertNotIn("Traceback", result.stderr)
+
+    def test_link_like_template_root_fails_build_cli_without_traceback(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.cli_repo(directory, (ROOT / "site.config.example.json").read_text(encoding="utf-8"))
+            outside = Path(directory) / "outside-template"
+            (repo / "template").rename(outside)
+            link = repo / "template"
+            try:
+                os.symlink(outside, link, target_is_directory=True)
+            except OSError:
+                if os.name != "nt":
+                    self.skipTest("symbolic links are unavailable in this environment")
+                made = subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(outside)],
+                                      capture_output=True, text=True, timeout=10)
+                if made.returncode:
+                    self.skipTest("native junction creation is unavailable in this environment")
+            try:
+                result = self.run_cli(repo, "build.py")
+                self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                self.assertIn("link-like template root", result.stderr)
+                self.assertNotIn("Traceback", result.stderr)
+                self.assertFalse((repo / "site").exists())
+            finally:
+                if os.path.islink(link):
+                    os.unlink(link)
+                else:
+                    os.rmdir(link)
+
+    def test_load_config_reports_invalid_json_as_a_clean_exit(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = Path(directory) / "site.config.json"
+            for raw in (b'{"DOMAIN": ', b"\xff\xfe not utf-8"):
+                config_path.write_bytes(raw)
+                with self.subTest(raw=raw), patch("build.CONFIG", str(config_path)):
+                    with self.assertRaisesRegex(SystemExit, "site.config.json is not valid JSON"):
+                        load_config()
 
     def test_git_redirect_does_not_match_neighboring_dot_paths(self) -> None:
         # The comment says the rule is anchored so it cannot catch /.gitignore.

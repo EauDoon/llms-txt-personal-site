@@ -3,16 +3,21 @@
 
     python scripts/build.py
 
-Runs six steps:
-  1. fill placeholders from site.config.json
+Builds into a sibling staging directory in nine steps, then replaces site/:
+  1. fill placeholders from site.config.json into every template file
   2. publish an explicitly configured, validated A2A v1 Agent Card
   3. index every writing/*.md page in llms.txt
   4. generate an HTML companion for every writing/*.md page
-  5. concatenate everything into llms-full.txt
-  6. generate sitemap.xml from the public files that were built
+  5. generate readable HTML companions for the core root pages
+  6. generate the writing directory, topic pages, search index and Atom feed
+  7. concatenate every Markdown page into llms-full.txt
+  8. generate sitemap.xml from the public files that were built
+  9. write content-manifest.json, the byte inventory of the output
 
-Then run scripts/quality_check.py before you deploy.
+A failure in any step leaves the previous site/ in place. Then run
+scripts/quality_check.py before you deploy.
 """
+import argparse
 import json
 import os
 import re
@@ -69,8 +74,13 @@ class ScriptSafeJson(str):
 def load_config():
     if not os.path.exists(CONFIG):
         sys.exit("No site.config.json. Copy site.config.example.json to site.config.json and fill it in.")
-    with open(CONFIG, encoding="utf-8") as f:
-        cfg = json.load(f)
+    try:
+        with open(CONFIG, encoding="utf-8") as f:
+            cfg = json.load(f)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        sys.exit("site.config.json is not valid JSON: %s" % exc)
+    except OSError as exc:
+        sys.exit("site.config.json could not be read: %s" % exc)
     if not isinstance(cfg, dict):
         sys.exit("site.config.json must contain an object")
     missing = [key for key in REQUIRED_CONFIG if not isinstance(cfg.get(key), str) or not cfg[key].strip()]
@@ -525,7 +535,9 @@ def build_site_staged(template_dir, output_dir, cfg):
                 )
 
 
-def main():
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.parse_args(argv)
     cfg = load_config()
     cfg = dict(cfg, **json_block(cfg))
 
@@ -534,11 +546,13 @@ def main():
 
     try:
         build_site_staged(TEMPLATE, OUT, cfg)
-    except ValueError as exc:
-        sys.exit(str(exc))
+    except (ValueError, OSError) as exc:
+        print("build failed: %s" % exc, file=sys.stderr)
+        return 1
 
     print("\n  done. Next: python scripts/quality_check.py")
+    return 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

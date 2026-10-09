@@ -2,8 +2,8 @@
 #
 # Reads site/ (built by scripts/build.py) and site.config.json.
 #
-#   py quality-check.py           local source files only (fast)
-#   py quality-check.py --live    also verify every link and sitemap URL over HTTP
+#   python scripts/quality_check.py           local build output only (fast)
+#   python scripts/quality_check.py --live    also verify every link and sitemap URL over HTTP
 #
 # Design note: an earlier version of this reported five failures that were all
 # its own false positives. A checker that cries wolf trains you to ignore it,
@@ -34,14 +34,39 @@ parser.add_argument('--live', action='store_true', help='also request the config
 args = parser.parse_args()
 R = os.path.abspath(args.site)
 _cfg_path = os.path.abspath(args.config)
+
+
+def load_gate_config(path):
+    """Return the public config, or one reason the gate cannot check against it.
+
+    Every rule compares the build with this file. Checking against a guessed
+    domain instead reports a page of failures that never name the real cause.
+    Only DOMAIN is required here; the builder validates the rest.
+    """
+    name = os.path.basename(path)
+    if not os.path.isfile(path):
+        return None, "%s not found; create it with: python scripts/fork.py --init" % name
+    try:
+        with open(path, encoding="utf-8") as config_file:
+            cfg = json.load(config_file)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return None, "%s is not valid JSON: %s" % (name, exc)
+    except OSError as exc:
+        return None, "%s could not be read: %s" % (name, exc)
+    if not isinstance(cfg, dict):
+        return None, "%s must contain a JSON object" % name
+    if not isinstance(cfg.get("DOMAIN"), str) or not cfg["DOMAIN"].strip():
+        return None, "%s must set DOMAIN to a nonempty string" % name
+    return cfg, None
+
+
+_cfg, _cfg_problem = load_gate_config(_cfg_path)
+if _cfg_problem:
+    print("FAIL %s" % _cfg_problem)
+    sys.exit(1)
 if not os.path.isdir(R):
     parser.error('--site must name an existing built directory')
-if os.path.exists(_cfg_path):
-    with open(_cfg_path, encoding="utf-8") as config_file:
-        _cfg = json.load(config_file)
-else:
-    _cfg = {}
-DOMAIN = _cfg.get("DOMAIN", "example.com")
+DOMAIN = _cfg["DOMAIN"]
 EMAIL = _cfg.get("EMAIL", "")
 JOB_TITLE = _cfg.get("JOB_TITLE", "")
 LIVE = args.live

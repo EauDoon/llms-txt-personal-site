@@ -206,7 +206,7 @@ def readiness_issues(repo=REPO):
 
 
 def run(repo=REPO, runner=subprocess.run):
-    """Run fork readiness, then the existing build and quality gates."""
+    """Run fork readiness, then the builder, the quality gate and the audit CI runs."""
     repo = Path(repo)
     issues = readiness_issues(repo)
     if issues:
@@ -219,12 +219,13 @@ def run(repo=REPO, runner=subprocess.run):
     commands = (
         [sys.executable, str(repo / "scripts" / "build.py")],
         [sys.executable, str(repo / "scripts" / "quality_check.py")],
+        [sys.executable, str(repo / "scripts" / "check_artifacts.py")],
     )
     for command in commands:
         completed = runner(command, cwd=repo)
         if completed.returncode:
             return completed.returncode
-    print("fork ready: site/ was built and passed the quality gate")
+    print("fork ready: site/ was built and passed the quality gate and artifact audit")
     return 0
 
 

@@ -595,6 +595,38 @@ class QualityCheckTests(unittest.TestCase):
             self.assertIn("llms-full.txt does not contain the current bytes of: ['notes/x.md']", result.stdout)
             self.assertIn("sitemap URLs match public build artifacts", result.stdout)
 
+    def test_gate_without_a_usable_config_reports_one_failure(self) -> None:
+        # The gate used to fall back to example.com and print a page of
+        # canonical, feed and sitemap failures that never named the config.
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            shutil.copytree(ROOT / "scripts", repo / "scripts", ignore=shutil.ignore_patterns("__pycache__"))
+            (repo / "site").mkdir()
+            config = repo / "site.config.json"
+            cases = {
+                None: "site.config.json not found; create it with: python scripts/fork.py --init",
+                b'{"DOMAIN": ': "site.config.json is not valid JSON",
+                b"\xff\xfe": "site.config.json is not valid JSON",
+                b"[]": "site.config.json must contain a JSON object",
+                b"{}": "site.config.json must set DOMAIN to a nonempty string",
+                b'{"DOMAIN": "  "}': "site.config.json must set DOMAIN to a nonempty string",
+                b'{"DOMAIN": 7}': "site.config.json must set DOMAIN to a nonempty string",
+            }
+            for raw, expected in cases.items():
+                with self.subTest(raw=raw):
+                    if raw is None:
+                        config.unlink(missing_ok=True)
+                    else:
+                        config.write_bytes(raw)
+                    result = subprocess.run([sys.executable, str(repo / "scripts" / "quality_check.py")],
+                                            cwd=repo, capture_output=True, text=True, check=False)
+                    self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+                    failures = [line for line in result.stdout.splitlines() if "FAIL" in line]
+                    self.assertEqual(len(failures), 1, result.stdout)
+                    self.assertIn(expected, failures[0])
+                    self.assertNotIn("example.com", result.stdout + result.stderr)
+                    self.assertNotIn("Traceback", result.stderr)
+
     def test_robots_sitemap_directive_drift_fails_the_gate(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)

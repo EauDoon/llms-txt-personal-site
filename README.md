@@ -87,7 +87,7 @@ Set `FORK_FACTS_CONFIRMED` to `true` only after the subject has signed off on ev
 python scripts/fork.py
 ```
 
-The fork check reports unchanged sample values, recognized starter text, missing confirmations, and disallowed category-query prompts. It stops before building until those checks pass, then runs the builder and quality gate. Review the content yourself too: the checks cannot recognize every unfinished sentence or establish whether a claim is true.
+The fork check reports unchanged sample values, recognized starter text, missing confirmations, and disallowed category-query prompts. It stops before building until those checks pass, then runs the builder, the quality gate, and the offline artifact audit (`check_artifacts.py`) that CI also runs. Review the content yourself too: the checks cannot recognize every unfinished sentence or establish whether a claim is true.
 
 The finished files land in `site/`.
 

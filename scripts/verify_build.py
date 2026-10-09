@@ -1,4 +1,10 @@
-"""Build twice in temporary directories, audit each, and compare exact bytes."""
+"""Build twice in temporary directories, audit each, and compare exact bytes.
+
+    python scripts/verify_build.py
+
+Reads site.config.json and template/. The existing site/ is never touched.
+"""
+import argparse
 import tempfile
 from pathlib import Path
 
@@ -21,5 +27,17 @@ def verify(template, cfg):
     print("Verified two reproducible builds and both offline artifact audits.")
 
 
+def main(argv=None):
+    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.parse_args(argv)
+    cfg = load_config()
+    try:
+        verify(TEMPLATE, cfg)
+    except (ValueError, OSError) as exc:
+        print("FAIL %s" % exc)
+        return 1
+    return 0
+
+
 if __name__ == "__main__":
-    verify(TEMPLATE, load_config())
+    raise SystemExit(main())
