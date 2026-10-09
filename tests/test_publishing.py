@@ -281,6 +281,24 @@ class PublishingTests(unittest.TestCase):
             self.assertEqual(before, {str(p): p.read_bytes() for p in template.rglob('*') if p.is_file()})
             self.assertFalse((Path(directory) / 'site').exists())
 
+    def test_editorial_review_flags_nested_articles_the_build_never_renders(self):
+        with tempfile.TemporaryDirectory() as directory:
+            template, site, cfg = self.fixture(directory)
+            nested = template / 'writing' / '2026'
+            nested.mkdir()
+            (nested / 'published.md').write_text('<!--\ntitle: Nested\n-->\n# Nested\n\nBody.', encoding='utf-8')
+            (nested / 'idea.md').write_text('<!--\nstatus: draft\n-->\n# Idea\n', encoding='utf-8')
+            report = review_articles(template, cfg)
+            rows = {row['path']: row for row in report['articles']}
+            self.assertIn('nested article directories are not built; move it directly under writing/',
+                          rows['writing/2026/published.md']['errors'])
+            self.assertEqual(rows['writing/2026/idea.md']['errors'], [])
+            self.assertTrue(any('nested drafts are never built' in warning
+                                for warning in rows['writing/2026/idea.md']['warnings']))
+            self.assertEqual(rows['writing/example-depth-page.md']['errors'], [])
+            with self.assertRaisesRegex(ValueError, 'writing/2026/published.md'):
+                build_site_staged(str(template), str(site), cfg)
+
     def test_article_cli_creates_inert_draft_and_refuses_overwrite(self):
         with tempfile.TemporaryDirectory() as directory:
             template, site, cfg = self.fixture(directory)

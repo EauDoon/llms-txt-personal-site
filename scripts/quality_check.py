@@ -53,17 +53,25 @@ GENERATED = {"llms-full.txt"}
 fails, warns = [], []
 
 def sources(include_generated=False):
+    """Return the published pages every rule scans, at any depth.
+
+    Root files keep the wider .md/.txt/.html/.xml scope; pages below the root
+    are .md and .html. Walking the whole build means a nested page that a
+    generator skipped still reaches the byte and rule checks. Dot-directories
+    such as .well-known hold machine files with their own checks.
+    """
     out = []
-    for f in sorted(os.listdir(R)):
-        if f.endswith((".md", ".txt", ".html", ".xml")) and f not in SKIP_FILES:
-            if f in GENERATED and not include_generated:
+    for dirpath, dirnames, filenames in os.walk(R):
+        dirnames[:] = sorted(name for name in dirnames if not name.startswith("."))
+        top = dirpath == R
+        suffixes = (".md", ".txt", ".html", ".xml") if top else (".md", ".html")
+        for f in sorted(filenames):
+            if not f.endswith(suffixes):
                 continue
-            out.append((f, os.path.join(R, f)))
-    w = os.path.join(R, "writing")
-    if os.path.isdir(w):
-        for f in sorted(os.listdir(w)):
-            if f.endswith((".md", ".html")):
-                out.append(("writing/" + f, os.path.join(w, f)))
+            rel = os.path.relpath(os.path.join(dirpath, f), R).replace(os.sep, "/")
+            if top and (f in SKIP_FILES or (f in GENERATED and not include_generated)):
+                continue
+            out.append((rel, os.path.join(dirpath, f)))
     return out
 
 def read(p):

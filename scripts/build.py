@@ -32,7 +32,13 @@ CONFIG = os.path.join(ROOT, "site.config.json")
 WINDOWS_REPARSE_POINT = getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x0400)
 # Copied through as bytes. Every other template file is text and can carry a
 # {{PLACEHOLDER}}, including scripts and host rules that have no such suffix.
-BINARY_SUFFIXES = (".png", ".jpg", ".jpeg", ".gif", ".ico", ".webp", ".pdf")
+# .svg is text on purpose: it is XML and may carry a placeholder.
+BINARY_SUFFIXES = (
+    ".png", ".jpg", ".jpeg", ".gif", ".ico", ".webp", ".avif", ".bmp", ".pdf",
+    ".woff", ".woff2", ".ttf", ".otf", ".eot",
+    ".mp3", ".mp4", ".webm", ".ogg", ".wav",
+    ".zip", ".gz",
+)
 REQUIRED_CONFIG = (
     "DOMAIN",
     "FULL_NAME",
@@ -316,6 +322,28 @@ def template_files(template_dir):
     return sources
 
 
+def unpublishable_markdown(relative):
+    """Return why a published Markdown source cannot be built, or None.
+
+    Only root pages and articles directly under writing/ reach llms-full.txt,
+    llms.txt, search, the feed and the HTML companions. The sitemap lists every
+    published file, so a nested page would be advertised but missing from
+    everything that describes the site. The match is case-sensitive, so
+    Writing/x.md is refused on every operating system.
+    """
+    path = relative.replace("\\", "/")
+    if not path.lower().endswith(".md"):
+        return None
+    parts = path.split("/")
+    if len(parts) == 1 or (len(parts) == 2 and parts[0] == "writing"):
+        return None
+    return (
+        "template Markdown must sit at the template root or directly in writing/: %s "
+        "would be listed in sitemap.xml but missing from llms-full.txt, llms.txt, "
+        "search and the feed" % path
+    )
+
+
 def build_site(template_dir, out_dir, cfg):
     """Build a complete site into an empty staging directory."""
     cfg = dict(cfg, EMAIL_URI=quote(cfg.get("EMAIL", ""), safe="@"))
@@ -325,6 +353,14 @@ def build_site(template_dir, out_dir, cfg):
 
     from publishing import publication_exclusions
     excluded = publication_exclusions(sources, fill, cfg)
+    for _, _, relative in sources:
+        # Drafts never reach the output, so only published Markdown has to fit
+        # the flat layout every generator reads.
+        if relative.replace('\\', '/').casefold() in excluded:
+            continue
+        problem = unpublishable_markdown(relative)
+        if problem:
+            raise ValueError(problem)
     copied = 0
     plain_email_sources = {}
     for src, dst, relative in sources:
@@ -335,8 +371,14 @@ def build_site(template_dir, out_dir, cfg):
             with open(src, "rb") as a, open(dst, "wb") as b:
                 b.write(a.read())
         else:
-            with open(src, encoding="utf-8") as source:
-                t = source.read()
+            try:
+                with open(src, encoding="utf-8") as source:
+                    t = source.read()
+            except UnicodeDecodeError as exc:
+                raise ValueError(
+                    "template file is not UTF-8 text: %s; add its suffix to "
+                    "BINARY_SUFFIXES or convert it" % relative.replace('\\', '/')
+                ) from exc
             filled = fill(t, cfg, plain_text=src.lower().endswith('.txt'))
             if src.lower().endswith('.md') and '{{EMAIL}}' in t:
                 plain_email_sources[relative.replace('\\', '/')] = (filled, fill(t, cfg, plain_text=True))

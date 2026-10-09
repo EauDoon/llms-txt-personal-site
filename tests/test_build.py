@@ -363,6 +363,65 @@ class BuildTests(unittest.TestCase):
             self.assertFalse((site / ".htaccess").exists())
             self.assertEqual((site / "content-manifest.json").read_bytes(), original)
 
+    def test_nested_markdown_is_refused_and_keeps_previous_output(self) -> None:
+        # The sitemap walks the whole build, but llms-full.txt, llms.txt,
+        # search, the feed and the HTML companions read only the root and
+        # writing/, so a nested page used to be advertised and then missing.
+        for nested in ("writing/2026/nested.md", "guides/a.md", "Writing/x.md"):
+            with self.subTest(nested=nested), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                template = root / "template"
+                template.mkdir()
+                (template / "index.html").write_text("<h1>{{FULL_NAME}}</h1>\n", encoding="utf-8")
+                site = root / "site"
+                build_site_staged(str(template), str(site), self.config())
+                before = {path.relative_to(site): path.read_bytes() for path in site.rglob("*") if path.is_file()}
+
+                source = template / nested
+                source.parent.mkdir(parents=True)
+                source.write_text("# Nested\n\nLast updated: {{LAST_UPDATED}}\n", encoding="utf-8")
+                with self.assertRaises(ValueError) as raised:
+                    build_site_staged(str(template), str(site), self.config())
+
+                message = str(raised.exception)
+                self.assertIn(nested, message)
+                self.assertIn("sitemap.xml", message)
+                after = {path.relative_to(site): path.read_bytes() for path in site.rglob("*") if path.is_file()}
+                self.assertEqual(after, before)
+                self.assertEqual(list(root.glob(".site-build-*")), [])
+                self.assertEqual(list(root.glob(".site-backup-*")), [])
+
+    def test_nested_writing_draft_still_builds_without_publishing(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            template = root / "template"
+            (template / "writing" / "drafts").mkdir(parents=True)
+            (template / "index.html").write_text("<h1>{{FULL_NAME}}</h1>\n", encoding="utf-8")
+            (template / "writing" / "drafts" / "idea.md").write_text(
+                "<!--\nstatus: draft\n-->\n# Idea\n", encoding="utf-8")
+            build_site_staged(str(template), str(root / "site"), self.config())
+            self.assertFalse((root / "site" / "writing" / "drafts").exists())
+
+    def test_undecodable_template_text_names_its_path_and_binary_fonts_copy(self) -> None:
+        payload = b"wOF2\x00\x01\x80\xff\xfe binary font bytes\n"
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            template = root / "template"
+            (template / "assets").mkdir(parents=True)
+            (template / "index.html").write_text("<h1>{{FULL_NAME}}</h1>\n", encoding="utf-8")
+            (template / "assets" / "x.dat").write_bytes(payload)
+            with self.assertRaisesRegex(ValueError, r"not UTF-8 text: assets/x\.dat"):
+                build_site_staged(str(template), str(root / "site"), self.config())
+            self.assertFalse((root / "site").exists())
+
+            (template / "assets" / "x.dat").unlink()
+            for name in ("font.woff2", "photo.avif", "clip.webm"):
+                (template / "assets" / name).write_bytes(payload)
+            build_site_staged(str(template), str(root / "site"), self.config())
+            for name in ("font.woff2", "photo.avif", "clip.webm"):
+                with self.subTest(name=name):
+                    self.assertEqual((root / "site" / "assets" / name).read_bytes(), payload)
+
     def test_staged_rebuild_removes_renamed_and_deleted_template_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

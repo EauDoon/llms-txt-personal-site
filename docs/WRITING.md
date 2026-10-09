@@ -26,6 +26,10 @@ The required quality gate uses the same email syntax. It checks prose addresses 
 
 Write articles in `template/writing/*.md`. The builder creates an HTML companion, a writing directory at `/writing.html`, a local search at `/search.html`, and an Atom feed at `/feed.xml`. The directory and search both have Markdown companion indexes. Root-page search titles use the first rendered H1's visible text, including supported formatting, links, and literal inline code. Headings inside code or guidance comments are ignored; a page without a rendered H1 uses its filename. Removing an article removes it from the next complete build.
 
+Keep the Markdown layout flat: pages at the template root and articles directly in `writing/`. The full-text bundle, `llms.txt`, search, the feed, and the HTML companions read only those two places, while `sitemap.xml` lists every published file, so the build refuses published Markdown anywhere else (for example `guides/a.md`, `writing/2026/a.md`, or `Writing/a.md`) instead of advertising a page that nothing else describes. A draft in a nested folder under `writing/` is never built and is allowed. The quality gate scans pages at every depth, so a hand-assembled site with a nested page still fails it.
+
+Every template file is filled as UTF-8 text except these binary types, which are copied byte for byte: `.png`, `.jpg`, `.jpeg`, `.gif`, `.ico`, `.webp`, `.avif`, `.bmp`, `.pdf`, `.woff`, `.woff2`, `.ttf`, `.otf`, `.eot`, `.mp3`, `.mp4`, `.webm`, `.ogg`, `.wav`, `.zip`, and `.gz`. SVG is text, so it can carry a placeholder. A file of any other type that is not valid UTF-8 stops the build with its path; add its suffix to `BINARY_SUFFIXES` in `scripts/build.py` or convert it.
+
 Article metadata is optional and appears in a leading HTML comment:
 
 ```markdown

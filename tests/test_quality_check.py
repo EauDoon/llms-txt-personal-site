@@ -570,6 +570,31 @@ class QualityCheckTests(unittest.TestCase):
                 result.stdout,
             )
 
+    def test_nested_page_missing_from_generated_files_fails_the_gate(self) -> None:
+        # The builder refuses nested Markdown, but a hand-assembled site can
+        # still carry one with a matching sitemap. The rule and byte scans used
+        # to read only the root and writing/, so every check passed.
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            shutil.copytree(ROOT / "scripts", repo / "scripts", ignore=shutil.ignore_patterns("__pycache__"))
+            shutil.copytree(ROOT / "template", repo / "template")
+            config = json.loads((ROOT / "site.config.example.json").read_text(encoding="utf-8"))
+            (repo / "site.config.json").write_text(json.dumps(config), encoding="utf-8")
+            build = subprocess.run([sys.executable, str(repo / "scripts" / "build.py")], cwd=repo,
+                                   capture_output=True, text=True, check=False)
+            self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
+            notes = repo / "site" / "notes"
+            notes.mkdir()
+            (notes / "x.md").write_text("# Notes\n\nLast updated: %s\n" % config["LAST_UPDATED"],
+                                        encoding="utf-8")
+            import build_sitemap
+            build_sitemap.run(str(repo / "site"), config)
+            result = subprocess.run([sys.executable, str(repo / "scripts" / "quality_check.py")],
+                                    cwd=repo, capture_output=True, text=True, check=False)
+            self.assertNotEqual(result.returncode, 0, result.stdout)
+            self.assertIn("llms-full.txt does not contain the current bytes of: ['notes/x.md']", result.stdout)
+            self.assertIn("sitemap URLs match public build artifacts", result.stdout)
+
     def test_robots_sitemap_directive_drift_fails_the_gate(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
