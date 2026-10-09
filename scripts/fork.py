@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from build import template_files
+from version import __version__
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -238,6 +239,7 @@ def main(argv=None):
         action="store_true",
         help="copy site.config.example.json once without overwriting",
     )
+    parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
     args = parser.parse_args(argv)
     return initialize() if args.init else run()
 

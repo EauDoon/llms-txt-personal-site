@@ -1,5 +1,6 @@
 {
   "version": 1,
+  "generator": "llms-txt-personal-site 1.0.0-dev",
   "site": "https://yourname.com/",
   "reviewed_date": "2026-01-01",
   "scope": "Built public files, excluding this manifest. Hashes establish byte identity, not factual verification or authorship.",

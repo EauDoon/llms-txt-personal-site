@@ -25,12 +25,14 @@ from build_sitemap import public_urls, validate_last_updated, verification_files
 from http_client import fetch_url
 from llms_txt import _local_path, has_link_relation, markdown_alternate, validate_llms_txt
 from email_addresses import address_key, contact_values, validate_email_address
+from version import PROJECT, __version__
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 parser = argparse.ArgumentParser(description='Check a built static site against its public configuration.')
 parser.add_argument('--site', default=os.path.join(REPO, 'site'), help='built directory to inspect')
 parser.add_argument('--config', default=os.path.join(REPO, 'site.config.json'), help='matching public configuration')
 parser.add_argument('--live', action='store_true', help='also request the configured public HTTPS site')
+parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
 parser.add_argument('--rules', help='private gate rules (default: quality.local.json in the repository, '
                                     'optional and ignored by Git; see quality.local.example.json)')
 args = parser.parse_args()
@@ -179,7 +181,8 @@ def read(p):
 
 def fetch_live(path):
     """Return status, headers, body, and any transport error for a live path."""
-    return fetch_url("https://" + DOMAIN + path)
+    return fetch_url("https://" + DOMAIN + path,
+                     user_agent="%s-quality-check/%s" % (PROJECT, __version__))
 
 def header_values(headers, name):
     """Return every value sent for one header, however the client stored them."""

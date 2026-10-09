@@ -11,6 +11,7 @@ from pathlib import Path
 from build import TEMPLATE, build_site_staged, json_block, load_config
 from check_artifacts import audit
 from build_inventory import inventory
+from version import __version__
 
 
 def verify(template, cfg):
@@ -29,6 +30,7 @@ def verify(template, cfg):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
     parser.parse_args(argv)
     cfg = load_config()
     try:

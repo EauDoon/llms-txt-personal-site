@@ -7,6 +7,7 @@ from pathlib import Path
 from urllib.parse import unquote, urljoin, urlsplit
 
 from build_inventory import inventory
+from version import __version__
 
 
 class Document(HTMLParser):
@@ -124,6 +125,7 @@ def audit(site_dir):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
     parser.add_argument("site", nargs="?", default=str(Path(__file__).resolve().parents[1] / "site"))
     args = parser.parse_args()
     try:

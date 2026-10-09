@@ -14,6 +14,7 @@ from pathlib import Path
 from build import ROOT, build_site_staged, is_link_like, json_block, load_config, paths_overlap
 from build_inventory import MAX_FILE_BYTES, MAX_TOTAL_BYTES, inventory
 from check_artifacts import audit
+from version import __version__
 
 
 def snapshot(root):
@@ -75,6 +76,7 @@ def review_candidate(template, current, cfg):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
     parser.add_argument('--json', action='store_true', help='emit exact path/byte/hash records as JSON')
     args = parser.parse_args(argv)
     try:

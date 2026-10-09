@@ -23,12 +23,16 @@ def read_body(response):
     return body
 
 
-def fetch_url(url, timeout=20):
-    """Return status, headers, body, and any transport error without redirects."""
+def fetch_url(url, timeout=20, user_agent="llms-txt-personal-site-quality-check"):
+    """Return status, headers, body, and any transport error without redirects.
+
+    The caller supplies the versioned User-Agent, so this module keeps no
+    imports of its own and loads standalone.
+    """
     try:
         request = Request(
             url,
-            headers={"User-Agent": "llms-txt-personal-site-quality-check/1"},
+            headers={"User-Agent": user_agent},
         )
         with OPENER.open(request, timeout=timeout) as response:
             return response.status, response.headers, read_body(response), ""

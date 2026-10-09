@@ -30,6 +30,7 @@ from urllib.parse import quote, urlsplit
 
 from build_sitemap import validate_last_updated, verification_files
 from email_addresses import validate_email_address
+from version import __version__
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEMPLATE = os.path.join(ROOT, "template")
@@ -583,6 +584,7 @@ def build_site_staged(template_dir, output_dir, cfg):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
     parser.parse_args(argv)
     cfg = load_config()
     cfg = dict(cfg, **json_block(cfg))

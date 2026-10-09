@@ -10,6 +10,7 @@ from build_llms_index import _safe_label
 from publishing import FIELDS, review_articles
 from build_writing_html import parse_front_matter
 from build_sitemap import validate_last_updated
+from version import __version__
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -80,6 +81,7 @@ def create_article(repo, slug, title, description='', topics=(), body_path=None,
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
     commands = parser.add_subparsers(dest='command', required=True)
     new = commands.add_parser('new', help='create an unpublished article without overwriting')
     new.add_argument('slug')

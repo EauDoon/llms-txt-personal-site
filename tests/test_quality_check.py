@@ -185,14 +185,9 @@ class QualityCheckTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
             scripts = repo / "scripts"
-            scripts.mkdir()
-            shutil.copy2(ROOT / "scripts" / "a2a_agent_card.py", scripts)
-            shutil.copy2(ROOT / "scripts" / "build.py", scripts)
-            shutil.copy2(ROOT / "scripts" / "build_sitemap.py", scripts)
-            shutil.copy2(ROOT / "scripts" / "http_client.py", scripts)
-            shutil.copy2(ROOT / "scripts" / "llms_txt.py", scripts)
-            shutil.copy2(ROOT / "scripts" / "quality_check.py", scripts)
-            shutil.copy2(ROOT / "scripts" / "email_addresses.py", scripts)
+            # Copy every script: a hand-picked list broke whenever the gate's
+            # import chain gained a module.
+            shutil.copytree(ROOT / "scripts", scripts, ignore=shutil.ignore_patterns("__pycache__"))
 
             site = repo / "site"
             site.mkdir()

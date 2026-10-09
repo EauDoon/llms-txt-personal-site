@@ -44,7 +44,11 @@ def inventory(site_dir):
 
 
 def run(site_dir, cfg):
-    document = {"version": 1, "site": "https://" + cfg["DOMAIN"] + "/",
+    from version import PROJECT, __version__
+    # "version" is the manifest format; "generator" names the template release
+    # that wrote it, so a fork can tell which tooling built its site.
+    document = {"version": 1, "generator": "%s %s" % (PROJECT, __version__),
+                "site": "https://" + cfg["DOMAIN"] + "/",
                 "reviewed_date": cfg["LAST_UPDATED"],
                 "scope": "Built public files, excluding this manifest. Hashes establish byte identity, not factual verification or authorship.",
                 "files": inventory(site_dir)}

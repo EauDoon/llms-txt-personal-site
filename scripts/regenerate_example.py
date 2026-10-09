@@ -19,6 +19,8 @@ import sys
 import tempfile
 from pathlib import Path
 
+from version import __version__
+
 ROOT = Path(__file__).resolve().parents[1]
 SAMPLE_CONFIG = ROOT / "site.config.example.json"
 TEMPLATE = ROOT / "template"
@@ -98,6 +100,7 @@ def mirror(generated, example):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
     parser.add_argument("--check", action="store_true",
                         help="report differences without writing, and exit 1 if example/ is stale")
     args = parser.parse_args(argv)

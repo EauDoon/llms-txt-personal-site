@@ -9,6 +9,8 @@ import re
 import sys
 from pathlib import Path
 
+from version import __version__
+
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_DATA = ROOT / "eval" / "identity_questions.json"
 SCORING_NOTE = (
@@ -118,6 +120,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--list", action="store_true", help="List question identifiers and prompts"
     )
+    parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
     return parser.parse_args(argv)
 
 

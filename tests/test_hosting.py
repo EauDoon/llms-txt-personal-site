@@ -19,6 +19,7 @@ TEMPLATE = ROOT / "template"
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from build import build_site, json_block
+from version import PROJECT, __version__
 
 # Headers every response gets from each host config, with identical values.
 CONTRACT = (
@@ -192,7 +193,8 @@ class LiveHeaderTests(unittest.TestCase):
                         result[name] = value
                 return result
 
-            def fetch_url(url, timeout=20):
+            def fetch_url(url, timeout=20, user_agent=None):
+                agents.add(user_agent)
                 path = urlsplit(url).path
                 if path == "/":
                     return 200, message(home), b"", ""
@@ -203,11 +205,14 @@ class LiveHeaderTests(unittest.TestCase):
                 return 200, message({"Content-Type": ["text/markdown; charset=utf-8"],
                                      "Content-Disposition": ["inline"]}), b"", ""
 
+            agents: set[str | None] = set()
             output = io.StringIO()
             argv = ["quality_check.py", "--site", str(site), "--config", str(config_path), "--live"]
             with patch("http_client.fetch_url", fetch_url), patch.object(sys, "argv", argv), \
                     contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
                 runpy.run_path(str(ROOT / "scripts" / "quality_check.py"), run_name="__main__")
+            # Every live request names the template release that made it.
+            self.assertEqual(agents, {"%s-quality-check/%s" % (PROJECT, __version__)})
             return output.getvalue()
 
     def card_headers(self, *origins: str) -> dict[str, list[str]]:
