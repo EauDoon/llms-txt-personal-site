@@ -59,6 +59,8 @@ python scripts/check_artifacts.py
 python scripts/verify_build.py
 ```
 
+The quality gate applies two writing-style rules by default: it fails em and en dashes (including `&mdash;` and `&ndash;`) and common British spellings such as "colour" or "organise" outside URLs. Turn either off with `"style": {"em_dash": false}` or `"style": {"american_spelling": false}` in `quality.local.json`, and excuse a single proper noun with an `allowed` entry and its reason instead. See [What the quality gate checks](../README.md#what-the-quality-gate-checks).
+
 The artifact audit compares every output file with `content-manifest.json`, validates article JSON-LD, and checks HTML local links and fragment targets. It makes no network requests and does not check external URLs or validate the truth of claims. The manifest deliberately excludes itself. Its hashes identify exact bytes, not authorship, signatures, or independent verification.
 
 The reproducibility check builds twice in temporary directories and removes them afterward. It leaves your existing `site/` unchanged. CI runs both checks. Builds reject overlapping template/output paths, link-like source paths, more than 5,000 source/output files, individual files over 20 MiB, or total source/output bytes over 100 MiB. A template that leaves an unfilled `{{PLACEHOLDER}}` token in the result also stops the build with a nonzero exit code, before any output is promoted, so a mistyped key is never published as if it were a fact. These are static personal-site budgets, not a sandbox for untrusted Python or template code.

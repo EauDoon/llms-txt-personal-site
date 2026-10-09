@@ -5,6 +5,10 @@ site.config.json
 # site.config.json explicitly names it with A2A_AGENT_CARD_PATH.
 agent-card.local.json
 
+# Optional private quality-gate rules. Forbidden strings must never be
+# committed, so start from quality.local.example.json and keep this local.
+quality.local.json
+
 # Build output. Regenerate with: python scripts/build.py
 site/
 

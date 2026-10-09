@@ -140,6 +140,25 @@ HTML pages advertise their Markdown version with `rel="alternate"` and the index
 
 Every indexable page must also declare a document language, a title, a meta description, and a canonical URL. The builder derives each description from the page's own leading prose rather than a separate string, so a description cannot drift away from the page it describes. A page marked `noindex`, such as `404.html`, is exempt because a search result would never show it.
 
+`python scripts/quality_check.py` reads `site/` and `site.config.json` and exits 1 on any failure. Without a usable config it stops with one failure that names the problem. Each run checks:
+
+1. **Rules.** Forbidden strings from your private rules file, then two writing-style rules: no em or en dashes, and American rather than British spelling for a list of common words (URLs are exempt from spelling). Pages are scanned at every depth.
+2. **Fact consistency.** Every address on the site's own domains, every `mailto:` link, and every JSON-LD `email` match the configured `EMAIL`, and the job title is listed for review.
+3. **Head metadata.** Language, title, description, and a canonical link to the page's own HTTPS URL.
+4. **Structured data.** Every JSON-LD block parses, declares schema.org, and links articles to the homepage's person record.
+5. **`llms.txt` v2.** The index structure and same-site targets, and the `describedby` and Markdown `alternate` links on every page.
+6. **Agent Card.** A published A2A Agent Card passes validation; none is published by default.
+7. **Dates.** `LAST_UPDATED` and every page's "Last updated" line are real calendar dates.
+8. **Generated files.** `llms-full.txt` holds the current bytes of every Markdown page, and the search index, `search.md`, and the feed agree with the build.
+9. **Sitemap and robots.** `sitemap.xml` lists exactly the public files with the configured date, and `robots.txt` points at it without blocking every crawler.
+10. **Live, with `--live` only.** Every link and sitemap URL answers `200` without a redirect, configured verification files are served, Markdown is served inline, the Agent Card headers are right, and missing security headers are reported as warnings.
+
+The rules file is optional. Copy [`quality.local.example.json`](quality.local.example.json) to `quality.local.json`, which Git ignores, or pass another file with `--rules FILE`:
+
+- `forbidden`: strings that must never appear anywhere in the build, such as a private handle or an embargoed name. They are matched literally and ignoring case, in every text file and file name, including `search-index.json`, `content-manifest.json`, and `.well-known/`. A hit is reported by entry number and file, never by its text, so CI logs do not repeat it. Never list them in a tracked file: a public fork publishes everything it commits.
+- `allowed`: deliberate exceptions, each a regular expression with a nonempty `reason`. A rule match within 120 characters of an allowed match passes.
+- `style`: set `em_dash` or `american_spelling` to `false` to turn that writing-style rule off. Both are on by default.
+
 These are structural and consistency checks. They do not verify sources, prove a biography is accurate, or measure whether an assistant will use it.
 
 ## Check answers against your sources

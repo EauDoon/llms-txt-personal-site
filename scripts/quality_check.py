@@ -20,7 +20,7 @@ from html.parser import HTMLParser
 from urllib.parse import quote, unquote, urlsplit
 
 from a2a_agent_card import load_agent_card, validate_agent_card
-from build import fill
+from build import BINARY_SUFFIXES, fill
 from build_sitemap import public_urls, validate_last_updated
 from http_client import fetch_url
 from llms_txt import _local_path, has_link_relation, markdown_alternate, validate_llms_txt
@@ -31,9 +31,12 @@ parser = argparse.ArgumentParser(description='Check a built static site against 
 parser.add_argument('--site', default=os.path.join(REPO, 'site'), help='built directory to inspect')
 parser.add_argument('--config', default=os.path.join(REPO, 'site.config.json'), help='matching public configuration')
 parser.add_argument('--live', action='store_true', help='also request the configured public HTTPS site')
+parser.add_argument('--rules', help='private gate rules (default: quality.local.json in the repository, '
+                                    'optional and ignored by Git; see quality.local.example.json)')
 args = parser.parse_args()
 R = os.path.abspath(args.site)
 _cfg_path = os.path.abspath(args.config)
+_rules_path = os.path.abspath(args.rules) if args.rules else os.path.join(REPO, 'quality.local.json')
 
 
 def load_gate_config(path):
@@ -60,17 +63,79 @@ def load_gate_config(path):
     return cfg, None
 
 
+def load_rules(path, required):
+    """Return (forbidden, allowed, style) from the private rules file, or a problem.
+
+    The file stays out of Git so a public fork never publishes its forbidden
+    strings. A problem message names the field, never an entry's text.
+    """
+    style = {"em_dash": True, "american_spelling": True}
+    name = os.path.basename(path)
+    if not os.path.isfile(path):
+        if required:
+            return None, "rules file %s not found" % path
+        return ([], [], style), None
+    try:
+        with open(path, encoding="utf-8") as rules_file:
+            data = json.load(rules_file)
+    except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+        return None, "%s is not valid JSON: %s" % (name, exc)
+    except OSError as exc:
+        return None, "%s could not be read: %s" % (name, exc)
+    if not isinstance(data, dict):
+        return None, "%s must contain a JSON object" % name
+    unknown = sorted(key for key in data if not key.startswith("_")
+                     and key not in {"forbidden", "allowed", "style"})
+    if unknown:
+        return None, "%s has unknown keys: %s" % (name, ", ".join(unknown))
+    forbidden = data.get("forbidden", [])
+    if not isinstance(forbidden, list):
+        return None, "%s: forbidden must be a list of strings" % name
+    for index, entry in enumerate(forbidden, 1):
+        if not isinstance(entry, str) or not entry.strip():
+            return None, "%s: forbidden string #%d must be a nonempty string" % (name, index)
+    allowed = data.get("allowed", [])
+    if not isinstance(allowed, list):
+        return None, "%s: allowed must be a list of objects" % name
+    compiled = []
+    for index, entry in enumerate(allowed, 1):
+        if not isinstance(entry, dict) or set(entry) - {"pattern", "reason"}:
+            return None, "%s: allowed entry #%d must have only pattern and reason" % (name, index)
+        if not isinstance(entry.get("pattern"), str) or not entry["pattern"]:
+            return None, "%s: allowed entry #%d needs a nonempty pattern" % (name, index)
+        if not isinstance(entry.get("reason"), str) or not entry["reason"].strip():
+            return None, "%s: allowed entry #%d needs a nonempty reason" % (name, index)
+        try:
+            compiled.append((re.compile(entry["pattern"]), entry["reason"]))
+        except re.error as exc:
+            return None, "%s: allowed entry #%d pattern is not a valid regular expression: %s" % (name, index, exc)
+    switches = data.get("style", {})
+    if not isinstance(switches, dict) or set(switches) - set(style):
+        return None, "%s: style may set only em_dash and american_spelling" % name
+    for key, value in switches.items():
+        if not isinstance(value, bool):
+            return None, "%s: style.%s must be true or false" % (name, key)
+        style[key] = value
+    return (forbidden, compiled, style), None
+
+
 _cfg, _cfg_problem = load_gate_config(_cfg_path)
 if _cfg_problem:
     print("FAIL %s" % _cfg_problem)
     sys.exit(1)
+_rules, _rules_problem = load_rules(_rules_path, required=bool(args.rules))
+if _rules_problem:
+    print("FAIL %s" % _rules_problem)
+    sys.exit(1)
+# Strings that must never appear anywhere in the build, deliberate exceptions
+# with their reasons, and the two writing-style switches.
+FORBIDDEN, ALLOWED, STYLE = _rules
 if not os.path.isdir(R):
     parser.error('--site must name an existing built directory')
 DOMAIN = _cfg["DOMAIN"]
 EMAIL = _cfg.get("EMAIL", "")
 JOB_TITLE = _cfg.get("JOB_TITLE", "")
 LIVE = args.live
-SKIP_FILES = {"README.md", "PROMOTION.md", "RECOMMENDATIONS.md", "MONITORING.md"}
 # llms-full.txt is generated by concatenation: any violation in it mirrors a
 # source file and would be double-counted, so it is scanned separately at the end.
 GENERATED = {"llms-full.txt"}
@@ -94,7 +159,7 @@ def sources(include_generated=False):
             if not f.endswith(suffixes):
                 continue
             rel = os.path.relpath(os.path.join(dirpath, f), R).replace(os.sep, "/")
-            if top and (f in SKIP_FILES or (f in GENERATED and not include_generated)):
+            if top and f in GENERATED and not include_generated:
                 continue
             out.append((rel, os.path.join(dirpath, f)))
     return out
@@ -304,54 +369,87 @@ def search_index_issues(root):
                       % sorted(set(listed) ^ set(urls)))
     return issues
 
-# Deliberate exceptions, each with its reason.
-ALLOWED = [
-    # Add deliberate exceptions here, each with the reason it is allowed.
-    # Example, from the reference site: Visa's own programme name is a proper
-    # noun, so the American-English rule does not apply to it.
-    #   (r"Agentic Ready Programme", "Visa proper noun"),
-]
-
-# Strings that must never appear anywhere on the site. Fill this in.
-# The reference site used it to keep an undisclosed alt account, and the topics
-# that would identify it, off every page. Naming the handle is not enough:
-# a description of its subject matter is itself a search key.
-FORBIDDEN = []
-
 def url_spans(text):
     """URLs are identifiers, not prose. Spelling rules do not apply inside them."""
     return [(m.start(), m.end()) for m in re.finditer(r"https?://[^\s)\"'<>\]]+", text)]
 
 def allowed_at(text, pos, spans=None):
+    """Return whether a match at pos is exempt: inside a URL or an allowed window.
+
+    Pass spans=[] to keep only the allowed-pattern exemption.
+    """
     if spans is None:
         spans = url_spans(text)
     for a, b in spans:
         if a <= pos < b:
             return True
-    for pat, _ in ALLOWED:
-        for m in re.finditer(pat, text):
+    for pattern, _ in ALLOWED:
+        for m in pattern.finditer(text):
             if m.start() - 120 <= pos <= m.end() + 120:
                 return True
     return False
 
+def build_files():
+    """Return (relative path, path, is binary) for every file in the build.
+
+    Dot-directories are included: .well-known/agent-card.json comes from a
+    user file, and search-index.json or the manifest can carry any page text.
+    """
+    out = []
+    for dirpath, dirnames, filenames in os.walk(R):
+        dirnames.sort()
+        for f in sorted(filenames):
+            path = os.path.join(dirpath, f)
+            out.append((os.path.relpath(path, R).replace(os.sep, "/"), path,
+                        f.lower().endswith(BINARY_SUFFIXES)))
+    return out
+
 head("1. RULE COMPLIANCE")
-RULES = [
-    ("em/en dash", r"[–—]|&mdash;|&ndash;"),
-    # Add your own forbidden strings here: an alt handle, a former employer
-    # you do not want surfaced, a project name under embargo.
-    ("forbidden strings", r"(?i)" + "|".join(FORBIDDEN) if FORBIDDEN else r"(?!x)x"),
+# Forbidden strings are a fork's most sensitive entries, so they are matched
+# literally, never inside a regex, and a hit names only the entry's number and
+# the file. Echoing the matched text would publish it in CI logs.
+forbidden_patterns = [re.compile(re.escape(entry), re.IGNORECASE) for entry in FORBIDDEN]
+
+def shown_path(rel):
+    """A path that itself contains a forbidden string is not printed either."""
+    return "a withheld path" if any(p.search(rel) for p in forbidden_patterns) else rel
+
+forbidden_hits = Counter()
+for index, pattern in enumerate(forbidden_patterns, 1):
+    for rel, p, binary in build_files():
+        if pattern.search(rel):
+            forbidden_hits[(index, "the file name of " + shown_path(rel))] += 1
+        if binary:
+            continue
+        t = read(p)
+        for m in pattern.finditer(t):
+            if not allowed_at(t, m.start(), spans=[]):
+                forbidden_hits[(index, shown_path(rel))] += 1
+if forbidden_hits:
+    total = sum(forbidden_hits.values())
+    named = ["forbidden string #%d in %s (%d)" % (index, rel, count)
+             for (index, rel), count in sorted(forbidden_hits.items())]
+    fails.append("forbidden strings (%d)" % total)
+    more = " and %d more file locations" % (len(named) - 8) if len(named) > 8 else ""
+    print("  FAIL %-28s %d  %s%s" % ("forbidden strings", total, named[:8], more))
+else:
+    print("  ok   %-28s 0  (%d configured)" % ("forbidden strings", len(FORBIDDEN)))
+
+RULES = []
+if STYLE["em_dash"]:
+    RULES.append(("em/en dash", r"[–—]|&mdash;|&ndash;"))
+if STYLE["american_spelling"]:
     # Only words where American English genuinely differs. A blanket [a-z]+ised
     # is wrong: revise, advise, promise, comprise and friends are -ise in BOTH
     # dialects, and an earlier version flagged "revised" as a British spelling.
-    ("British spelling", r"(?i)\b(licence|behaviour|colour|favour|centre|defence|offence|"
-                         r"programme|modelled|modelling|labelled|cancelled|travelled|"
-                         r"analyse|analysed|organis(e|ed|ing|ation)|optimis(e|ed|ing|ation)|"
-                         r"realis(e|ed|ing)|recognis(e|ed|ing)|prioritis(e|ed|ing)|"
-                         r"standardis(e|ed|ing|ation)|summaris(e|ed|ing)|specialis(e|ed)|"
-                         r"minimis(e|ed)|maximis(e|ed)|utilis(e|ed)|capitalis(e|ed)|"
-                         r"tokenis(e|ed|ation)|monetis(e|ed)|centralis(e|ed)|"
-                         r"decentralis(e|ed)|collateralis(e|ed)|normalis(e|ed))\b"),
-]
+    RULES.append(("British spelling", r"(?i)\b(licence|behaviour|colour|favour|centre|defence|offence|"
+                                      r"programme|modelled|modelling|labelled|cancelled|travelled|"
+                                      r"analyse|analysed|organis(e|ed|ing|ation)|optimis(e|ed|ing|ation)|"
+                                      r"realis(e|ed|ing)|recognis(e|ed|ing)|prioritis(e|ed|ing)|"
+                                      r"standardis(e|ed|ing|ation)|summaris(e|ed|ing)|specialis(e|ed)|"
+                                      r"minimis(e|ed)|maximis(e|ed)|utilis(e|ed)|capitalis(e|ed)|"
+                                      r"tokenis(e|ed|ation)|monetis(e|ed)|centralis(e|ed)|"
+                                      r"decentralis(e|ed)|collateralis(e|ed)|normalis(e|ed))\b"))
 for name, pat in RULES:
     hits = []
     for rel, p in sources():
@@ -365,6 +463,9 @@ for name, pat in RULES:
         print("  FAIL %-28s %d  %s" % (name, len(hits), hits[:4]))
     else:
         print("  ok   %-28s 0" % name)
+for name, key in (("em/en dash", "em_dash"), ("British spelling", "american_spelling")):
+    if not STYLE[key]:
+        print("  off  %-28s style.%s is false in the rules file" % (name, key))
 
 head("2. CROSS-FILE FACT CONSISTENCY")
 FACTS = [
