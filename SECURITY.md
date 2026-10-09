@@ -37,4 +37,4 @@ The maintainers aim to acknowledge new reports within seven days. Fix timelines 
 
 ## Supported Versions
 
-Only the latest commit on the default branch receives security fixes for the template. Older snapshots are not patched.
+Security fixes go to the default branch and ship in the next release of the latest major version, currently 1.x. Older releases and snapshots are not patched; upgrade to the latest 1.x release. `python scripts/version.py` prints the version you are running, and a built site's `content-manifest.json` names the release that generated it.

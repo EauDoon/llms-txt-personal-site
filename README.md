@@ -3,6 +3,7 @@
 [![build](https://img.shields.io/github/actions/workflow/status/EauDoon/llms-txt-personal-site/quality-check.yml?branch=main)](https://github.com/EauDoon/llms-txt-personal-site/actions)
 [![license](https://img.shields.io/github/license/EauDoon/llms-txt-personal-site)](https://github.com/EauDoon/llms-txt-personal-site/blob/main/LICENSE)
 [![last commit](https://img.shields.io/github/last-commit/EauDoon/llms-txt-personal-site)](https://github.com/EauDoon/llms-txt-personal-site)
+[![release](https://img.shields.io/github/v/release/EauDoon/llms-txt-personal-site)](https://github.com/EauDoon/llms-txt-personal-site/releases)
 
 **Publish a personal website that gives AI assistants a clear, consistent source for who you are.**
 

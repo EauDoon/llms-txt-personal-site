@@ -20,7 +20,7 @@ from datetime import date
 from pathlib import Path
 
 PROJECT = "llms-txt-personal-site"
-__version__ = "1.0.0-dev"
+__version__ = "1.0.0"
 
 CHANGELOG = Path(__file__).resolve().parents[1] / "CHANGELOG.md"
 # SemVer 2.0.0, from semver.org.

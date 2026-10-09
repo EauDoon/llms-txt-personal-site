@@ -4,6 +4,10 @@ All notable changes to this template are recorded here. The format follows [Keep
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-09
+
+The first versioned release. It declares the config keys, script commands, output layout and default gate rules as the public contract, so a change that breaks any of them is a new major version from here on. The behavior changes a fork should check before upgrading are listed under Changed.
+
 ### Added
 
 - `scripts/version.py`, the single source of the release version. Every script accepts `--version`, `content-manifest.json` records a `generator` such as `llms-txt-personal-site 1.0.0`, and `quality_check.py --live` sends a versioned User-Agent.
@@ -12,7 +16,6 @@ All notable changes to this template are recorded here. The format follows [Keep
 - An optional `SITE_LANGUAGE` config key that sets `<html lang>` on every page and Article `inLanguage`. It defaults to `en`.
 - The `verification` config block is now published: `bing_msvalidate` as a `msvalidate.01` meta tag on the homepage, `google_html_file` as that file at the site root, and `indexnow_key` as `<key>.txt` at the site root. Invalid tokens stop the build, and the proof files stay out of `sitemap.xml` and the page checks.
 - An optional `quality.local.json` rules file, ignored by Git, or any file passed with `--rules FILE`. It holds forbidden strings, allowed exceptions that each need a reason, and switches for the two writing-style rules. `quality.local.example.json` shows the schema.
-- A skip link, a `main` landmark, and a visible focus outline on the homepage and the 404 page.
 - `fork.py` runs the offline artifact audit after the quality gate, as CI does.
 - CI runs Linux and Windows on Python 3.11, 3.12, 3.13 and 3.14 with a concurrency group, and Dependabot keeps the pinned actions current.
 
@@ -24,7 +27,8 @@ All notable changes to this template are recorded here. The format follows [Keep
 - `build.py --help` and `verify_build.py --help` print usage instead of building.
 - The quality gate scans pages at every depth of the build and no longer exempts root `README.md`, `PROMOTION.md`, `RECOMMENDATIONS.md` and `MONITORING.md`.
 - Forbidden strings are matched literally and ignoring case in every text file and file name of the build, dot-directories and URLs included. A hit is reported by entry number and file, never by the matched text.
-- Links on the homepage, the 404 page and articles are underlined instead of being told apart by color alone.
+- The homepage and the 404 page wrap their content in a `main` landmark with a skip link and a visible focus outline, and links there and in articles are underlined instead of being told apart by color alone.
+- The host configs add a Content-Security-Policy, `X-Frame-Options` and `Permissions-Policy` header and no longer repeat the CORS header in specific rules (see Security).
 - Fonts (`.woff`, `.woff2`, `.ttf`, `.otf`, `.eot`), `.avif` and `.bmp` images, audio, video, `.zip` and `.gz` files in `template/` are copied as binary.
 - Python 3.11 is the oldest supported version.
 
@@ -48,4 +52,5 @@ All notable changes to this template are recorded here. The format follows [Keep
 - The Agent Card's `Access-Control-Allow-Origin` header is set only by the catch-all rule. Cloudflare Pages had joined the duplicate into `*, *`, which browsers reject. `quality_check.py --live` now fails a published card whose header is not exactly `*`, and warns when the homepage lacks `nosniff` or a Content-Security-Policy.
 - Forbidden strings no longer live in a tracked script and never appear in the gate's output.
 
-[Unreleased]: https://github.com/EauDoon/llms-txt-personal-site/commits/main
+[Unreleased]: https://github.com/EauDoon/llms-txt-personal-site/compare/v1.0.0...HEAD
+[1.0.0]: https://github.com/EauDoon/llms-txt-personal-site/releases/tag/v1.0.0
