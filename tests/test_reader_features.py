@@ -228,6 +228,37 @@ class ReaderFeatures(unittest.TestCase):
             build_inventory(root, CFG)
             self.assertEqual(audit(root), [])
 
+    def test_artifact_audit_parses_json_ld_whatever_its_type_spelling(self):
+        # The gate already normalized the media type (PR #67); the audit
+        # compared the exact string and skipped these blocks unparsed.
+        for media in ('application/ld+json', 'application/ld+json; charset=utf-8',
+                      'APPLICATION/LD+JSON', ' Application/LD+JSON ;charset=UTF-8'):
+            with self.subTest(media=media):
+                document = Document()
+                document.feed('<SCRIPT TYPE="%s">{not json</script>' % media)
+                document.close()
+                self.assertIn('invalid JSON-LD', document.errors)
+                valid = Document()
+                valid.feed('<script type="%s">{"name": "Example"}</script>' % media)
+                valid.close()
+                self.assertEqual(valid.errors, [])
+
+    def test_artifact_audit_accepts_any_spelling_of_an_svg_favicon_rel(self):
+        icon = "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg'></svg>"
+        for rel in ('icon', 'ICON', 'icon shortcut', 'shortcut icon', 'Shortcut  Icon'):
+            with self.subTest(rel=rel):
+                document = Document()
+                document.feed('<link rel="%s" href="%s">' % (rel, icon))
+                document.close()
+                self.assertEqual(document.errors, [])
+        for markup in ('<link rel="stylesheet" href="%s">' % icon, '<link rel="iconic" href="%s">' % icon,
+                       '<link rel="icon" href="data:text/html,hi">', '<img src="%s">' % icon):
+            with self.subTest(markup=markup):
+                document = Document()
+                document.feed(markup)
+                document.close()
+                self.assertIn('data URL is permitted only for an image favicon', document.errors)
+
     def test_artifact_audit_normalizes_same_origin_hosts_and_ports(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
