@@ -365,6 +365,23 @@ class QualityCheckTests(unittest.TestCase):
         self.assertIsNone(re.search(r"/profile\.md\?(?:\s|->)", result.stdout), result.stdout)
         self.assertIn("/profile.md?x=1", result.stdout)
 
+    def test_live_check_drops_emphasis_around_a_bare_url(self) -> None:
+        # **https://domain/profile.md** renders a correct link, but --live used
+        # to request /profile.md** and fail a correct deployment.
+        def prepare(site, domain):
+            profile = site / "profile.md"
+            profile.write_text(
+                profile.read_text(encoding="utf-8")
+                + "\nSee **https://%s/profile.md** and _https://%s/profile.md_.\n" % (domain, domain),
+                encoding="utf-8",
+            )
+
+        result = self.run_quality_check(live=True, domain="127.0.0.1:9", path="", prepare=prepare)
+        self.assertIn("10. LIVE: LINKS AND SITEMAP", result.stdout)
+        self.assertNotIn("/profile.md*", result.stdout)
+        self.assertNotIn("/profile.md_", result.stdout)
+        self.assertIn("/profile.md", result.stdout)
+
     def test_search_index_and_static_directory_drift_fails_the_gate(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)

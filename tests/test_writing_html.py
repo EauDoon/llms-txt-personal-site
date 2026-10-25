@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import sys
 import tempfile
 import unittest
@@ -116,6 +117,13 @@ class WritingHtmlTests(unittest.TestCase):
                     self.assertNotIn(
                         '<a href="https://a.test/b%s"' % terminator, md_to_html(markdown)
                     )
+
+    def test_bare_url_inside_emphasis_does_not_link_the_delimiter(self) -> None:
+        # The URL pattern accepts * and _, so *https://a.test/b* used to publish
+        # href="https://a.test/b*", a page that does not exist.
+        rendered = md_to_html("See *https://a.test/b* and _https://a.test/c_. Also https://a.test/d_e.")
+        self.assertEqual(re.findall(r'href="([^"]*)"', rendered),
+                         ["https://a.test/b", "https://a.test/c", "https://a.test/d_e"])
 
     def test_bare_url_autolink_keeps_interior_path_characters(self) -> None:
         rendered = md_to_html("Path https://a.test/x.b/c?d=1. done")

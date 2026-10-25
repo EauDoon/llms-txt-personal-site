@@ -22,6 +22,7 @@ from urllib.parse import quote, unquote, urlsplit
 from a2a_agent_card import load_agent_card, validate_agent_card
 from build import BINARY_SUFFIXES, fill
 from build_sitemap import public_urls, validate_last_updated, verification_files
+from build_writing_html import AUTOLINK_TRAILING
 from http_client import fetch_url
 from llms_txt import _local_path, has_link_relation, markdown_alternate, validate_llms_txt
 from email_addresses import address_key, contact_values, validate_email_address
@@ -864,9 +865,11 @@ if LIVE:
     links = set()
     for rel, p in sources():
         for m in re.finditer(r"https://" + re.escape(DOMAIN) + r"(/[^\s)\"'<>\]]*)?", read(p)):
-            # ! and ? end a sentence the same way the Markdown autolinker does.
-            # Leaving them on the path makes --live request a file that was never built.
-            u = (m.group(1) or "/").rstrip(".,;:!?")
+            # Sentence punctuation and a closing * or _ end a URL the same way
+            # the Markdown autolinker does. Leaving them on the path makes --live
+            # request a file that was never built, such as /faq.html** from
+            # **https://domain/faq.html**.
+            u = (m.group(1) or "/").rstrip(AUTOLINK_TRAILING)
             links.add(u)
     sm = read(os.path.join(R, "sitemap.xml"))
     links |= set(re.findall(r"<loc>https://" + re.escape(DOMAIN) + r"(/[^<]*)</loc>", sm))

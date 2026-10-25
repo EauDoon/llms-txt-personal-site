@@ -45,6 +45,10 @@ def script_json(value):
 # "text." must point at the address, not at a path whose last character is a
 # full stop, so the punctuation stays outside the anchor.
 LINK_TRAILING = ".,;:!?"
+# A bare URL can also sit inside emphasis, as in *https://example.com/a*.
+# The closing delimiter ends the URL, as in GitHub's autolink extension, so
+# the link points at /a rather than /a*.
+AUTOLINK_TRAILING = LINK_TRAILING + "*_"
 
 
 def _quoted_title(value):
@@ -94,7 +98,7 @@ def autolink(match):
     https://example.com. as the destination and the link resolves nowhere.
     """
     url = match.group(0)
-    trimmed = url.rstrip(LINK_TRAILING)
+    trimmed = url.rstrip(AUTOLINK_TRAILING)
     # A bare scheme with nothing after it is not a URL worth linking.
     if not re.match(r"https?://[^/?#]+", trimmed):
         return url
@@ -298,7 +302,8 @@ def md_to_html(md):
             return '<a href="%s">%s</a>%s' % (trimmed, trimmed, url[len(trimmed):])
 
         s = re.sub(r"&lt;(" + url_body + r")&gt;", bracketed, s)
-        s = re.sub(r"(?<![\">=/\w])(" + url_body + r")", autolink, s)
+        # An opening _ is emphasis, not part of a word, so _https://..._ links.
+        s = re.sub(r"(?<![\">=/])(?<![^\W_])(" + url_body + r")", autolink, s)
         for placeholder, inert_text in inert_links:
             s = s.replace(placeholder, inert_text)
         for placeholder, rendered in rendered_links:
