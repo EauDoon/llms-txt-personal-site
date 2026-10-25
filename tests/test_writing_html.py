@@ -20,6 +20,38 @@ class WritingHtmlTests(unittest.TestCase):
             "<p>| not a table</p>\n<p>&gt;not a quote</p>\n<h1>Next section</h1>",
         )
 
+    def test_blank_lines_between_items_keep_one_numbered_list(self) -> None:
+        # Each item used to open its own <ol>, so steps 1, 2 and 3 separated
+        # by blank lines all displayed as "1.".
+        self.assertEqual(
+            md_to_html("1. One\n\n2. Two\n\n\n3. Three"),
+            "<ol>\n<li>One</li>\n<li>Two</li>\n<li>Three</li>\n</ol>",
+        )
+        self.assertEqual(
+            md_to_html("- One\n\n- Two\n\nAfter."),
+            "<ul>\n<li>One</li>\n<li>Two</li>\n</ul>\n<p>After.</p>",
+        )
+        # A different bullet after a blank line starts a new list, as in CommonMark.
+        self.assertEqual(
+            md_to_html("- One\n\n* Two"),
+            "<ul>\n<li>One</li>\n</ul>\n<ul>\n<li>Two</li>\n</ul>",
+        )
+        self.assertEqual(
+            md_to_html("1. One\n\n- Other kind"),
+            "<ol>\n<li>One</li>\n</ol>\n<ul>\n<li>Other kind</li>\n</ul>",
+        )
+
+    def test_numbered_list_resumed_after_a_block_keeps_its_number(self) -> None:
+        self.assertEqual(
+            md_to_html("1. Run this:\n\n```\nmake\n```\n\n2. Then this.\n3. Done."),
+            "<ol>\n<li>Run this:</li>\n</ol>\n<pre><code>make</code></pre>\n"
+            '<ol start="2">\n<li>Then this.</li>\n<li>Done.</li>\n</ol>',
+        )
+        self.assertEqual(md_to_html("01. Padded"), "<ol>\n<li>Padded</li>\n</ol>")
+        self.assertEqual(md_to_html("0. Zero"), '<ol start="0">\n<li>Zero</li>\n</ol>')
+        # Past nine digits the number is not a CommonMark start; never parse it.
+        self.assertEqual(md_to_html("1" * 5000 + ". Huge"), "<ol>\n<li>Huge</li>\n</ol>")
+
     def test_active_and_ambiguous_markdown_links_render_inert(self) -> None:
         for target in (
             "JaVaScRiPt:alert%281%29",

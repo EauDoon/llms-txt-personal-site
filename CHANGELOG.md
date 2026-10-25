@@ -8,6 +8,7 @@ All notable changes to this template are recorded here. The format follows [Keep
 
 - A published Markdown page with an uppercase suffix, such as `notes.MD` or `writing/note.Md`, now stops the build with its path. It used to be listed in `sitemap.xml` while missing from `llms-full.txt`, `llms.txt`, search, the feed and the HTML companions, and the quality gate passed it. `article.py review` reports such an article as an error, or as a warning while it is a draft.
 - `site.config.json` and the rules file may be saved as UTF-8 with a byte order mark, as Windows PowerShell 5.1 writes them. `build.py`, `quality_check.py`, `verify_build.py`, `review_build.py`, `article.py` and `fork.py` used to stop with "Unexpected UTF-8 BOM".
+- Numbered list items separated by blank lines render as one list. Each item used to open its own list, so steps 1, 2 and 3 all displayed as "1.". A numbered list that resumes after a code block or quote keeps its first number through the `start` attribute, and a different bullet after a blank line starts a new list, as in CommonMark.
 
 ## [1.0.0] - 2026-10-09
 

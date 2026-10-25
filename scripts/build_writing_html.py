@@ -191,6 +191,7 @@ def md_to_html(md):
     lines = md.split("\n")
     out, i = [], 0
     in_ul = in_ol = False
+    bullet = "-"
 
     def close():
         nonlocal in_ul, in_ol
@@ -324,7 +325,18 @@ def md_to_html(md):
         s = ln.strip()
 
         if not s:
-            close(); i += 1; continue
+            # Blank lines between items of one list keep it open, so "1." and
+            # "2." with a blank line between them do not both render as 1.
+            # As in CommonMark, a different bullet after a blank line starts
+            # a new list.
+            following = i + 1
+            while following < len(lines) and not lines[following].strip():
+                following += 1
+            upcoming = lines[following].strip() if following < len(lines) else ""
+            if not ((in_ul and re.match(re.escape(bullet) + r"\s+", upcoming))
+                    or (in_ol and re.match(r"\d+\.\s+", upcoming))):
+                close()
+            i = following; continue
 
         fence = opening_fence(s)
         if fence:
@@ -372,17 +384,23 @@ def md_to_html(md):
             out.append("</tbody></table>")
             continue
 
-        m = re.match(r"^[-*]\s+(.*)$", s)
+        m = re.match(r"^([-*])\s+(.*)$", s)
         if m:
             if in_ol: out.append("</ol>"); in_ol = False
             if not in_ul: out.append("<ul>"); in_ul = True
-            list_item(m.group(1)); continue
+            bullet = m.group(1)
+            list_item(m.group(2)); continue
 
-        m = re.match(r"^\d+\.\s+(.*)$", s)
+        m = re.match(r"^(\d+)\.\s+(.*)$", s)
         if m:
             if in_ul: out.append("</ul>"); in_ul = False
-            if not in_ol: out.append("<ol>"); in_ol = True
-            list_item(m.group(1)); continue
+            if not in_ol:
+                # A list that resumes after a code block or a quote keeps the
+                # author's number. Nine digits is the CommonMark limit.
+                number = m.group(1).lstrip("0") or "0"
+                start = ' start="%s"' % number if number != "1" and len(number) <= 9 else ""
+                out.append("<ol%s>" % start); in_ol = True
+            list_item(m.group(2)); continue
 
         close()
         buf = []
