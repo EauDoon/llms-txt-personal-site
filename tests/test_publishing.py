@@ -299,6 +299,20 @@ class PublishingTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'writing/2026/published.md'):
                 build_site_staged(str(template), str(site), cfg)
 
+    def test_editorial_review_flags_an_uppercase_suffix_the_build_refuses(self):
+        with tempfile.TemporaryDirectory() as directory:
+            template, site, cfg = self.fixture(directory)
+            (template / 'writing' / 'loud.MD').write_text('<!--\ntitle: Loud\n-->\n# Loud\n\nBody.', encoding='utf-8')
+            (template / 'writing' / 'quiet.Md').write_text('<!--\nstatus: draft\n-->\n# Quiet\n', encoding='utf-8')
+            rows = {row['path']: row for row in review_articles(template, cfg)['articles']}
+            rename = 'rename it to loud.md; the build reads only the lowercase .md suffix'
+            self.assertIn(rename, rows['writing/loud.MD']['errors'])
+            self.assertEqual(rows['writing/quiet.Md']['errors'], [])
+            self.assertIn('rename it to quiet.md; the build reads only the lowercase .md suffix before publishing',
+                          rows['writing/quiet.Md']['warnings'])
+            with self.assertRaisesRegex(ValueError, 'writing/loud.MD'):
+                build_site_staged(str(template), str(site), cfg)
+
     def test_article_cli_creates_inert_draft_and_refuses_overwrite(self):
         with tempfile.TemporaryDirectory() as directory:
             template, site, cfg = self.fixture(directory)

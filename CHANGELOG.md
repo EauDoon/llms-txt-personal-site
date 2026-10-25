@@ -4,6 +4,10 @@ All notable changes to this template are recorded here. The format follows [Keep
 
 ## [Unreleased]
 
+### Fixed
+
+- A published Markdown page with an uppercase suffix, such as `notes.MD` or `writing/note.Md`, now stops the build with its path. It used to be listed in `sitemap.xml` while missing from `llms-full.txt`, `llms.txt`, search, the feed and the HTML companions, and the quality gate passed it. `article.py review` reports such an article as an error, or as a warning while it is a draft.
+
 ## [1.0.0] - 2026-10-09
 
 The first versioned release. It declares the config keys, script commands, output layout and default gate rules as the public contract, so a change that breaks any of them is a new major version from here on. The behavior changes a fork should check before upgrading are listed under Changed.

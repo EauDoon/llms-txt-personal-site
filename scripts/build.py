@@ -356,11 +356,19 @@ def unpublishable_markdown(relative):
     llms.txt, search, the feed and the HTML companions. The sitemap lists every
     published file, so a nested page would be advertised but missing from
     everything that describes the site. The match is case-sensitive, so
-    Writing/x.md is refused on every operating system.
+    Writing/x.md is refused on every operating system. For the same reason a
+    page named notes.MD is refused: the sitemap lists it, but every generator
+    reads only the lowercase .md suffix.
     """
     path = relative.replace("\\", "/")
     if not path.lower().endswith(".md"):
         return None
+    if not path.endswith(".md"):
+        return (
+            "template Markdown must use the lowercase .md suffix: %s would be listed "
+            "in sitemap.xml but missing from llms-full.txt, llms.txt, search, the feed "
+            "and the HTML companions" % path
+        )
     parts = path.split("/")
     if len(parts) == 1 or (len(parts) == 2 and parts[0] == "writing"):
         return None
