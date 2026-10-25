@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import sys
 import tempfile
 import unittest
@@ -19,6 +20,65 @@ class WritingHtmlTests(unittest.TestCase):
             rendered,
             "<p>| not a table</p>\n<p>&gt;not a quote</p>\n<h1>Next section</h1>",
         )
+
+    def test_blank_lines_between_items_keep_one_numbered_list(self) -> None:
+        # Each item used to open its own <ol>, so steps 1, 2 and 3 separated
+        # by blank lines all displayed as "1.".
+        self.assertEqual(
+            md_to_html("1. One\n\n2. Two\n\n\n3. Three"),
+            "<ol>\n<li>One</li>\n<li>Two</li>\n<li>Three</li>\n</ol>",
+        )
+        self.assertEqual(
+            md_to_html("- One\n\n- Two\n\nAfter."),
+            "<ul>\n<li>One</li>\n<li>Two</li>\n</ul>\n<p>After.</p>",
+        )
+        # A different bullet after a blank line starts a new list, as in CommonMark.
+        self.assertEqual(
+            md_to_html("- One\n\n* Two"),
+            "<ul>\n<li>One</li>\n</ul>\n<ul>\n<li>Two</li>\n</ul>",
+        )
+        self.assertEqual(
+            md_to_html("1. One\n\n- Other kind"),
+            "<ol>\n<li>One</li>\n</ol>\n<ul>\n<li>Other kind</li>\n</ul>",
+        )
+
+    def test_numbered_list_resumed_after_a_block_keeps_its_number(self) -> None:
+        self.assertEqual(
+            md_to_html("1. Run this:\n\n```\nmake\n```\n\n2. Then this.\n3. Done."),
+            "<ol>\n<li>Run this:</li>\n</ol>\n<pre><code>make</code></pre>\n"
+            '<ol start="2">\n<li>Then this.</li>\n<li>Done.</li>\n</ol>',
+        )
+        self.assertEqual(md_to_html("01. Padded"), "<ol>\n<li>Padded</li>\n</ol>")
+        self.assertEqual(md_to_html("0. Zero"), '<ol start="0">\n<li>Zero</li>\n</ol>')
+        # Past nine digits the number is not a CommonMark start; never parse it.
+        self.assertEqual(md_to_html("1" * 5000 + ". Huge"), "<ol>\n<li>Huge</li>\n</ol>")
+
+    def test_emphasis_renders_and_word_internal_delimiters_stay_literal(self) -> None:
+        for markdown, expected in (
+            ("Some *italic*, _under_ and **bold**.",
+             "<p>Some <em>italic</em>, <em>under</em> and <strong>bold</strong>.</p>"),
+            ("*a **b** c* and **a *b* c** and ***both***",
+             "<p><em>a <strong>b</strong> c</em> and <strong>a <em>b</em> c</strong> and "
+             "<em><strong>both</strong></em></p>"),
+            ("snake_case_name, 2*3*4, @_handle_ and _local_@example.com.",
+             "<p>snake_case_name, 2*3*4, @_handle_ and _local_@example.com.</p>"),
+            ("mid*word* and _ spaced _ and * spaced * and *unclosed",
+             "<p>mid*word* and _ spaced _ and * spaced * and *unclosed</p>"),
+            ("\\*escaped\\* and \\_escaped\\_", "<p>\\*escaped\\* and \\_escaped\\_</p>"),
+            ("`*code*` and &#42;entity&#42;", "<p><code>*code*</code> and *entity*</p>"),
+            ("**a *b** c*", "<p>**a *b** c*</p>"),
+            ("# *Title* here", "<h1><em>Title</em> here</h1>"),
+        ):
+            with self.subTest(markdown=markdown):
+                self.assertEqual(md_to_html(markdown), expected)
+
+    def test_emphasis_never_formats_a_link_destination(self) -> None:
+        rendered = md_to_html("[*label*](https://e.test/a_b_c) and https://e.test/x_y_z "
+                              "and [x](https://e.test/**d**) and *https://e.test/q*")
+        self.assertEqual(re.findall(r'href="([^"]*)"', rendered),
+                         ["https://e.test/a_b_c", "https://e.test/x_y_z", "https://e.test/**d**", "https://e.test/q"])
+        self.assertIn('<a href="https://e.test/a_b_c"><em>label</em></a>', rendered)
+        self.assertIn('<em><a href="https://e.test/q">https://e.test/q</a></em>', rendered)
 
     def test_active_and_ambiguous_markdown_links_render_inert(self) -> None:
         for target in (
@@ -84,6 +144,13 @@ class WritingHtmlTests(unittest.TestCase):
                     self.assertNotIn(
                         '<a href="https://a.test/b%s"' % terminator, md_to_html(markdown)
                     )
+
+    def test_bare_url_inside_emphasis_does_not_link_the_delimiter(self) -> None:
+        # The URL pattern accepts * and _, so *https://a.test/b* used to publish
+        # href="https://a.test/b*", a page that does not exist.
+        rendered = md_to_html("See *https://a.test/b* and _https://a.test/c_. Also https://a.test/d_e.")
+        self.assertEqual(re.findall(r'href="([^"]*)"', rendered),
+                         ["https://a.test/b", "https://a.test/c", "https://a.test/d_e"])
 
     def test_bare_url_autolink_keeps_interior_path_characters(self) -> None:
         rendered = md_to_html("Path https://a.test/x.b/c?d=1. done")

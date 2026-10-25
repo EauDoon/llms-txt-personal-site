@@ -85,7 +85,8 @@ CATEGORY_QUERY_PHRASES = (
 
 
 def load_json(path):
-    with open(path, encoding="utf-8") as source:
+    # Accept a byte order mark, as build.py does.
+    with open(path, encoding="utf-8-sig") as source:
         return json.load(source)
 
 

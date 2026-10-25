@@ -122,6 +122,14 @@ def review_articles(template, cfg):
                     else:
                         record['warnings'].append('nested drafts are never built; move it '
                                                   'directly under writing/ before publishing')
+                if path.suffix != '.md':
+                    # The builder refuses a published notes.MD, which every
+                    # generator except the sitemap would skip.
+                    rename = 'rename it to %s; the build reads only the lowercase .md suffix' % (path.stem + '.md')
+                    if raw['status'] == 'published':
+                        record['errors'].append(rename)
+                    else:
+                        record['warnings'].append(rename + ' before publishing')
                 validate_article_dates(meta, cfg['LAST_UPDATED'])
                 for key in ('title', 'desc', 'about'):
                     if not meta.get(key):

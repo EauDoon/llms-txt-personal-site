@@ -47,7 +47,7 @@ Instructions for agents:
 
 ## Writing
 
-- [Example Depth Page](https://yourname.com/writing/example-depth-page.md)
+- [Example Depth Page](https://yourname.com/writing/example-depth-page.md): Open with a bolded thesis paragraph that answers the question the title asks.
 
 ## Optional
 

@@ -392,6 +392,29 @@ class BuildTests(unittest.TestCase):
                 self.assertEqual(list(root.glob(".site-build-*")), [])
                 self.assertEqual(list(root.glob(".site-backup-*")), [])
 
+    def test_markdown_with_an_uppercase_suffix_is_refused(self) -> None:
+        # notes.MD reached sitemap.xml, while llms-full.txt, llms.txt, search,
+        # the feed and the HTML companions all read only ".md", and the gate
+        # passed it.
+        for name in ("notes.MD", "writing/note.Md"):
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                template = root / "template"
+                (template / "writing").mkdir(parents=True)
+                (template / "index.html").write_text("<h1>{{FULL_NAME}}</h1>\n", encoding="utf-8")
+                (template / name).write_text("# Notes\n\nLast updated: {{LAST_UPDATED}}\n", encoding="utf-8")
+                with self.assertRaises(ValueError) as raised:
+                    build_site_staged(str(template), str(root / "site"), self.config())
+                self.assertIn(name, str(raised.exception))
+                self.assertIn("lowercase .md suffix", str(raised.exception))
+                self.assertFalse((root / "site").exists())
+
+                # A draft is never built, so its suffix does not matter.
+                (template / name).write_text("<!--\nstatus: draft\n-->\n# Notes\n", encoding="utf-8")
+                if name.startswith("writing/"):
+                    build_site_staged(str(template), str(root / "site"), self.config())
+                    self.assertFalse((root / "site" / name).exists())
+
     def test_nested_writing_draft_still_builds_without_publishing(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -938,6 +961,25 @@ class BuildTests(unittest.TestCase):
                     os.unlink(link)
                 else:
                     os.rmdir(link)
+
+    def test_config_and_rules_saved_with_a_byte_order_mark_are_read(self) -> None:
+        # Windows PowerShell 5.1 writes UTF-8 with a byte order mark, and every
+        # CLI used to stop on it with "Unexpected UTF-8 BOM".
+        from fork import readiness_issues
+        bom = "﻿"
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.cli_repo(directory, bom + (ROOT / "site.config.example.json").read_text(encoding="utf-8"))
+            shutil.copyfile(ROOT / "site.config.example.json", repo / "site.config.example.json")
+            (repo / "rules.json").write_text(bom + json.dumps({"forbidden": ["zqxv-unused"]}), encoding="utf-8")
+            for script, args in (("build.py", ()), ("quality_check.py", ("--rules", str(repo / "rules.json")))):
+                with self.subTest(script=script):
+                    result = self.run_cli(repo, script, *args)
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertNotIn("BOM", result.stdout + result.stderr)
+            self.assertIn("(1 configured)", result.stdout)
+            issues = readiness_issues(repo)
+            self.assertFalse([issue for issue in issues if "unreadable" in issue], issues)
+            self.assertIn("site.config.json: DOMAIN still matches the sample", issues)
 
     def test_load_config_reports_invalid_json_as_a_clean_exit(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

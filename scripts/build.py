@@ -83,7 +83,9 @@ def load_config():
     if not os.path.exists(CONFIG):
         sys.exit("No site.config.json. Copy site.config.example.json to site.config.json and fill it in.")
     try:
-        with open(CONFIG, encoding="utf-8") as f:
+        # utf-8-sig also reads a file saved with a byte order mark, as
+        # Windows PowerShell 5.1 and some editors write it.
+        with open(CONFIG, encoding="utf-8-sig") as f:
             cfg = json.load(f)
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         sys.exit("site.config.json is not valid JSON: %s" % exc)
@@ -356,11 +358,19 @@ def unpublishable_markdown(relative):
     llms.txt, search, the feed and the HTML companions. The sitemap lists every
     published file, so a nested page would be advertised but missing from
     everything that describes the site. The match is case-sensitive, so
-    Writing/x.md is refused on every operating system.
+    Writing/x.md is refused on every operating system. For the same reason a
+    page named notes.MD is refused: the sitemap lists it, but every generator
+    reads only the lowercase .md suffix.
     """
     path = relative.replace("\\", "/")
     if not path.lower().endswith(".md"):
         return None
+    if not path.endswith(".md"):
+        return (
+            "template Markdown must use the lowercase .md suffix: %s would be listed "
+            "in sitemap.xml but missing from llms-full.txt, llms.txt, search, the feed "
+            "and the HTML companions" % path
+        )
     parts = path.split("/")
     if len(parts) == 1 or (len(parts) == 2 and parts[0] == "writing"):
         return None

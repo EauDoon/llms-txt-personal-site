@@ -7,7 +7,7 @@ import re
 import html
 from urllib.parse import quote
 
-from build_writing_html import parse_front_matter
+from build_writing_html import article_description, parse_front_matter
 
 MARKER = "<!-- GENERATED WRITING LINKS -->"
 
@@ -39,9 +39,9 @@ def run(site_dir, cfg):
                 continue
             slug = filename[:-3]
             with open(os.path.join(writing_dir, filename), encoding="utf-8") as source:
-                metadata, _ = parse_front_matter(source.read())
+                metadata, body = parse_front_matter(source.read())
             title = _safe_label(metadata.get("title") or slug.replace("-", " ").title())
-            description = html.escape(_one_line(metadata.get("desc", "")), quote=False)
+            description = html.escape(_one_line(article_description(metadata, body)), quote=False)
             url = "https://%s/writing/%s.md" % (
                 cfg.get("DOMAIN", ""),
                 quote(slug, safe="-._~"),

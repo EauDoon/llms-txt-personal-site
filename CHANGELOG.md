@@ -4,6 +4,21 @@ All notable changes to this template are recorded here. The format follows [Keep
 
 ## [Unreleased]
 
+### Added
+
+- An article without a `desc` is described by its own first sentence in its `llms.txt` link, the writing directory (`writing.html` and `writing.md`) and the Atom `summary`, the same sentence its meta description already used. They used to publish no description, and the feed an empty `summary`. An article with no sentence gets no `summary` element. Search still shows only an authored `desc`.
+
+### Changed
+
+- The HTML companions render `*emphasis*` and `_emphasis_`, which used to appear with their delimiters, and `**strong**` and emphasis nest in either order. A delimiter that touches a letter, digit or `@` on its outside, follows a backslash, or is written as a character reference stays literal, so `snake_case`, `2*3*4` and `@_handle_` are unchanged. Emphasis now runs after links are parsed, so `**` inside a link destination stays in the `href`, and an image's `alt` text no longer carries `<strong>` markup. Check pages that use a literal pair of `*` or `_` around a word.
+
+### Fixed
+
+- A published Markdown page with an uppercase suffix, such as `notes.MD` or `writing/note.Md`, now stops the build with its path. It used to be listed in `sitemap.xml` while missing from `llms-full.txt`, `llms.txt`, search, the feed and the HTML companions, and the quality gate passed it. `article.py review` reports such an article as an error, or as a warning while it is a draft.
+- `site.config.json` and the rules file may be saved as UTF-8 with a byte order mark, as Windows PowerShell 5.1 writes them. `build.py`, `quality_check.py`, `verify_build.py`, `review_build.py`, `article.py` and `fork.py` used to stop with "Unexpected UTF-8 BOM".
+- Numbered list items separated by blank lines render as one list. Each item used to open its own list, so steps 1, 2 and 3 all displayed as "1.". A numbered list that resumes after a code block or quote keeps its first number through the `start` attribute, and a different bullet after a blank line starts a new list, as in CommonMark.
+- A bare URL wrapped in `*` or `_`, such as `*https://example.com/a*`, links to `/a`. The HTML companion used to publish `href="https://example.com/a*"`, an underscore-wrapped URL was not linked at all, and `quality_check.py --live` requested `/a**` for `**https://domain/a**` and failed a correct deployment.
+
 ## [1.0.0] - 2026-10-09
 
 The first versioned release. It declares the config keys, script commands, output layout and default gate rules as the public contract, so a change that breaks any of them is a new major version from here on. The behavior changes a fork should check before upgrading are listed under Changed.

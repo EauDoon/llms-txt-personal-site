@@ -35,6 +35,43 @@ def inline_parts(text):
     yield False, text[position:]
 
 
+STRONG = re.compile(r"\*\*([^*]+)\*\*")
+# *text* and _text_ are emphasis when the delimiters do not touch a letter,
+# digit or @ on the outside, so snake_case_name, 2*3*4, @_handle_ and
+# _local_@example.com stay literal. A delimiter after a backslash is never
+# one, so \*literal\* keeps its text. Rendered tags may sit inside the span.
+EMPHASIS = re.compile(
+    r"(?<![\w*@\\])\*(?![\s*])((?:[^*<]|<[^>]*>)+?)(?<![\s*\\])\*(?![\w*@])"
+    r"|(?<![\w@\\])_(?![\s_])((?:[^_<]|<[^>]*>)+?)(?<![\s_\\])_(?![\w@])"
+)
+
+
+def balanced_markup(fragment):
+    """Return whether every strong and em tag in fragment opens and closes inside it."""
+    depth = 0
+    for tag in re.finditer(r"<(/?)(?:strong|em)>", fragment):
+        depth += -1 if tag[1] else 1
+        if depth < 0:
+            return False
+    return depth == 0
+
+
+def emphasis(text):
+    """Render **strong** and *em* or _em_ in escaped text, never crossing tags.
+
+    Emphasis runs on both sides of strong so that either nests inside the
+    other: *a **b** c* and **a *b* c**.
+    """
+    def em(match):
+        body = match[1] if match[1] is not None else match[2]
+        return "<em>%s</em>" % body if balanced_markup(body) else match[0]
+    def strong(match):
+        return "<strong>%s</strong>" % match[1] if balanced_markup(match[1]) else match[0]
+    text = EMPHASIS.sub(em, text)
+    text = STRONG.sub(strong, text)
+    return EMPHASIS.sub(em, text)
+
+
 def script_json(value):
     """Serialize data without allowing HTML script termination."""
     return (json.dumps(value, ensure_ascii=True).replace("<", "\\u003c")
@@ -45,6 +82,10 @@ def script_json(value):
 # "text." must point at the address, not at a path whose last character is a
 # full stop, so the punctuation stays outside the anchor.
 LINK_TRAILING = ".,;:!?"
+# A bare URL can also sit inside emphasis, as in *https://example.com/a*.
+# The closing delimiter ends the URL, as in GitHub's autolink extension, so
+# the link points at /a rather than /a*.
+AUTOLINK_TRAILING = LINK_TRAILING + "*_"
 
 
 def _quoted_title(value):
@@ -94,7 +135,7 @@ def autolink(match):
     https://example.com. as the destination and the link resolves nowhere.
     """
     url = match.group(0)
-    trimmed = url.rstrip(LINK_TRAILING)
+    trimmed = url.rstrip(AUTOLINK_TRAILING)
     # A bare scheme with nothing after it is not a URL worth linking.
     if not re.match(r"https?://[^/?#]+", trimmed):
         return url
@@ -191,6 +232,7 @@ def md_to_html(md):
     lines = md.split("\n")
     out, i = [], 0
     in_ul = in_ol = False
+    bullet = "-"
 
     def close():
         nonlocal in_ul, in_ol
@@ -223,7 +265,8 @@ def md_to_html(md):
                 value = re.sub(r'&(?:#[0-9]+|#[xX][0-9A-Fa-f]+|[A-Za-z][A-Za-z0-9]+);', entity, value)
                 parts.append(html.escape(value, quote=True))
         s = "".join(parts)
-        s = re.sub(r"\*\*([^*]+)\*\*", r"<strong>\1</strong>", s)
+        # Emphasis runs after every link and URL is held in a placeholder, so
+        # an underscore or asterisk in a destination is never formatted.
         inert_links = []
         rendered_links = []
         def link(match):
@@ -246,12 +289,12 @@ def md_to_html(md):
             )
             if unsafe:
                 placeholder = '<span data-inert-markdown-link="%d"></span>' % len(inert_links)
-                inert_links.append((placeholder, "%s (%s)" % (label, escaped_target)))
+                inert_links.append((placeholder, "%s (%s)" % (emphasis(label), escaped_target)))
                 return placeholder
             # Hold the anchor out of the autolink pass. A label that itself
             # contains <https://...> would otherwise be wrapped again.
             placeholder = '<span data-rendered-link="%d"></span>' % len(rendered_links)
-            rendered_links.append((placeholder, '<a href="%s">%s</a>' % (href, label)))
+            rendered_links.append((placeholder, '<a href="%s">%s</a>' % (href, emphasis(label))))
             return placeholder
         def image(match):
             # ![alt](url) is an image. The link parser otherwise consumes
@@ -294,10 +337,22 @@ def md_to_html(md):
             trimmed = url.rstrip(LINK_TRAILING)
             if not re.match(r"https?://[^/?#]+", trimmed):
                 return match.group(0)
-            return '<a href="%s">%s</a>%s' % (trimmed, trimmed, url[len(trimmed):])
+            return hold('<a href="%s">%s</a>' % (trimmed, trimmed)) + url[len(trimmed):]
+
+        def hold(anchor):
+            placeholder = '<span data-rendered-link="%d"></span>' % len(rendered_links)
+            rendered_links.append((placeholder, anchor))
+            return placeholder
+
+        def bare(match):
+            linked = autolink(match)
+            anchor = re.match(r"<a [^>]*>[^<]*</a>", linked)
+            return hold(anchor[0]) + linked[anchor.end():] if anchor else linked
 
         s = re.sub(r"&lt;(" + url_body + r")&gt;", bracketed, s)
-        s = re.sub(r"(?<![\">=/\w])(" + url_body + r")", autolink, s)
+        # An opening _ is emphasis, not part of a word, so _https://..._ links.
+        s = re.sub(r"(?<![\">=/])(?<![^\W_])(" + url_body + r")", bare, s)
+        s = emphasis(s)
         for placeholder, inert_text in inert_links:
             s = s.replace(placeholder, inert_text)
         for placeholder, rendered in rendered_links:
@@ -324,7 +379,18 @@ def md_to_html(md):
         s = ln.strip()
 
         if not s:
-            close(); i += 1; continue
+            # Blank lines between items of one list keep it open, so "1." and
+            # "2." with a blank line between them do not both render as 1.
+            # As in CommonMark, a different bullet after a blank line starts
+            # a new list.
+            following = i + 1
+            while following < len(lines) and not lines[following].strip():
+                following += 1
+            upcoming = lines[following].strip() if following < len(lines) else ""
+            if not ((in_ul and re.match(re.escape(bullet) + r"\s+", upcoming))
+                    or (in_ol and re.match(r"\d+\.\s+", upcoming))):
+                close()
+            i = following; continue
 
         fence = opening_fence(s)
         if fence:
@@ -372,17 +438,23 @@ def md_to_html(md):
             out.append("</tbody></table>")
             continue
 
-        m = re.match(r"^[-*]\s+(.*)$", s)
+        m = re.match(r"^([-*])\s+(.*)$", s)
         if m:
             if in_ol: out.append("</ol>"); in_ol = False
             if not in_ul: out.append("<ul>"); in_ul = True
-            list_item(m.group(1)); continue
+            bullet = m.group(1)
+            list_item(m.group(2)); continue
 
-        m = re.match(r"^\d+\.\s+(.*)$", s)
+        m = re.match(r"^(\d+)\.\s+(.*)$", s)
         if m:
             if in_ul: out.append("</ul>"); in_ul = False
-            if not in_ol: out.append("<ol>"); in_ol = True
-            list_item(m.group(1)); continue
+            if not in_ol:
+                # A list that resumes after a code block or a quote keeps the
+                # author's number. Nine digits is the CommonMark limit.
+                number = m.group(1).lstrip("0") or "0"
+                start = ' start="%s"' % number if number != "1" and len(number) <= 9 else ""
+                out.append("<ol%s>" % start); in_ol = True
+            list_item(m.group(2)); continue
 
         close()
         buf = []
@@ -474,6 +546,19 @@ def page_description(rendered, heading=None):
             continue
         return first_sentence(line)
     return ""
+
+
+def article_description(meta, body):
+    """Return the authored desc, or the article's own first sentence.
+
+    The article's meta description, its llms.txt link, the writing directory
+    and the feed summary all use this, so an article without a desc is still
+    described the same way everywhere instead of by an empty string.
+    """
+    if meta.get("desc"):
+        return meta["desc"]
+    text, heading = markdown_display(body)
+    return page_description(text, heading=heading)
 
 
 def reading_estimate(md):
