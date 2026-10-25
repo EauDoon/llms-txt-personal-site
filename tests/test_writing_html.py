@@ -53,6 +53,33 @@ class WritingHtmlTests(unittest.TestCase):
         # Past nine digits the number is not a CommonMark start; never parse it.
         self.assertEqual(md_to_html("1" * 5000 + ". Huge"), "<ol>\n<li>Huge</li>\n</ol>")
 
+    def test_emphasis_renders_and_word_internal_delimiters_stay_literal(self) -> None:
+        for markdown, expected in (
+            ("Some *italic*, _under_ and **bold**.",
+             "<p>Some <em>italic</em>, <em>under</em> and <strong>bold</strong>.</p>"),
+            ("*a **b** c* and **a *b* c** and ***both***",
+             "<p><em>a <strong>b</strong> c</em> and <strong>a <em>b</em> c</strong> and "
+             "<em><strong>both</strong></em></p>"),
+            ("snake_case_name, 2*3*4, @_handle_ and _local_@example.com.",
+             "<p>snake_case_name, 2*3*4, @_handle_ and _local_@example.com.</p>"),
+            ("mid*word* and _ spaced _ and * spaced * and *unclosed",
+             "<p>mid*word* and _ spaced _ and * spaced * and *unclosed</p>"),
+            ("\\*escaped\\* and \\_escaped\\_", "<p>\\*escaped\\* and \\_escaped\\_</p>"),
+            ("`*code*` and &#42;entity&#42;", "<p><code>*code*</code> and *entity*</p>"),
+            ("**a *b** c*", "<p>**a *b** c*</p>"),
+            ("# *Title* here", "<h1><em>Title</em> here</h1>"),
+        ):
+            with self.subTest(markdown=markdown):
+                self.assertEqual(md_to_html(markdown), expected)
+
+    def test_emphasis_never_formats_a_link_destination(self) -> None:
+        rendered = md_to_html("[*label*](https://e.test/a_b_c) and https://e.test/x_y_z "
+                              "and [x](https://e.test/**d**) and *https://e.test/q*")
+        self.assertEqual(re.findall(r'href="([^"]*)"', rendered),
+                         ["https://e.test/a_b_c", "https://e.test/x_y_z", "https://e.test/**d**", "https://e.test/q"])
+        self.assertIn('<a href="https://e.test/a_b_c"><em>label</em></a>', rendered)
+        self.assertIn('<em><a href="https://e.test/q">https://e.test/q</a></em>', rendered)
+
     def test_active_and_ambiguous_markdown_links_render_inert(self) -> None:
         for target in (
             "JaVaScRiPt:alert%281%29",
