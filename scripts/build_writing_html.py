@@ -548,6 +548,19 @@ def page_description(rendered, heading=None):
     return ""
 
 
+def article_description(meta, body):
+    """Return the authored desc, or the article's own first sentence.
+
+    The article's meta description, its llms.txt link, the writing directory
+    and the feed summary all use this, so an article without a desc is still
+    described the same way everywhere instead of by an empty string.
+    """
+    if meta.get("desc"):
+        return meta["desc"]
+    text, heading = markdown_display(body)
+    return page_description(text, heading=heading)
+
+
 def reading_estimate(md):
     # ponytail: whitespace words at 220/min; use locale-aware segmentation if needed.
     words = len(visible_markdown_text(md).split())

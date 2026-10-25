@@ -4,6 +4,10 @@ All notable changes to this template are recorded here. The format follows [Keep
 
 ## [Unreleased]
 
+### Added
+
+- An article without a `desc` is described by its own first sentence in its `llms.txt` link, the writing directory (`writing.html` and `writing.md`) and the Atom `summary`, the same sentence its meta description already used. They used to publish no description, and the feed an empty `summary`. An article with no sentence gets no `summary` element. Search still shows only an authored `desc`.
+
 ### Changed
 
 - The HTML companions render `*emphasis*` and `_emphasis_`, which used to appear with their delimiters, and `**strong**` and emphasis nest in either order. A delimiter that touches a letter, digit or `@` on its outside, follows a backslash, or is written as a character reference stays literal, so `snake_case`, `2*3*4` and `@_handle_` are unchanged. Emphasis now runs after links are parsed, so `**` inside a link destination stays in the `href`, and an image's `alt` text no longer carries `<strong>` markup. Check pages that use a literal pair of `*` or `_` around a word.

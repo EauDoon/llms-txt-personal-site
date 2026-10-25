@@ -324,6 +324,43 @@ class ReaderFeatures(unittest.TestCase):
             self.assertEqual(feed.find('a:entry/a:updated', ns).text, '2025-12-20T00:00:00Z')
             self.assertIsNone(feed.find('a:entry/a:published', ns))
 
+    def test_article_without_desc_is_described_by_its_first_sentence_everywhere(self):
+        # The article's meta description already fell back to its first
+        # sentence, but llms.txt, the writing directory and the feed published
+        # nothing, and the feed carried an empty <summary />.
+        from build_llms_index import run as build_llms_index
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / 'writing').mkdir()
+            (root / 'writing' / 'derived.md').write_text(
+                '# Derived\n\nFirst *sentence* & detail. Second sentence.\n', encoding='utf-8')
+            (root / 'writing' / 'authored.md').write_text(
+                '<!--\ndesc: Authored summary.\n-->\n# Authored\n\nBody text. More.\n', encoding='utf-8')
+            (root / 'writing' / 'bare.md').write_text('# Bare\n', encoding='utf-8')
+            (root / 'llms.txt').write_text('# Example\n\n<!-- GENERATED WRITING LINKS -->\n', encoding='utf-8')
+            build_llms_index(root, CFG)
+            build_catalog(root, CFG)
+            sentence = 'First sentence & detail.'
+            self.assertIn('- [Derived](https://example.test/writing/derived.md): First sentence &amp; detail.\n',
+                          (root / 'llms.txt').read_text(encoding='utf-8'))
+            self.assertIn('- [Authored](https://example.test/writing/authored.md): Authored summary.\n',
+                          (root / 'llms.txt').read_text(encoding='utf-8'))
+            self.assertIn('- [Bare](https://example.test/writing/bare.md)\n', (root / 'llms.txt').read_text(encoding='utf-8'))
+            self.assertIn('(/writing/derived.md): First sentence &amp; detail. (', (root / 'writing.md').read_text(encoding='utf-8'))
+            self.assertIn('<p>First sentence &amp; detail.</p>', (root / 'writing.html').read_text(encoding='utf-8'))
+            ns = {'a': 'http://www.w3.org/2005/Atom'}
+            entries = {entry.find('a:title', ns).text: entry
+                       for entry in ET.fromstring((root / 'feed.xml').read_bytes()).findall('a:entry', ns)}
+            self.assertEqual(entries['Derived'].find('a:summary', ns).text, sentence)
+            self.assertEqual(entries['Authored'].find('a:summary', ns).text, 'Authored summary.')
+            self.assertIsNone(entries['Bare'].find('a:summary', ns))
+            # Search shows only an authored desc beside its own excerpt.
+            rows = {row['title']: row for row in json.loads((root / 'search-index.json').read_text(encoding='utf-8'))}
+            self.assertEqual(rows['Derived']['description'], '')
+            self.assertEqual(rows['Authored']['description'], 'Authored summary.')
+            page = render_page('derived', (root / 'writing' / 'derived.md').read_text(encoding='utf-8'), CFG)
+            self.assertIn('<meta name="description" content="First sentence &amp; detail.">', page)
+
     def test_artifact_audit_rejects_active_html_and_malformed_manifest(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

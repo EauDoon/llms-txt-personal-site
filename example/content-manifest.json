@@ -72,8 +72,8 @@
     },
     {
       "path": "feed.xml",
-      "bytes": 1409,
-      "sha256": "577097d0a39221adc91dc7c7b99fdb1a71a404694fad69ca71225b7b3cae6708"
+      "bytes": 1494,
+      "sha256": "c996f31974f7185ccc8d5540c61cce7bd9d28076790cb1032970175fe75652af"
     },
     {
       "path": "focus.html",
@@ -92,13 +92,13 @@
     },
     {
       "path": "llms-full.txt",
-      "bytes": 15684,
-      "sha256": "ad37988ef5afe57de279e004b38fea97d37b2c2905fd82a2d1e2fa9b155d37de"
+      "bytes": 15763,
+      "sha256": "11b229e1e8b3e30db696680d3a4d275f096679b1298a815bfe80a92118a57f8d"
     },
     {
       "path": "llms.txt",
-      "bytes": 2482,
-      "sha256": "ab157ce719d7095263b3e32fda1a8bfe69ee373303d4f5b6df113c2be03da04a"
+      "bytes": 2561,
+      "sha256": "0ebfb7dbb3041b566faf2c62bfa03c2097cdafac40c6e69c997f4446353478bc"
     },
     {
       "path": "now.html",
@@ -197,13 +197,13 @@
     },
     {
       "path": "writing.html",
-      "bytes": 2576,
-      "sha256": "4dd96ebbf2c50e717670354bd06f7c8acbce33de798cdb8b4a74b7ab5d159fb3"
+      "bytes": 2653,
+      "sha256": "ae5b181dc431d3f93ec2f31e4f5c22aa509b0b3bfe72229012294004e2ee85ed"
     },
     {
       "path": "writing.md",
-      "bytes": 127,
-      "sha256": "e72df7ccd1fd89be8f6838c06db347cd5f7a14e0e62af45a2fc7554d0b6c4a48"
+      "bytes": 206,
+      "sha256": "9f6c59493488a1307ad81405dce985882682882f502471f8d3ab9dc2b7531685"
     }
   ]
 }

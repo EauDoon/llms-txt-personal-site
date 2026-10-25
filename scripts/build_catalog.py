@@ -9,7 +9,7 @@ from urllib.parse import quote, unquote
 from xml.etree import ElementTree as ET
 from build_sitemap import validate_last_updated
 
-from build_writing_html import parse_front_matter, markdown_display, reading_estimate
+from build_writing_html import article_description, parse_front_matter, markdown_display, reading_estimate
 from build_llms_index import _safe_label
 from publishing import article_topics
 
@@ -25,6 +25,8 @@ def articles(site_dir):
         meta, body = parse_front_matter(path.read_text(encoding="utf-8"))
         entries.append({"title": meta.get("title") or path.stem.replace("-", " ").title(),
                         "description": meta.get("desc", ""),
+                        # Directory, feed and llms.txt text; search shows only authored desc.
+                        "summary": article_description(meta, body),
                         "topics": article_topics(meta),
                         "url": "/writing/" + quote(path.stem, safe="-._~") + ".html",
                         "source": "/writing/" + quote(path.name, safe="-._~"),
@@ -167,7 +169,7 @@ def run(site_dir, cfg):
     for entry in entries:
         dates = ' · '.join('%s: <time datetime="%s">%s</time>' % (label, date, date) for label, date in date_labels(entry, cfg))
         rows.append('<li><h2><a href="%s">%s</a></h2><p>%s</p><p>%s</p><p>%s</p><a href="%s">Markdown source</a></li>' % (
-            entry["url"], html.escape(entry["title"]), html.escape(entry["description"]),
+            entry["url"], html.escape(entry["title"]), html.escape(entry["summary"]),
             dates + ' · ' + reading_estimate(entry['body']), topic_links(entry), entry["source"]))
     body = '<p>Browse %d writing page%s, with original Markdown sources.</p>' % (len(rows), "" if len(rows) == 1 else "s")
     body += '<p>Latest declared article dates first. Articles without dates follow in title order.</p>'
@@ -179,7 +181,7 @@ def run(site_dir, cfg):
              canonical="https://%s/writing.html" % cfg["DOMAIN"]),
         encoding="utf-8", newline="")
     markdown = "# Writing\n\nLast updated: %s\n\n" % cfg["LAST_UPDATED"]
-    markdown += "\n".join(("- [%s](%s)" % (markdown_label(entry["title"]), entry["source"])) + (": " + html.escape(entry["description"], quote=False) if entry["description"] else "")
+    markdown += "\n".join(("- [%s](%s)" % (markdown_label(entry["title"]), entry["source"])) + (": " + html.escape(entry["summary"], quote=False) if entry["summary"] else "")
                           + ' (' + '; '.join(label + ': ' + date for label, date in date_labels(entry, cfg)) + ')' for entry in entries)
     (Path(site_dir) / "writing.md").write_text(markdown + "\n", encoding="utf-8", newline="")
     build_search(site_dir, cfg, entries)
@@ -211,7 +213,8 @@ def build_feed(site_dir, cfg, entries):
         node(item, "id", base + entry["url"])
         node(item, "title", entry["title"])
         node(item, "link", href=base + entry["url"])
-        node(item, "summary", entry["description"])
+        if entry["summary"]:
+            node(item, "summary", entry["summary"])
         node(item, 'content', markdown_display(entry['body'])[0], type='text')
         for topic in entry['topics']:
             node(item, 'category', term=topic)
