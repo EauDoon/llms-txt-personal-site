@@ -52,7 +52,8 @@ def load_gate_config(path):
     if not os.path.isfile(path):
         return None, "%s not found; create it with: python scripts/fork.py --init" % name
     try:
-        with open(path, encoding="utf-8") as config_file:
+        # Accept a byte order mark, as build.py does.
+        with open(path, encoding="utf-8-sig") as config_file:
             cfg = json.load(config_file)
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         return None, "%s is not valid JSON: %s" % (name, exc)
@@ -82,7 +83,7 @@ def load_rules(path, required):
             return None, "rules file %s not found" % path
         return ([], [], style), None
     try:
-        with open(path, encoding="utf-8") as rules_file:
+        with open(path, encoding="utf-8-sig") as rules_file:
             data = json.load(rules_file)
     except (UnicodeDecodeError, json.JSONDecodeError) as exc:
         return None, "%s is not valid JSON: %s" % (name, exc)

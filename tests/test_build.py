@@ -962,6 +962,25 @@ class BuildTests(unittest.TestCase):
                 else:
                     os.rmdir(link)
 
+    def test_config_and_rules_saved_with_a_byte_order_mark_are_read(self) -> None:
+        # Windows PowerShell 5.1 writes UTF-8 with a byte order mark, and every
+        # CLI used to stop on it with "Unexpected UTF-8 BOM".
+        from fork import readiness_issues
+        bom = "﻿"
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.cli_repo(directory, bom + (ROOT / "site.config.example.json").read_text(encoding="utf-8"))
+            shutil.copyfile(ROOT / "site.config.example.json", repo / "site.config.example.json")
+            (repo / "rules.json").write_text(bom + json.dumps({"forbidden": ["zqxv-unused"]}), encoding="utf-8")
+            for script, args in (("build.py", ()), ("quality_check.py", ("--rules", str(repo / "rules.json")))):
+                with self.subTest(script=script):
+                    result = self.run_cli(repo, script, *args)
+                    self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                    self.assertNotIn("BOM", result.stdout + result.stderr)
+            self.assertIn("(1 configured)", result.stdout)
+            issues = readiness_issues(repo)
+            self.assertFalse([issue for issue in issues if "unreadable" in issue], issues)
+            self.assertIn("site.config.json: DOMAIN still matches the sample", issues)
+
     def test_load_config_reports_invalid_json_as_a_clean_exit(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             config_path = Path(directory) / "site.config.json"

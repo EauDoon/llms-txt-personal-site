@@ -7,6 +7,7 @@ All notable changes to this template are recorded here. The format follows [Keep
 ### Fixed
 
 - A published Markdown page with an uppercase suffix, such as `notes.MD` or `writing/note.Md`, now stops the build with its path. It used to be listed in `sitemap.xml` while missing from `llms-full.txt`, `llms.txt`, search, the feed and the HTML companions, and the quality gate passed it. `article.py review` reports such an article as an error, or as a warning while it is a draft.
+- `site.config.json` and the rules file may be saved as UTF-8 with a byte order mark, as Windows PowerShell 5.1 writes them. `build.py`, `quality_check.py`, `verify_build.py`, `review_build.py`, `article.py` and `fork.py` used to stop with "Unexpected UTF-8 BOM".
 
 ## [1.0.0] - 2026-10-09
 
