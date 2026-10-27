@@ -502,10 +502,6 @@ def markdown_display(md):
     return "".join(text.parts).strip(), "".join(text.heading).strip()
 
 
-def visible_markdown_text(md):
-    return markdown_display(md)[0]
-
-
 # Lines that restate the page rather than describe it, so they make a poor
 # meta description.
 DESCRIPTION_NOISE = re.compile(r"^(Last updated:|\d{4}-\d{2}-\d{2}\b|By\s)")
@@ -563,7 +559,7 @@ def article_description(meta, body):
 
 def reading_estimate(md):
     # ponytail: whitespace words at 220/min; use locale-aware segmentation if needed.
-    words = len(visible_markdown_text(md).split())
+    words = len(markdown_display(md)[0].split())
     return 'About %d min read' % max(1, (words + 219) // 220)
 
 
@@ -664,8 +660,6 @@ def article_outline(content):
 
 def render_page(slug, source, cfg, style=""):
     """Render one writing page without requiring its slug to be a local filename."""
-    import json as _json
-
     meta, md = parse_front_matter(source)
     title = meta.get("title") or slug.replace("-", " ").title()
     rendered_text, rendered_heading = markdown_display(md)
