@@ -12,6 +12,10 @@ All notable changes to this template are recorded here. The format follows [Keep
 
 - The HTML companions render `*emphasis*` and `_emphasis_`, which used to appear with their delimiters, and `**strong**` and emphasis nest in either order. A delimiter that touches a letter, digit or `@` on its outside, follows a backslash, or is written as a character reference stays literal, so `snake_case`, `2*3*4` and `@_handle_` are unchanged. Emphasis now runs after links are parsed, so `**` inside a link destination stays in the `href`, and an image's `alt` text no longer carries `<strong>` markup. Check pages that use a literal pair of `*` or `_` around a word.
 
+### Removed
+
+- The four scratch reports under `audits/` and the `PROGRESS.md` build log. They came from a dated triage workflow and recorded a superseded state: an old test count, a source layout survey that no longer matches the tree, and a README quick start check for work that is done. Nothing in the repository linked to them, and a reader took them for the current state of the project. `CHANGELOG.md` is the history.
+
 ### Fixed
 
 - A published Markdown page with an uppercase suffix, such as `notes.MD` or `writing/note.Md`, now stops the build with its path. It used to be listed in `sitemap.xml` while missing from `llms-full.txt`, `llms.txt`, search, the feed and the HTML companions, and the quality gate passed it. `article.py review` reports such an article as an error, or as a warning while it is a draft.
