@@ -854,6 +854,25 @@ class QualityCheckTests(unittest.TestCase):
         self.assertTrue(any(failure.startswith("link /") for failure in report["failures"]))
         self.assertNotIn("Traceback", result.stderr)
 
+    def test_a_published_page_missing_from_llms_txt_warns(self) -> None:
+        def add_page(template):
+            (template / "notes.md").write_text("# Notes\n\nA short page of notes for readers.\n\n"
+                                               "Last updated: {{LAST_UPDATED}}\n", encoding="utf-8")
+
+        with tempfile.TemporaryDirectory() as directory:
+            sample = self.gate(self.rules_repo(directory))
+        self.assertEqual(sample.returncode, 0, sample.stdout + sample.stderr)
+        self.assertIn("ok   every published Markdown page is linked from llms.txt", sample.stdout)
+        self.assertNotIn("llms.txt does not link", sample.stdout)
+
+        with tempfile.TemporaryDirectory() as directory:
+            result = self.gate(self.rules_repo(directory, add_page))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("WARN llms.txt does not link notes.md; link it, under ## Optional if it is secondary",
+                      result.stdout)
+        self.assertIn("FAILURES: 0", result.stdout)
+        self.assertEqual(self.summary_items(result.stdout, "WARNINGS"), ["llms.txt does not link notes.md"])
+
     def test_default_rules_file_lives_beside_the_scripts(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             repo = self.rules_repo(directory)

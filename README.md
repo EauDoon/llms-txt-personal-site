@@ -159,7 +159,7 @@ Every indexable page must also declare a document language, a title, a meta desc
 2. **Fact consistency.** Every address on the site's own domains, every `mailto:` link, and every JSON-LD `email` match the configured `EMAIL`, and the job title is listed for review.
 3. **Head metadata.** Language, title, description, and a canonical link to the page's own HTTPS URL.
 4. **Structured data.** Every JSON-LD block parses, declares schema.org, and links articles to the homepage's person record.
-5. **`llms.txt` v2.** The index structure and same-site targets, and the `describedby` and Markdown `alternate` links on every page.
+5. **`llms.txt` v2.** The index structure and same-site targets, and the `describedby` and Markdown `alternate` links on every page. A published Markdown page at the root or under `writing/` that `llms.txt` does not link is a warning, because the build generates only the `writing/` links and the core links are written by hand. The generated `writing.md`, `topics.md` and `search.md` are exempt; link a secondary page under `## Optional`.
 6. **Agent Card.** A published A2A Agent Card passes validation; none is published by default.
 7. **Dates.** `LAST_UPDATED` and every page's "Last updated" line are real calendar dates.
 8. **Generated files.** `llms-full.txt` holds the current bytes of every Markdown page, and the search index, `search.md`, and the feed agree with the build.

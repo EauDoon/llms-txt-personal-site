@@ -35,7 +35,7 @@ from console_output import configure, dump_json
 from host_contract import HOMEPAGE_HEADERS, SITEMAP_TYPES, file_type_ok, has_discovery_link, header_values, \
     media_type, promised_file_type
 from http_client import fetch_url
-from llms_txt import _local_path, has_link_relation, markdown_alternate, validate_llms_txt
+from llms_txt import _local_path, has_link_relation, markdown_alternate, unlisted_pages, validate_llms_txt
 from email_addresses import address_key, contact_values, validate_email_address
 from version import PROJECT, __version__
 
@@ -688,6 +688,14 @@ else:
             print("  FAIL %s" % issue)
     else:
         print("  ok   llms.txt follows the v2 file-list contract")
+    # The core links are hand-written, so a new page can be built, listed in
+    # the sitemap and included in llms-full.txt while the index never names it.
+    unlisted = unlisted_pages(read(llms_path), DOMAIN, R)
+    for rel in unlisted:
+        warns.append("llms.txt does not link %s" % shown_path(rel))
+        print("  WARN llms.txt does not link %s; link it, under ## Optional if it is secondary" % shown_path(rel))
+    if not unlisted:
+        print("  ok   every published Markdown page is linked from llms.txt")
 
 for rel, p in sources():
     if not rel.endswith(".html") or rel == "404.html":

@@ -155,6 +155,48 @@ def validate_llms_txt(
     return issues
 
 
+# Directories the build writes and lists itself. They are routing pages for
+# the writing, topics and search, so llms.txt need not link them.
+GENERATED_DIRECTORIES = {"writing.md", "topics.md", "search.md"}
+
+
+def unlisted_pages(text: str, expected_domain: str, site_dir: str | os.PathLike[str]) -> list[str]:
+    """Return the published Markdown pages that no llms.txt file link resolves to.
+
+    The build creates the HTML companion, the llms-full.txt section, the
+    sitemap entry and the writing/ links for every page, but the core links in
+    llms.txt are written by hand. A page left out is invisible to an agent
+    that routes through the index, and nothing else notices. Pages are the
+    .md files at the build root and directly under writing/, as the build
+    publishes them. Only links in file-list sections count.
+    """
+    root = Path(site_dir).resolve()
+    linked = set()
+    in_section = False
+    for line in text.removeprefix("﻿").splitlines():
+        heading = HEADING.match(line.strip())
+        if heading:
+            # As in validate_llms_txt, an H2 opens the file list.
+            in_section = in_section or len(heading.group(1)) == 2
+            continue
+        link = FILE_LINK.fullmatch(line) if in_section else None
+        if link:
+            local = _local_path(link.group(2), expected_domain, root)
+            if isinstance(local, Path):
+                linked.add(local)
+    pages = []
+    for directory in (root, root / "writing"):
+        if not directory.is_dir():
+            continue
+        for path in sorted(directory.iterdir()):
+            relative = path.relative_to(root).as_posix()
+            if path.suffix != ".md" or not path.is_file() or relative in GENERATED_DIRECTORIES:
+                continue
+            if path.resolve() not in linked:
+                pages.append(relative)
+    return pages
+
+
 class _LinkParser(HTMLParser):
     def __init__(self) -> None:
         super().__init__()

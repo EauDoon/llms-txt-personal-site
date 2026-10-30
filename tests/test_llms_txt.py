@@ -9,7 +9,57 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from build_writing_html import render_page
-from llms_txt import has_link_relation, markdown_alternate, validate_llms_txt
+from llms_txt import has_link_relation, markdown_alternate, unlisted_pages, validate_llms_txt
+
+
+class UnlistedPagesTests(unittest.TestCase):
+    """A published page that llms.txt does not link is invisible to the index."""
+
+    def site(self, directory: str, *pages: str) -> Path:
+        root = Path(directory)
+        for page in pages:
+            path = root / page
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("# Page\n", encoding="utf-8")
+        return root
+
+    def test_listed_and_unlisted_pages(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            site = self.site(directory, "profile.md", "notes.md", "writing/essay.md", "writing/draft-later.md")
+            text = ("# Example\n\n## Start here\n\n- [Profile](https://example.test/profile.md): Facts.\n\n"
+                    "## Writing\n\n- [Essay](https://example.test/writing/essay.md): An essay.\n")
+            self.assertEqual(unlisted_pages(text, "example.test", site), ["notes.md", "writing/draft-later.md"])
+
+    def test_generated_directories_and_other_files_need_no_link(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            site = self.site(directory, "profile.md", "writing.md", "topics.md", "search.md", "llms.txt",
+                             "profile.html", "writing/nested/draft.md", "writing/essay.html")
+            text = "# Example\n\n## Start here\n\n- [Profile](https://example.test/profile.md): Facts.\n"
+            self.assertEqual(unlisted_pages(text, "example.test", site), [])
+
+    def test_url_encoded_links_match_their_page(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            site = self.site(directory, "caf\u00e9 notes.md")
+            text = "# Example\n\n## Pages\n\n- [Notes](https://example.test/caf%C3%A9%20notes.md): Notes.\n"
+            self.assertEqual(unlisted_pages(text, "example.test", site), [])
+
+    def test_links_elsewhere_do_not_count(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            site = self.site(directory, "profile.md")
+            for text in (
+                "# Example\n\n## Pages\n\n- [Profile](https://other.test/profile.md): Another site.\n",
+                "# Example\n\n- [Profile](https://example.test/profile.md): Not under an H2.\n\n"
+                "## Pages\n\n- [Other](https://outside.test/a.md): Elsewhere.\n",
+                "# Example\n\n## Pages\n\nSee [Profile](https://example.test/profile.md) in prose.\n",
+            ):
+                with self.subTest(text=text):
+                    self.assertEqual(unlisted_pages(text, "example.test", site), ["profile.md"])
+
+    def test_a_site_without_a_writing_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            site = self.site(directory, "profile.md")
+            (site / "writing").write_text("not a directory\n", encoding="utf-8")
+            self.assertEqual(unlisted_pages("# Example\n", "example.test", site), ["profile.md"])
 
 
 class LlmsTxtTests(unittest.TestCase):
