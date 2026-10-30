@@ -172,8 +172,11 @@ class HostingConfigTests(unittest.TestCase):
 class LiveHeaderTests(unittest.TestCase):
     """Run the gate's --live section against canned responses."""
 
-    def run_live_gate(self, home: dict[str, list[str]], card: dict[str, list[str]] | None):
+    def run_live_gate(self, home: dict[str, list[str]], card: dict[str, list[str]] | None,
+                      extra_config: dict | None = None):
         config = json.loads((ROOT / "site.config.example.json").read_text(encoding="utf-8"))
+        config.update(extra_config or {})
+        self.requests: list[str] = []
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             site = root / "site"
@@ -195,7 +198,13 @@ class LiveHeaderTests(unittest.TestCase):
 
             def fetch_url(url, timeout=20, user_agent=None):
                 agents.add(user_agent)
-                path = urlsplit(url).path
+                parts = urlsplit(url)
+                self.requests.append(url)
+                # A real resolver fails on any other host, so a URL the gate
+                # built wrongly must fail here too instead of being answered.
+                if parts.scheme != "https" or parts.netloc != config["DOMAIN"]:
+                    return 0, {}, b"", "getaddrinfo failed"
+                path = parts.path
                 if path == "/":
                     return 200, message(home), b"", ""
                 if path == "/.well-known/agent-card.json":
@@ -233,6 +242,21 @@ class LiveHeaderTests(unittest.TestCase):
                                      "Content-Security-Policy": ["default-src 'self'"]}, None)
         self.assertIn("ok   homepage sends Content-Security-Policy", output)
         self.assertIn("WARNINGS: 0", output)
+
+    def test_configured_ownership_proofs_are_requested_on_the_site(self) -> None:
+        # The gate prefixed the site origin twice and requested
+        # https://yourname.comhttps://yourname.com/google....html, so every
+        # correct deployment with a verification token failed --live.
+        home = {"X-Content-Type-Options": ["nosniff"], "Content-Security-Policy": ["default-src 'self'"]}
+        verification = {"google_html_file": "google0123456789abcdef.html", "indexnow_key": "0123456789abcdef"}
+        output = self.run_live_gate(home, None, {"verification": verification})
+        self.assertIn("ok   https://yourname.com/google0123456789abcdef.html", output)
+        self.assertIn("ok   https://yourname.com/0123456789abcdef.txt", output)
+        self.assertNotIn("ownership proof missing", output)
+        self.assertIn("FAILURES: 0", output)
+        self.assertIn("https://yourname.com/google0123456789abcdef.html", self.requests)
+        self.assertIn("https://yourname.com/0123456789abcdef.txt", self.requests)
+        self.assertEqual({urlsplit(url).netloc for url in self.requests}, {"yourname.com"})
 
     def test_agent_card_cors_header_must_be_exactly_one_wildcard(self) -> None:
         home = {"X-Content-Type-Options": ["nosniff"], "Content-Security-Policy": ["default-src 'self'"]}

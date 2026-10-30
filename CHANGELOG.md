@@ -26,6 +26,7 @@ All notable changes to this template are recorded here. The format follows [Keep
 - `quality_check.py` reads `robots.txt` the way crawlers do and ends each line at `#`, as RFC 9309 specifies. `Disallow: / # keep out` under `User-agent: *`, or a `User-agent: * # everyone else` line above `Disallow: /`, used to pass although it blocks every unspecified crawler, and a comment after the `Sitemap:` URL failed a correct file.
 - A page whose `Last updated:` label or date is wrapped in Markdown emphasis, such as `**Last updated:** 2026-01-01` or `Last updated: _2026-01-01_`, passes the date check. The quality gate used to read the delimiters as the date and fail the page.
 - `quality_check.py` escapes any character its output encoding cannot show instead of stopping with `UnicodeEncodeError`. Windows writes redirected output in the ANSI code page, such as cp1252, so a job title in Polish, Greek or Chinese ended the gate with exit 1 on a correct site, and `review_build.py`, which runs the gate through a pipe, reported a failed candidate.
+- `quality_check.py --live` requests the configured `google_html_file` and IndexNow key file on the site. It used to put the origin in front of them twice, requesting `https://yourname.comhttps://yourname.com/google0123456789abcdef.html`, so every deployment that set a verification token failed with "ownership proof missing" although the files were served.
 
 ## [1.0.0] - 2026-10-09
 

@@ -899,17 +899,20 @@ if LIVE:
 
     # ownership proofs: deleting any of these un-verifies the site
     print("\n  ownership proofs:")
-    verification = _cfg.get("verification", {}) if isinstance(_cfg.get("verification", {}), dict) else {}
-    domain = _cfg.get("DOMAIN", "")
+    verification = _cfg.get("verification") or {}
     ownership_targets: list[str] = []
     google_file = verification.get("google_html_file") or ""
     if google_file:
-        ownership_targets.append(f"https://{domain}/{google_file}")
+        ownership_targets.append(google_file)
     indexnow_key = verification.get("indexnow_key") or ""
     if indexnow_key:
-        ownership_targets.append(f"https://{domain}/{indexnow_key}.txt")
-    for u in ownership_targets:
-        status, _, _, _ = fetch_live(u)
+        ownership_targets.append(indexnow_key + ".txt")
+    for name in ownership_targets:
+        # fetch_live adds the origin, so pass it the path alone. A full URL
+        # here was requested as https://DOMAINhttps://DOMAIN/... and failed.
+        path = "/" + quote(name, safe="-._~")
+        u = "https://%s%s" % (DOMAIN, path)
+        status, _, _, _ = fetch_live(path)
         ok = status == 200
         if not ok:
             fails.append("ownership proof missing: %s" % u)
