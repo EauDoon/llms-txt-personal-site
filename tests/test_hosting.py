@@ -12,7 +12,7 @@ from email.message import Message
 from html.parser import HTMLParser
 from pathlib import Path
 from unittest.mock import patch
-from urllib.parse import urlsplit
+from urllib.parse import unquote, urlsplit
 
 ROOT = Path(__file__).resolve().parents[1]
 TEMPLATE = ROOT / "template"
@@ -169,19 +169,47 @@ class HostingConfigTests(unittest.TestCase):
             self.assertIn("fetch(", script)
 
 
-class LiveHeaderTests(unittest.TestCase):
-    """Run the gate's --live section against canned responses."""
+# Content types a host sends by default, where template/_headers sets none.
+DEFAULT_TYPES = {".html": "text/html; charset=utf-8", ".json": "application/json", ".js": "text/javascript",
+                 ".xml": "application/xml", ".css": "text/css"}
 
-    def run_live_gate(self, home: dict[str, list[str]], card: dict[str, list[str]] | None,
-                      extra_config: dict | None = None):
+
+def host_headers(path: str) -> dict[str, list[str]]:
+    """Return the headers Cloudflare Pages sends for a path under template/_headers."""
+    headers: dict[str, list[str]] = {}
+    for pattern, rules in cloudflare_rules((TEMPLATE / "_headers").read_text(encoding="utf-8")):
+        if pattern == "/*" or pattern == path or (pattern.startswith("/*.") and path.endswith(pattern[2:])):
+            for name, value in rules:
+                headers.setdefault(name, []).append(value)
+    if "Content-Type" not in headers:
+        suffix = ".html" if path == "/" else Path(path).suffix
+        if suffix in DEFAULT_TYPES:
+            headers["Content-Type"] = [DEFAULT_TYPES[suffix]]
+    return headers
+
+
+class LiveHeaderTests(unittest.TestCase):
+    """Run the gate's --live section against canned responses.
+
+    By default the canned host is a correct deployment: it serves this build's
+    bytes at every published path, with the headers template/_headers sets.
+    A test changes only the responses it is about.
+    """
+
+    def run_live_gate(self, home: dict[str, list[str]] | None = None, card: dict[str, list[str]] | None = None,
+                      extra_config: dict | None = None, *, responses: dict | None = None,
+                      exact: bool = False, prepare=None):
         config = json.loads((ROOT / "site.config.example.json").read_text(encoding="utf-8"))
         config.update(extra_config or {})
+        responses = responses or {}
         self.requests: list[str] = []
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             site = root / "site"
             with contextlib.redirect_stdout(io.StringIO()):
                 build_site(str(TEMPLATE), str(site), dict(config, **json_block(config)))
+            if prepare:
+                prepare(site)
             card_bytes = b'{"name": "canned"}\n'
             if card is not None:
                 (site / ".well-known").mkdir()
@@ -205,21 +233,29 @@ class LiveHeaderTests(unittest.TestCase):
                 if parts.scheme != "https" or parts.netloc != config["DOMAIN"]:
                     return 0, {}, b"", "getaddrinfo failed"
                 path = parts.path
-                if path == "/":
-                    return 200, message(home), b"", ""
+                local = site / "index.html" if path == "/" else site / unquote(path).lstrip("/")
+                if path in responses:
+                    status, headers, body = responses[path]
+                    if body is None:
+                        body = local.read_bytes()
+                    return status, message(host_headers(path) if headers is None else headers), body, ""
                 if path == "/.well-known/agent-card.json":
                     if card is None:
                         return 404, message({}), b"", ""
                     return 200, message(card), card_bytes, ""
-                return 200, message({"Content-Type": ["text/markdown; charset=utf-8"],
-                                     "Content-Disposition": ["inline"]}), b"", ""
+                if not local.is_file() or local.name in {".htaccess", "_headers", "vercel.json"}:
+                    return 404, message({}), b"", ""
+                headers = home if path == "/" and home is not None else host_headers(path)
+                return 200, message(headers), local.read_bytes(), ""
 
             agents: set[str | None] = set()
             output = io.StringIO()
-            argv = ["quality_check.py", "--site", str(site), "--config", str(config_path), "--live"]
+            argv = ["quality_check.py", "--site", str(site), "--config", str(config_path),
+                    "--live-exact" if exact else "--live"]
             with patch("http_client.fetch_url", fetch_url), patch.object(sys, "argv", argv), \
-                    contextlib.redirect_stdout(output), self.assertRaises(SystemExit):
+                    contextlib.redirect_stdout(output), self.assertRaises(SystemExit) as stopped:
                 runpy.run_path(str(ROOT / "scripts" / "quality_check.py"), run_name="__main__")
+            self.exit_code = stopped.exception.code
             # Every live request names the template release that made it.
             self.assertEqual(agents, {"%s-quality-check/%s" % (PROJECT, __version__)})
             return output.getvalue()
@@ -257,6 +293,77 @@ class LiveHeaderTests(unittest.TestCase):
         self.assertIn("https://yourname.com/google0123456789abcdef.html", self.requests)
         self.assertIn("https://yourname.com/0123456789abcdef.txt", self.requests)
         self.assertEqual({urlsplit(url).netloc for url in self.requests}, {"yourname.com"})
+
+    def test_a_host_serving_this_build_passes_the_byte_check(self) -> None:
+        output = self.run_live_gate()
+        self.assertIn("ok   deployed manifest matches this build", output)
+        self.assertRegex(output, r"ok   all \d+ published files are served with this build's bytes")
+        self.assertIn("FAILURES: 0", output)
+        self.assertIn("WARNINGS: 0", output)
+        self.assertEqual(self.exit_code, 0)
+
+    def test_a_stale_or_missing_deployed_file_warns_without_failing(self) -> None:
+        responses = {"/profile.md": (200, None, b"# An older profile\n"),
+                     "/search-index.json": (404, {}, b"")}
+        output = self.run_live_gate(responses=responses)
+        self.assertRegex(output, r"WARN 2 of \d+ published files are not served with this build's bytes: "
+                                 r"/profile\.md \(bytes differ\), /search-index\.json \(404\)")
+        self.assertIn("a host that rewrites responses (email obfuscation, minification, injected scripts", output)
+        self.assertIn("FAILURES: 0", output)
+        self.assertIn("WARNINGS: 1", output)
+        self.assertEqual(self.exit_code, 0)
+
+    def test_live_exact_fails_on_drift(self) -> None:
+        responses = {"/profile.md": (200, None, b"# An older profile\n"),
+                     "/search-index.json": (404, {}, b"")}
+        output = self.run_live_gate(responses=responses, exact=True)
+        self.assertRegex(output, r"FAIL 2 of \d+ published files are not served with this build's bytes")
+        self.assertIn("FAILURES: 1", output)
+        self.assertEqual(self.exit_code, 1)
+        # A correct deployment still passes the exact check, and the header
+        # warnings it reports are not escalated.
+        output = self.run_live_gate({"X-Content-Type-Options": ["nosniff"]}, exact=True)
+        self.assertIn("FAILURES: 0", output)
+        self.assertIn("live homepage is served without Content-Security-Policy", output)
+        self.assertEqual(self.exit_code, 0)
+
+    def test_every_published_file_is_requested_once_at_its_served_path(self) -> None:
+        self.run_live_gate()
+        paths = [urlsplit(url).path for url in self.requests]
+        self.assertEqual(len(paths), len(set(paths)), "a path was requested twice")
+        for path in ("/", "/search.js", "/search-index.json", "/content-manifest.json", "/robots.txt",
+                     "/404.html", "/feed.xml", "/writing/example-depth-page.md"):
+            self.assertIn(path, paths)
+        for path in ("/index.html", "/.htaccess", "/_headers", "/vercel.json"):
+            self.assertNotIn(path, paths)
+
+    def test_a_404_page_answered_as_an_error_is_not_drift(self) -> None:
+        output = self.run_live_gate(responses={"/404.html": (404, {}, b"Not found")})
+        self.assertIn("WARNINGS: 0", output)
+
+    def test_a_differing_deployed_manifest_names_its_release(self) -> None:
+        deployed = b'{"generator": "llms-txt-personal-site 0.9.0", "reviewed_date": "2025-12-01"}\n'
+        output = self.run_live_gate(responses={"/content-manifest.json": (200, None, deployed)})
+        self.assertIn("WARN deployed content-manifest.json differs from this build "
+                      "(deployed generator llms-txt-personal-site 0.9.0, reviewed_date 2025-12-01)", output)
+        # A body that is not the builder's manifest is not echoed.
+        output = self.run_live_gate(responses={"/content-manifest.json": (200, None, b'{"generator": "<script>"}')})
+        self.assertIn("WARN deployed content-manifest.json differs from this build\n", output)
+        self.assertNotIn("<script>", output)
+        output = self.run_live_gate(responses={"/content-manifest.json": (404, {}, b"")})
+        self.assertIn("WARN deployed content-manifest.json is not served (404)", output)
+
+    def test_a_build_without_a_manifest_warns_once(self) -> None:
+        output = self.run_live_gate(prepare=lambda site: (site / "content-manifest.json").unlink())
+        self.assertEqual(output.count("this build has no content-manifest.json"), 2, output)  # line and summary
+        self.assertIn("WARNINGS: 1", output)
+        self.assertNotIn("/content-manifest.json", [urlsplit(url).path for url in self.requests])
+
+    def test_long_drift_lists_name_eight_paths_and_a_count(self) -> None:
+        markdown = sorted(path.name for path in TEMPLATE.glob("*.md"))[:10]
+        responses = {"/" + name: (404, {}, b"") for name in markdown}
+        output = self.run_live_gate(responses=responses)
+        self.assertIn(" and %d more" % (len(markdown) - 8), output)
 
     def test_agent_card_cors_header_must_be_exactly_one_wildcard(self) -> None:
         home = {"X-Content-Type-Options": ["nosniff"], "Content-Security-Policy": ["default-src 'self'"]}

@@ -7,10 +7,13 @@ All notable changes to this template are recorded here. The format follows [Keep
 ### Added
 
 - An article without a `desc` is described by its own first sentence in its `llms.txt` link, the writing directory (`writing.html` and `writing.md`) and the Atom `summary`, the same sentence its meta description already used. They used to publish no description, and the feed an empty `summary`. An article with no sentence gets no `summary` element. Search still shows only an authored `desc`.
+- `quality_check.py --live` checks that the host serves this build's exact bytes. It requests every file in `site/` at its served path, except the host configs, compares each response with the local file, and compares the deployed `content-manifest.json` with this build's, naming the release and review date a differing one records. A stale, partial or interrupted upload used to pass as long as every linked URL answered `200`, and files such as `search.js`, `search-index.json`, `robots.txt` and `feed.xml` were never requested. Differences are warnings, because a host that rewrites responses changes bytes too.
+- `quality_check.py --live-exact`, which runs the `--live` checks and fails on any deployed file that differs from this build or is not served, for a check after each deploy.
 
 ### Changed
 
 - The HTML companions render `*emphasis*` and `_emphasis_`, which used to appear with their delimiters, and `**strong**` and emphasis nest in either order. A delimiter that touches a letter, digit or `@` on its outside, follows a backslash, or is written as a character reference stays literal, so `snake_case`, `2*3*4` and `@_handle_` are unchanged. Emphasis now runs after links are parsed, so `**` inside a link destination stays in the `href`, and an image's `alt` text no longer carries `<strong>` markup. Check pages that use a literal pair of `*` or `_` around a word.
+- `quality_check.py --live` requests each path once and shares the response between its checks. A link with a fragment, such as the JSON-LD `@id` `https://yourname.com/#person`, is checked through the page it names rather than requested again, and the homepage and `/profile.md` are no longer fetched twice.
 
 ### Removed
 

@@ -2,13 +2,18 @@
 #
 # Reads site/ (built by scripts/build.py) and site.config.json.
 #
-#   python scripts/quality_check.py           local build output only (fast)
-#   python scripts/quality_check.py --live    also verify every link and sitemap URL over HTTP
+#   python scripts/quality_check.py               local build output only (fast)
+#   python scripts/quality_check.py --live        also check the deployed site over HTTP: links,
+#                                                 sitemap URLs, headers, and that every published
+#                                                 file is served with this build's exact bytes
+#   python scripts/quality_check.py --live-exact  as --live, but a deployed file that differs
+#                                                 from this build is a failure, not a warning
 #
 # Design note: an earlier version of this reported five failures that were all
 # its own false positives. A checker that cries wolf trains you to ignore it,
 # which is worse than having none. Every rule below is therefore scoped to the
 # thing it actually forbids, and the deliberate exceptions are named in code.
+import hashlib
 import json
 import argparse
 import os
@@ -38,7 +43,10 @@ REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 parser = argparse.ArgumentParser(description='Check a built static site against its public configuration.')
 parser.add_argument('--site', default=os.path.join(REPO, 'site'), help='built directory to inspect')
 parser.add_argument('--config', default=os.path.join(REPO, 'site.config.json'), help='matching public configuration')
-parser.add_argument('--live', action='store_true', help='also request the configured public HTTPS site')
+parser.add_argument('--live', action='store_true', help='also request the configured public HTTPS site, and warn '
+                                                         'when a deployed file differs from this build')
+parser.add_argument('--live-exact', action='store_true', help='as --live, but fail when a deployed file differs '
+                                                               'from this build or is not served; use it after a deploy')
 parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
 parser.add_argument('--rules', help='private gate rules (default: quality.local.json in the repository, '
                                     'optional and ignored by Git; see quality.local.example.json)')
@@ -149,7 +157,8 @@ if not os.path.isdir(R):
 DOMAIN = _cfg["DOMAIN"]
 EMAIL = _cfg.get("EMAIL", "")
 JOB_TITLE = _cfg.get("JOB_TITLE", "")
-LIVE = args.live
+LIVE = args.live or args.live_exact
+EXACT = args.live_exact
 # Search-engine proofs the builder writes at the root. They are not pages, so
 # the page rules and the sitemap leave them out.
 VERIFICATION_FILES = verification_files(_cfg)
@@ -871,8 +880,57 @@ else:
     if declared == [expected_sitemap] and not catch_all_blocked:
         print("  ok   robots.txt points crawlers at %s" % expected_sitemap)
 
+def file_sha256(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as source:
+        for chunk in iter(lambda: source.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+# Host configuration that the build ships for the host to read, never to serve.
+HOST_CONFIG_FILES = {".htaccess", "_headers", "vercel.json"}
+
+def build_path(rel):
+    """Return the URL path a host serves a build file at, as the sitemap does."""
+    return "/" if rel == "index.html" else "/" + quote(rel, safe="/-._~")
+
+def deployed_manifest_origin(body):
+    """Name the release and review date a deployed manifest records, if it is one.
+
+    Only values in the shapes the builder writes are echoed, so a response
+    the host rewrote cannot put arbitrary text into the report.
+    """
+    try:
+        document = json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        return ""
+    if not isinstance(document, dict):
+        return ""
+    shown = []
+    for key, shape in (("generator", r"[A-Za-z0-9][A-Za-z0-9 .+-]{0,79}"), ("reviewed_date", r"\d{4}-\d{2}-\d{2}")):
+        value = document.get(key)
+        if isinstance(value, str) and re.fullmatch(shape, value):
+            shown.append("%s %s" % (key, value))
+    return " (deployed %s)" % ", ".join(shown) if shown else ""
+
 if LIVE:
     head("10. LIVE: LINKS AND SITEMAP")
+    # Each path is requested once and shared by every check below. Only a
+    # hash of each body is kept, so a large site is not held in memory.
+    live_responses, live_bodies = {}, {}
+
+    def live(path):
+        """Return status, headers, body SHA-256, and any transport error for a path."""
+        # A fragment such as /#person names a part of the same response and
+        # is never sent to the host.
+        path = path.split("#", 1)[0] or "/"
+        if path not in live_responses:
+            status, headers, body, error = fetch_live(path)
+            if path == "/content-manifest.json":
+                live_bodies[path] = body
+            live_responses[path] = (status, headers, hashlib.sha256(body).hexdigest(), error)
+        return live_responses[path]
+
     links = set()
     for rel, p in sources():
         for m in re.finditer(r"https://" + re.escape(DOMAIN) + r"(/[^\s)\"'<>\]]*)?", read(p)):
@@ -887,7 +945,7 @@ if LIVE:
     print("  checking %d distinct URLs..." % len(links))
     bad = []
     for u in sorted(links):
-        status, _, _, error = fetch_live(u)
+        status, _, _, error = live(u)
         if status != 200:
             bad.append((u, str(status) if status else error or "no status"))
     for u, c in bad:
@@ -911,16 +969,67 @@ if LIVE:
         # here was requested as https://DOMAINhttps://DOMAIN/... and failed.
         path = "/" + quote(name, safe="-._~")
         u = "https://%s%s" % (DOMAIN, path)
-        status, _, _, _ = fetch_live(path)
+        status, _, _, _ = live(path)
         ok = status == 200
         if not ok:
             fails.append("ownership proof missing: %s" % u)
         print("    %-4s %s" % ("ok" if ok else "FAIL", u))
 
+    # A 200 for every URL still passes a stale, partial or interrupted upload.
+    # Compare what the host serves with the bytes this build published. Host
+    # rewrites change bytes too, so drift warns unless --live-exact asks for
+    # an exact deployment.
+    print("\n  deployed bytes:")
+    drift_level, drift_sink = ("FAIL", fails) if EXACT else ("WARN", warns)
+    local_manifest = os.path.join(R, "content-manifest.json")
+    if not os.path.isfile(local_manifest):
+        warns.append("this build has no content-manifest.json; deployed files were compared without it")
+        print("    WARN this build has no content-manifest.json; deployed files were compared without it")
+    else:
+        status, _, digest, error = live("/content-manifest.json")
+        if status != 200:
+            problem = "deployed content-manifest.json is not served (%s)" % (status or "no response")
+        elif digest != file_sha256(local_manifest):
+            problem = ("deployed content-manifest.json differs from this build"
+                       + deployed_manifest_origin(live_bodies.get("/content-manifest.json", b"")))
+        else:
+            problem = None
+        if problem:
+            drift_sink.append(problem)
+            print("    %-4s %s" % (drift_level, problem))
+        else:
+            print("    ok   deployed manifest matches this build")
+    compared, differing = 0, []
+    for rel, local_path, _ in build_files():
+        # The Agent Card keeps its own failing byte check below.
+        if (os.path.basename(rel) in HOST_CONFIG_FILES or rel == "content-manifest.json"
+                or rel == ".well-known/agent-card.json"):
+            continue
+        path = build_path(rel)
+        status, _, digest, error = live(path)
+        if rel == "404.html" and status != 200:
+            continue  # many hosts answer it only as the error page
+        compared += 1
+        shown = path if shown_path(rel) == rel else "a withheld path"
+        if status != 200:
+            differing.append("%s (%s)" % (shown, status or "no response"))
+        elif digest != file_sha256(local_path):
+            differing.append("%s (bytes differ)" % shown)
+    if differing:
+        more = " and %d more" % (len(differing) - 8) if len(differing) > 8 else ""
+        problem = "%d of %d published files are not served with this build's bytes: %s%s" % (
+            len(differing), compared, ", ".join(differing[:8]), more)
+        drift_sink.append(problem)
+        print("    %-4s %s" % (drift_level, problem))
+        print("         a host that rewrites responses (email obfuscation, minification, injected"
+              " scripts or robots rules) also changes bytes")
+    else:
+        print("    ok   all %d published files are served with this build's bytes" % compared)
+
     # The shipped host configs send these on every response. A deployment made
     # before they were added still serves correct facts, so a missing header
     # warns instead of failing until the next redeploy picks it up.
-    status, headers, _, _ = fetch_live("/")
+    status, headers, _, _ = live("/")
     if status == 200:
         nosniff = [value.strip().lower() for value in header_values(headers, "X-Content-Type-Options")] == ["nosniff"]
         csp = any(value.strip() for value in header_values(headers, "Content-Security-Policy"))
@@ -931,7 +1040,7 @@ if LIVE:
             print("\n  %-4s homepage sends %s" % ("ok" if present else "WARN", label))
 
     # markdown must render inline, not download
-    status, headers, _, _ = fetch_live("/profile.md")
+    status, headers, _, _ = live("/profile.md")
     content_type = headers.get("Content-Type", "").lower()
     disposition = headers.get("Content-Disposition", "").lower()
     inline = status == 200 and "text/markdown" in content_type and "inline" in disposition
@@ -940,7 +1049,7 @@ if LIVE:
     print("\n  %-4s markdown served inline as text/markdown" % ("ok" if inline else "FAIL"))
 
     if os.path.exists(card_path):
-        status, headers, remote_bytes, _ = fetch_live("/.well-known/agent-card.json")
+        status, headers, remote_digest, _ = live("/.well-known/agent-card.json")
         status_ok = status == 200
         content_type_ok = (
             headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
@@ -966,13 +1075,12 @@ if LIVE:
             print("  %-4s A2A Agent Card sends Access-Control-Allow-Origin: *" % ("ok" if cors_ok else "FAIL"))
         print("  %-4s A2A Agent Card has an ETag" % ("ok" if etag_ok else "WARN"))
         if status_ok:
-            with open(card_path, "rb") as local_card:
-                current_bytes = remote_bytes == local_card.read()
+            current_bytes = remote_digest == file_sha256(card_path)
             if not current_bytes:
                 fails.append("live Agent Card bytes differ from the validated local build")
             print("  %-4s live Agent Card matches validated local bytes" % ("ok" if current_bytes else "FAIL"))
     else:
-        remote_status, _, _, remote_error = fetch_live("/.well-known/agent-card.json")
+        remote_status, _, _, remote_error = live("/.well-known/agent-card.json")
         card_absent = remote_status in {404, 410}
         if not card_absent:
             fails.append(
