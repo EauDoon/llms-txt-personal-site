@@ -17,7 +17,7 @@ import sys
 import xml.etree.ElementTree as ET
 from collections import Counter
 from html.parser import HTMLParser
-from urllib.parse import quote, unquote, urlsplit
+from urllib.parse import quote, urlsplit
 
 from a2a_agent_card import load_agent_card, validate_agent_card
 from build import BINARY_SUFFIXES, fill

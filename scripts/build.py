@@ -75,10 +75,6 @@ class PreEscapedMarkup(str):
     """Markup the builder generated and escaped itself; fill() inserts it as is."""
 
 
-class ScriptSafeJson(PreEscapedMarkup):
-    """JSON serialized for direct insertion into an HTML script element."""
-
-
 def load_config():
     if not os.path.exists(CONFIG):
         sys.exit("No site.config.json. Copy site.config.example.json to site.config.json and fill it in.")
@@ -294,7 +290,7 @@ def json_block(cfg):
         .replace("\u2029", "\\u2029")
     )
     return {
-        "JSON_LD": ScriptSafeJson(encoded),
+        "JSON_LD": PreEscapedMarkup(encoded),
     }
 
 

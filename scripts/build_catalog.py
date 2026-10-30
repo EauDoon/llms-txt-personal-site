@@ -2,7 +2,6 @@
 import html
 import json
 import hashlib
-import re
 import unicodedata
 from pathlib import Path
 from urllib.parse import quote, unquote
@@ -12,11 +11,6 @@ from build_sitemap import validate_last_updated
 from build_writing_html import article_description, parse_front_matter, markdown_display, reading_estimate
 from build_llms_index import _safe_label
 from publishing import article_topics
-
-
-def markdown_label(value):
-    """Keep discovery labels inert when a consumer renders the Markdown index."""
-    return _safe_label(value)
 
 
 def articles(site_dir):
@@ -105,10 +99,10 @@ def build_topics(site_dir, cfg, entries):
         markdown += 'No topics are published yet.\n'
     for group in groups:
         body += '<section aria-labelledby="%s"><h2 id="%s">%s</h2><ul>' % (group['id'], group['id'], html.escape(group['label']))
-        markdown += '## %s\n\n' % markdown_label(group['label'])
+        markdown += '## %s\n\n' % _safe_label(group['label'])
         for entry in group['entries']:
             body += '<li><a href="%s">%s</a></li>' % (entry['url'], html.escape(entry['title']))
-            markdown += '- [%s](%s)\n' % (markdown_label(entry['title']), entry['source'])
+            markdown += '- [%s](%s)\n' % (_safe_label(entry['title']), entry['source'])
         body += '</ul></section>'
         markdown += '\n'
     (Path(site_dir) / 'topics.html').write_text(
@@ -117,11 +111,6 @@ def build_topics(site_dir, cfg, entries):
              canonical="https://%s/topics.html" % cfg["DOMAIN"]),
         encoding='utf-8', newline='')
     (Path(site_dir) / 'topics.md').write_text(markdown, encoding='utf-8', newline='')
-
-
-# Lines that restate the page rather than describe it, so they are not a
-# useful meta description.
-DESCRIPTION_NOISE = re.compile(r"^(Last updated:|\d{4}-\d{2}-\d{2}\.?)$")
 
 
 def page(title, body, cfg, source=None, heading=True, desc=None, canonical=None):
@@ -181,7 +170,7 @@ def run(site_dir, cfg):
              canonical="https://%s/writing.html" % cfg["DOMAIN"]),
         encoding="utf-8", newline="")
     markdown = "# Writing\n\nLast updated: %s\n\n" % cfg["LAST_UPDATED"]
-    markdown += "\n".join(("- [%s](%s)" % (markdown_label(entry["title"]), entry["source"])) + (": " + html.escape(entry["summary"], quote=False) if entry["summary"] else "")
+    markdown += "\n".join(("- [%s](%s)" % (_safe_label(entry["title"]), entry["source"])) + (": " + html.escape(entry["summary"], quote=False) if entry["summary"] else "")
                           + ' (' + '; '.join(label + ': ' + date for label, date in date_labels(entry, cfg)) + ')' for entry in entries)
     (Path(site_dir) / "writing.md").write_text(markdown + "\n", encoding="utf-8", newline="")
     build_search(site_dir, cfg, entries)
@@ -234,7 +223,7 @@ def build_search(site_dir, cfg, entries):
     paths = [path for path in sorted(Path(site_dir).glob("*.md")) if path.name not in {"search.md", "writing.md", "topics.md"}] + sorted((Path(site_dir) / "writing").glob("*.md"))
     for path in paths:
         source = "/" + quote(path.relative_to(site_dir).as_posix(), safe="/-._~")
-        meta, body = parse_front_matter(path.read_text(encoding="utf-8"))
+        _, body = parse_front_matter(path.read_text(encoding="utf-8"))
         body, heading = markdown_display(body)
         article = writing.get(source, {})
         companion = path.with_suffix('.html')
@@ -268,5 +257,5 @@ def build_search(site_dir, cfg, entries):
              canonical="https://%s/search.html" % cfg["DOMAIN"]),
         encoding="utf-8", newline="")
     markdown = "# Search and page directory\n\nLast updated: %s\n\nSearch runs locally in the browser at /search.html. Published pages:\n\n" % cfg["LAST_UPDATED"]
-    markdown += "\n".join("- [%s](%s)" % (markdown_label(record["title"]), record["url"]) for record in records)
+    markdown += "\n".join("- [%s](%s)" % (_safe_label(record["title"]), record["url"]) for record in records)
     (Path(site_dir) / "search.md").write_text(markdown + "\n", encoding="utf-8", newline="")

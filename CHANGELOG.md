@@ -14,7 +14,8 @@ All notable changes to this template are recorded here. The format follows [Keep
 
 ### Removed
 
-- The four scratch reports under `audits/` and the `PROGRESS.md` build log. They came from a dated triage workflow and recorded a superseded state: an old test count, a source layout survey that no longer matches the tree, and a README quick start check for work that is done. Nothing in the repository linked to them, and a reader took them for the current state of the project. `CHANGELOG.md` is the history.
+- Seven unused pieces of code in the build scripts: a `json` import in `render_page`, an `unquote` import in `quality_check.py`, the `meta` half of the front-matter unpack in `build_search`, a `DESCRIPTION_NOISE` pattern in `build_catalog.py` that nothing read, and the `visible_markdown_text`, `ScriptSafeJson` and `markdown_label` wrappers, which only called the function they wrapped. The build output does not change.
+- The four scratch reports under `audits/` and the `PROGRESS.md` build log. They came from a dated triage workflow and recorded a superseded state: an old test count, a source layout survey that no longer matches the tree, and a README quick start check for work that is done. Nothing in the repository linked to them, and a reader could take them for the current state of the project. `CHANGELOG.md` is the history.
 
 ### Fixed
 
