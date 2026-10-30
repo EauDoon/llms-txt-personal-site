@@ -33,6 +33,10 @@ index.html JSON-LD
 Person.jobTitle = "Synthetic Staff Engineer"
 ```
 
+The identity eval follows the same config, so after this change
+`python scripts/score_identity_eval.py current_title` expects
+"Synthetic Staff Engineer" without an edit to `eval/identity_questions.json`.
+
 This proves local propagation and consistency for one config value across
 generated Markdown, HTML, and JSON-LD. It does not verify the truth of a title,
 subject approval, source quality, indexing, assistant retrieval, or hiring

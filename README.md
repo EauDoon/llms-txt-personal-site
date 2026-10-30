@@ -190,7 +190,9 @@ To score an answer, run the command below, paste the answer, then end standard i
 python scripts/score_identity_eval.py current_title
 ```
 
-The scorer checks required phrases and known contradictions. It makes no model calls and saves no run or score. Replace the example questions and reference answers with source-backed material for your own site. A passing score still requires human review for unsupported claims.
+The scorer checks required phrases and known contradictions. It makes no model calls and saves no run or score. A passing score still requires human review for unsupported claims.
+
+The reference answers follow your config. A `{{KEY}}` token in a question, reference answer, `must_include` or `must_not_include` entry is filled from `site.config.json` when the scorer runs, the same placeholders the builder fills, so the shipped questions score your own name, title, employer, city, email, profiles, absence statements and `LAST_UPDATED` date, and keep scoring them after a fact or the date changes. Pass `--config FILE` to fill from another file. Without `site.config.json` the scorer fills from `site.config.example.json` and says so on standard error. `must_not_match` patterns stay literal, and an eval without tokens never reads a config. If a filled reference answer fails its own lists, for example because you rewrote an absence statement or put a year in it, the scorer names that question on standard error so you can adapt it. Add or replace questions with source-backed material for your own site.
 
 ## Writing principles
 
