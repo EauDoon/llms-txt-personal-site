@@ -24,6 +24,7 @@ All notable changes to this template are recorded here. The format follows [Keep
 - Numbered list items separated by blank lines render as one list. Each item used to open its own list, so steps 1, 2 and 3 all displayed as "1.". A numbered list that resumes after a code block or quote keeps its first number through the `start` attribute, and a different bullet after a blank line starts a new list, as in CommonMark.
 - A bare URL wrapped in `*` or `_`, such as `*https://example.com/a*`, links to `/a`. The HTML companion used to publish `href="https://example.com/a*"`, an underscore-wrapped URL was not linked at all, and `quality_check.py --live` requested `/a**` for `**https://domain/a**` and failed a correct deployment.
 - `quality_check.py` reads `robots.txt` the way crawlers do and ends each line at `#`, as RFC 9309 specifies. `Disallow: / # keep out` under `User-agent: *`, or a `User-agent: * # everyone else` line above `Disallow: /`, used to pass although it blocks every unspecified crawler, and a comment after the `Sitemap:` URL failed a correct file.
+- A page whose `Last updated:` label or date is wrapped in Markdown emphasis, such as `**Last updated:** 2026-01-01` or `Last updated: _2026-01-01_`, passes the date check. The quality gate used to read the delimiters as the date and fail the page.
 
 ## [1.0.0] - 2026-10-09
 

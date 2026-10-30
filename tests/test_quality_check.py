@@ -352,6 +352,26 @@ class QualityCheckTests(unittest.TestCase):
         self.assertEqual(commented.returncode, 0, commented.stdout + commented.stderr)
         self.assertIn("ok   robots.txt points crawlers at https://example.test/sitemap.xml", commented.stdout)
 
+    def test_last_updated_dates_wrapped_in_emphasis_are_read(self) -> None:
+        # A bold label or date is ordinary Markdown. The gate took the
+        # delimiters for the date and failed a page whose date was valid.
+        for line in ("**Last updated:** 2026-08-30", "Last updated: **2026-08-30**.",
+                     "_Last updated: 2026-08-30_"):
+            with self.subTest(line=line):
+                def prepare(site, domain, line=line):
+                    (site / "profile.md").write_text("# Example profile\n\n%s\n" % line, encoding="utf-8")
+
+                result = self.run_quality_check(prepare=prepare)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertNotIn("invalid Last updated date", result.stdout)
+
+        def undated(site, domain):
+            (site / "profile.md").write_text("# Example profile\n\n**Last updated:** **soon**\n", encoding="utf-8")
+
+        result = self.run_quality_check(prepare=undated)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("profile.md has an invalid Last updated date", result.stdout)
+
     def test_live_check_does_not_require_curl_executable(self) -> None:
         source = (ROOT / "scripts" / "quality_check.py").read_text(encoding="utf-8")
         self.assertNotIn("curl.exe", source)

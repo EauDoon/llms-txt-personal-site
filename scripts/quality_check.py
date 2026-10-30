@@ -688,12 +688,14 @@ except ValueError as exc:
 for rel, p in sources():
     if not rel.endswith(".md"):
         continue
-    match = re.search(r"Last updated:\s*(\S+)", read(p))
+    # Markdown emphasis may wrap the label or the date, as in
+    # **Last updated:** 2026-01-01 or Last updated: _2026-01-01_.
+    match = re.search(r"Last updated:[*_]*\s*(\S+)", read(p))
     if not match:
         warns.append("%s has no 'Last updated'" % rel)
         print("  WARN %-40s no Last updated line" % rel)
         continue
-    page_lastmod = match.group(1).rstrip(".,;:)")
+    page_lastmod = match.group(1).lstrip("*_").rstrip(".,;:)*_")
     try:
         validate_last_updated(page_lastmod)
     except ValueError:
