@@ -181,6 +181,8 @@ class QualityCheckTests(unittest.TestCase):
         domain: str = "example.test",
         path: str | None = None,
         prepare=None,
+        extra_config: dict | None = None,
+        extra_env: dict | None = None,
     ) -> subprocess.CompletedProcess[str]:
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
@@ -289,13 +291,14 @@ class QualityCheckTests(unittest.TestCase):
                 prepare(site, domain)
 
             (repo / "site.config.json").write_text(
-                json.dumps({"DOMAIN": domain, "LAST_UPDATED": "2026-08-30"}),
+                json.dumps(dict({"DOMAIN": domain, "LAST_UPDATED": "2026-08-30"}, **(extra_config or {}))),
                 encoding="utf-8",
             )
             command = [sys.executable, str(scripts / "quality_check.py")]
             if live:
                 command.append("--live")
             env = os.environ.copy()
+            env.update(extra_env or {})
             if path is not None:
                 env["PATH"] = path
                 env.update(
@@ -371,6 +374,22 @@ class QualityCheckTests(unittest.TestCase):
         result = self.run_quality_check(prepare=undated)
         self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
         self.assertIn("profile.md has an invalid Last updated date", result.stdout)
+
+    def test_report_survives_an_output_encoding_that_lacks_page_text(self) -> None:
+        # Redirected output on Windows uses the ANSI code page, such as cp1252,
+        # which has no "ż". The report echoes the job title, so the gate
+        # stopped with UnicodeEncodeError and exit 1 on a correct site, and
+        # review_build.py, which pipes the gate, reported a failed candidate.
+        def prepare(site, domain):
+            profile = site / "profile.md"
+            profile.write_text(profile.read_text(encoding="utf-8") + "\nInżynier\n", encoding="utf-8")
+
+        result = self.run_quality_check(prepare=prepare, extra_config={"JOB_TITLE": "Inżynier"},
+                                        extra_env={"PYTHONIOENCODING": "cp1252"})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertIn("In\\u017cynier", result.stdout)
+        self.assertIn("FAILURES: 0", result.stdout)
 
     def test_live_check_does_not_require_curl_executable(self) -> None:
         source = (ROOT / "scripts" / "quality_check.py").read_text(encoding="utf-8")

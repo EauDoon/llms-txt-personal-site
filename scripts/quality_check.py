@@ -28,6 +28,13 @@ from llms_txt import _local_path, has_link_relation, markdown_alternate, validat
 from email_addresses import address_key, contact_values, validate_email_address
 from version import PROJECT, __version__
 
+# Redirected output on Windows uses the ANSI code page, which cannot encode
+# every character a job title or page name may hold. Escape those characters
+# rather than stop the report with UnicodeEncodeError on a correct site.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(errors="backslashreplace")
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 parser = argparse.ArgumentParser(description='Check a built static site against its public configuration.')
 parser.add_argument('--site', default=os.path.join(REPO, 'site'), help='built directory to inspect')
