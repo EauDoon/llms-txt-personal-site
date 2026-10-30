@@ -19,6 +19,7 @@ import sys
 import tempfile
 from pathlib import Path
 
+from console_output import configure
 from version import __version__
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -99,6 +100,7 @@ def mirror(generated, example):
 
 
 def main(argv=None):
+    configure()
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
     parser.add_argument("--check", action="store_true",

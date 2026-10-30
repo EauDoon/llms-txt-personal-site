@@ -5,10 +5,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import locale
 import re
 import sys
 from pathlib import Path
 
+from console_output import configure, dump_json
 from version import __version__
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -106,6 +108,33 @@ def score_answer(question: dict[str, object], answer: str) -> dict[str, object]:
     }
 
 
+def read_answer(stream) -> str:
+    """Return the answer on standard input, reading redirected bytes as UTF-8 first.
+
+    Windows decodes redirected input in the ANSI code page, such as cp1252, so
+    a UTF-8 answer was read as mojibake and a correct answer failed. Bytes
+    that are not UTF-8 are still decoded in the stream's own encoding, as
+    before, and only input that is neither is refused.
+    """
+    if stream.isatty():
+        print("Paste the assistant answer, then send end-of-file:", file=sys.stderr)
+        return stream.read()
+    raw = getattr(stream, "buffer", None)
+    if raw is None:
+        return stream.read()
+    data = raw.read()
+    try:
+        text = data.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        fallback = getattr(stream, "encoding", None) or locale.getpreferredencoding(False)
+        try:
+            text = data.decode(fallback)
+        except (UnicodeDecodeError, LookupError):
+            raise ValueError("standard input is not text in UTF-8 or %s" % fallback) from None
+    # Text-mode reads translate line endings; keep doing so.
+    return text.replace("\r\n", "\n").replace("\r", "\n")
+
+
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Score a pasted assistant answer against one generic identity question."
@@ -125,6 +154,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def main(argv: list[str] | None = None) -> int:
+    configure()
     args = parse_args(argv)
     try:
         dataset = load_eval(args.data)
@@ -144,9 +174,11 @@ def main(argv: list[str] | None = None) -> int:
         print("error: unknown question_id: %s" % args.question_id, file=sys.stderr)
         return 2
 
-    if sys.stdin.isatty():
-        print("Paste the assistant answer, then send end-of-file:", file=sys.stderr)
-    answer = sys.stdin.read()
+    try:
+        answer = read_answer(sys.stdin)
+    except ValueError as exc:
+        print("error: %s" % exc, file=sys.stderr)
+        return 2
     if not answer.strip():
         print("error: no assistant answer was provided on standard input", file=sys.stderr)
         return 2
@@ -160,7 +192,7 @@ def main(argv: list[str] | None = None) -> int:
         **score_answer(question, answer),
         "scoring_note": SCORING_NOTE,
     }
-    print(json.dumps(result, indent=2, ensure_ascii=False))
+    dump_json(result)
     return 0 if result["passed"] else 1
 
 

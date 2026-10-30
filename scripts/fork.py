@@ -8,6 +8,7 @@ import sys
 from pathlib import Path
 
 from build import template_files
+from console_output import configure
 from version import __version__
 
 REPO = Path(__file__).resolve().parents[1]
@@ -232,6 +233,7 @@ def run(repo=REPO, runner=subprocess.run):
 
 
 def main(argv=None):
+    configure()
     parser = argparse.ArgumentParser(
         description="Initialize or verify a fail-closed identity-site fork."
     )

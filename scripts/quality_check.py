@@ -23,6 +23,7 @@ from a2a_agent_card import load_agent_card, validate_agent_card
 from build import BINARY_SUFFIXES, fill
 from build_sitemap import public_urls, validate_last_updated, verification_files
 from build_writing_html import AUTOLINK_TRAILING
+from console_output import configure
 from http_client import fetch_url
 from llms_txt import _local_path, has_link_relation, markdown_alternate, validate_llms_txt
 from email_addresses import address_key, contact_values, validate_email_address
@@ -31,9 +32,7 @@ from version import PROJECT, __version__
 # Redirected output on Windows uses the ANSI code page, which cannot encode
 # every character a job title or page name may hold. Escape those characters
 # rather than stop the report with UnicodeEncodeError on a correct site.
-for _stream in (sys.stdout, sys.stderr):
-    if hasattr(_stream, "reconfigure"):
-        _stream.reconfigure(errors="backslashreplace")
+configure()
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 parser = argparse.ArgumentParser(description='Check a built static site against its public configuration.')
