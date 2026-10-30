@@ -181,6 +181,8 @@ class QualityCheckTests(unittest.TestCase):
         domain: str = "example.test",
         path: str | None = None,
         prepare=None,
+        extra_config: dict | None = None,
+        extra_env: dict | None = None,
     ) -> subprocess.CompletedProcess[str]:
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
@@ -289,13 +291,14 @@ class QualityCheckTests(unittest.TestCase):
                 prepare(site, domain)
 
             (repo / "site.config.json").write_text(
-                json.dumps({"DOMAIN": domain, "LAST_UPDATED": "2026-08-30"}),
+                json.dumps(dict({"DOMAIN": domain, "LAST_UPDATED": "2026-08-30"}, **(extra_config or {}))),
                 encoding="utf-8",
             )
             command = [sys.executable, str(scripts / "quality_check.py")]
             if live:
                 command.append("--live")
             env = os.environ.copy()
+            env.update(extra_env or {})
             if path is not None:
                 env["PATH"] = path
                 env.update(
@@ -328,6 +331,65 @@ class QualityCheckTests(unittest.TestCase):
 
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertNotIn("Traceback", result.stderr)
+
+    def test_robots_comments_end_a_record_as_they_do_for_crawlers(self) -> None:
+        # RFC 9309 ends a record at "#". The gate read a comment as part of the
+        # value, so it passed a file that blocks every unspecified crawler and
+        # failed a correct Sitemap line that carried a comment.
+        def robots(text):
+            return lambda site, domain: (site / "robots.txt").write_text(text % domain, encoding="utf-8")
+
+        for text in (
+            "User-agent: *\nDisallow: / # keep out\n\nSitemap: https://%s/sitemap.xml\n",
+            "User-agent: * # everyone else\nDisallow: /\n\nSitemap: https://%s/sitemap.xml\n",
+        ):
+            with self.subTest(robots=text):
+                blocked = self.run_quality_check(prepare=robots(text))
+                self.assertEqual(blocked.returncode, 1, blocked.stdout + blocked.stderr)
+                self.assertIn("robots.txt blocks every unspecified crawler with 'Disallow: /'", blocked.stdout)
+
+        commented = self.run_quality_check(prepare=robots(
+            "# Crawl everything.\nUser-agent: *\n# Comment lines do not end the group.\nAllow: / # all of it\n\n"
+            "Sitemap: https://%s/sitemap.xml # the page list\n"
+        ))
+        self.assertEqual(commented.returncode, 0, commented.stdout + commented.stderr)
+        self.assertIn("ok   robots.txt points crawlers at https://example.test/sitemap.xml", commented.stdout)
+
+    def test_last_updated_dates_wrapped_in_emphasis_are_read(self) -> None:
+        # A bold label or date is ordinary Markdown. The gate took the
+        # delimiters for the date and failed a page whose date was valid.
+        for line in ("**Last updated:** 2026-08-30", "Last updated: **2026-08-30**.",
+                     "_Last updated: 2026-08-30_"):
+            with self.subTest(line=line):
+                def prepare(site, domain, line=line):
+                    (site / "profile.md").write_text("# Example profile\n\n%s\n" % line, encoding="utf-8")
+
+                result = self.run_quality_check(prepare=prepare)
+                self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+                self.assertNotIn("invalid Last updated date", result.stdout)
+
+        def undated(site, domain):
+            (site / "profile.md").write_text("# Example profile\n\n**Last updated:** **soon**\n", encoding="utf-8")
+
+        result = self.run_quality_check(prepare=undated)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertIn("profile.md has an invalid Last updated date", result.stdout)
+
+    def test_report_survives_an_output_encoding_that_lacks_page_text(self) -> None:
+        # Redirected output on Windows uses the ANSI code page, such as cp1252,
+        # which has no "ż". The report echoes the job title, so the gate
+        # stopped with UnicodeEncodeError and exit 1 on a correct site, and
+        # review_build.py, which pipes the gate, reported a failed candidate.
+        def prepare(site, domain):
+            profile = site / "profile.md"
+            profile.write_text(profile.read_text(encoding="utf-8") + "\nInżynier\n", encoding="utf-8")
+
+        result = self.run_quality_check(prepare=prepare, extra_config={"JOB_TITLE": "Inżynier"},
+                                        extra_env={"PYTHONIOENCODING": "cp1252"})
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertIn("In\\u017cynier", result.stdout)
+        self.assertIn("FAILURES: 0", result.stdout)
 
     def test_live_check_does_not_require_curl_executable(self) -> None:
         source = (ROOT / "scripts" / "quality_check.py").read_text(encoding="utf-8")

@@ -28,6 +28,13 @@ from llms_txt import _local_path, has_link_relation, markdown_alternate, validat
 from email_addresses import address_key, contact_values, validate_email_address
 from version import PROJECT, __version__
 
+# Redirected output on Windows uses the ANSI code page, which cannot encode
+# every character a job title or page name may hold. Escape those characters
+# rather than stop the report with UnicodeEncodeError on a correct site.
+for _stream in (sys.stdout, sys.stderr):
+    if hasattr(_stream, "reconfigure"):
+        _stream.reconfigure(errors="backslashreplace")
+
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 parser = argparse.ArgumentParser(description='Check a built static site against its public configuration.')
 parser.add_argument('--site', default=os.path.join(REPO, 'site'), help='built directory to inspect')
@@ -688,12 +695,14 @@ except ValueError as exc:
 for rel, p in sources():
     if not rel.endswith(".md"):
         continue
-    match = re.search(r"Last updated:\s*(\S+)", read(p))
+    # Markdown emphasis may wrap the label or the date, as in
+    # **Last updated:** 2026-01-01 or Last updated: _2026-01-01_.
+    match = re.search(r"Last updated:[*_]*\s*(\S+)", read(p))
     if not match:
         warns.append("%s has no 'Last updated'" % rel)
         print("  WARN %-40s no Last updated line" % rel)
         continue
-    page_lastmod = match.group(1).rstrip(".,;:)")
+    page_lastmod = match.group(1).lstrip("*_").rstrip(".,;:)*_")
     try:
         validate_last_updated(page_lastmod)
     except ValueError:
@@ -823,8 +832,11 @@ if not os.path.isfile(robots_path):
     print("  FAIL robots.txt is missing from the build")
 else:
     lines = [line.strip() for line in read(robots_path).splitlines()]
-    declared = [line[len("Sitemap:"):].strip() for line in lines
-                if line.casefold().startswith("sitemap:")]
+    # RFC 9309 ends a record at "#", as crawlers do: "Disallow: / # keep out"
+    # still blocks every path, and a comment is not part of the Sitemap URL.
+    records = [line.split("#", 1)[0].strip() for line in lines]
+    declared = [record[len("Sitemap:"):].strip() for record in records
+                if record.casefold().startswith("sitemap:")]
     expected_sitemap = "https://%s/sitemap.xml" % DOMAIN
     if not declared:
         fails.append("robots.txt declares no Sitemap")
@@ -840,18 +852,18 @@ else:
     # The colon may have no space after it: Disallow:/ is the same rule.
     catch_all_blocked = False
     agents, started_rules = [], False
-    for line in lines:
-        if not line or line.startswith("#"):
+    for line, record in zip(lines, records):
+        if not record:
             if not line:
                 agents, started_rules = [], False
             continue
-        if line.casefold().startswith("user-agent:"):
+        if record.casefold().startswith("user-agent:"):
             if started_rules:
                 agents, started_rules = [], False
-            agents.append(line.split(":", 1)[1].strip())
+            agents.append(record.split(":", 1)[1].strip())
             continue
         started_rules = True
-        directive, _, value = line.partition(":")
+        directive, _, value = record.partition(":")
         if directive.casefold() == "disallow" and value.strip() == "/" and "*" in agents:
             catch_all_blocked = True
     if catch_all_blocked:
