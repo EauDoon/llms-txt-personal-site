@@ -2,13 +2,21 @@
 #
 # Reads site/ (built by scripts/build.py) and site.config.json.
 #
-#   python scripts/quality_check.py           local build output only (fast)
-#   python scripts/quality_check.py --live    also verify every link and sitemap URL over HTTP
+#   python scripts/quality_check.py               local build output only (fast)
+#   python scripts/quality_check.py --live        also check the deployed site over HTTP: links,
+#                                                 sitemap URLs, headers, and that every published
+#                                                 file is served with this build's exact bytes
+#   python scripts/quality_check.py --live-exact  as --live, but a deployed file that differs
+#                                                 from this build is a failure, not a warning
+#   python scripts/quality_check.py --json        print one JSON document instead of the text
+#                                                 report, for CI and other tools
 #
 # Design note: an earlier version of this reported five failures that were all
 # its own false positives. A checker that cries wolf trains you to ignore it,
 # which is worse than having none. Every rule below is therefore scoped to the
 # thing it actually forbids, and the deliberate exceptions are named in code.
+import hashlib
+import io
 import json
 import argparse
 import os
@@ -23,27 +31,62 @@ from a2a_agent_card import load_agent_card, validate_agent_card
 from build import BINARY_SUFFIXES, fill
 from build_sitemap import public_urls, validate_last_updated, verification_files
 from build_writing_html import AUTOLINK_TRAILING
+from console_output import configure, dump_json
+from host_contract import HOMEPAGE_HEADERS, SITEMAP_TYPES, file_type_ok, has_discovery_link, header_values, \
+    media_type, promised_file_type
 from http_client import fetch_url
-from llms_txt import _local_path, has_link_relation, markdown_alternate, validate_llms_txt
+from llms_txt import _local_path, has_link_relation, markdown_alternate, unlisted_pages, validate_llms_txt
 from email_addresses import address_key, contact_values, validate_email_address
 from version import PROJECT, __version__
 
 # Redirected output on Windows uses the ANSI code page, which cannot encode
 # every character a job title or page name may hold. Escape those characters
 # rather than stop the report with UnicodeEncodeError on a correct site.
-for _stream in (sys.stdout, sys.stderr):
-    if hasattr(_stream, "reconfigure"):
-        _stream.reconfigure(errors="backslashreplace")
+configure()
 
 REPO = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 parser = argparse.ArgumentParser(description='Check a built static site against its public configuration.')
 parser.add_argument('--site', default=os.path.join(REPO, 'site'), help='built directory to inspect')
 parser.add_argument('--config', default=os.path.join(REPO, 'site.config.json'), help='matching public configuration')
-parser.add_argument('--live', action='store_true', help='also request the configured public HTTPS site')
+parser.add_argument('--live', action='store_true', help='also request the configured public HTTPS site, and warn '
+                                                         'when a deployed file differs from this build or a '
+                                                         'response misses a header the host configs promise')
+parser.add_argument('--live-exact', action='store_true', help='as --live, but fail when a deployed file differs '
+                                                               'from this build or is not served; use it after a deploy')
 parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
 parser.add_argument('--rules', help='private gate rules (default: quality.local.json in the repository, '
                                     'optional and ignored by Git; see quality.local.example.json)')
+parser.add_argument('--json', action='store_true', help='print one JSON document with the result, every failure '
+                                                        'and warning, and the report lines of each section, '
+                                                        'instead of the text report; the exit status is the same')
 args = parser.parse_args()
+
+fails, warns = [], []
+# With --json the text report is captured, then reshaped into one document.
+# head() records each section's title with the offsets of its banner and body.
+_text_stdout = sys.stdout
+_capture = io.StringIO() if args.json else None
+_sections = []
+if _capture is not None:
+    sys.stdout = _capture
+
+
+def finish(site):
+    """End the run: print the JSON document when asked, and exit 0 or 1."""
+    if _capture is not None:
+        sys.stdout = _text_stdout
+        text = _capture.getvalue()
+        sections = []
+        for index, (title, _, body) in enumerate(_sections):
+            end = _sections[index + 1][1] if index + 1 < len(_sections) else len(text)
+            if title == "SUMMARY":
+                continue  # passed, failures and warnings carry it
+            lines = [line.strip() for line in text[body:end].splitlines()]
+            sections.append({"title": title, "lines": [line for line in lines if line]})
+        dump_json({"version": 1, "generator": "%s %s" % (PROJECT, __version__), "site": site,
+                   "live": bool(args.live or args.live_exact), "passed": not fails,
+                   "failures": fails, "warnings": warns, "sections": sections})
+    sys.exit(1 if fails else 0)
 R = os.path.abspath(args.site)
 _cfg_path = os.path.abspath(args.config)
 _rules_path = os.path.abspath(args.rules) if args.rules else os.path.join(REPO, 'quality.local.json')
@@ -137,11 +180,13 @@ def load_rules(path, required):
 _cfg, _cfg_problem = load_gate_config(_cfg_path)
 if _cfg_problem:
     print("FAIL %s" % _cfg_problem)
-    sys.exit(1)
+    fails.append(_cfg_problem)
+    finish(None)
 _rules, _rules_problem = load_rules(_rules_path, required=bool(args.rules))
 if _rules_problem:
     print("FAIL %s" % _rules_problem)
-    sys.exit(1)
+    fails.append(_rules_problem)
+    finish(_cfg["DOMAIN"])
 # Strings that must never appear anywhere in the build, deliberate exceptions
 # with their reasons, and the two writing-style switches.
 FORBIDDEN, ALLOWED, STYLE = _rules
@@ -150,15 +195,14 @@ if not os.path.isdir(R):
 DOMAIN = _cfg["DOMAIN"]
 EMAIL = _cfg.get("EMAIL", "")
 JOB_TITLE = _cfg.get("JOB_TITLE", "")
-LIVE = args.live
+LIVE = args.live or args.live_exact
+EXACT = args.live_exact
 # Search-engine proofs the builder writes at the root. They are not pages, so
 # the page rules and the sitemap leave them out.
 VERIFICATION_FILES = verification_files(_cfg)
 # llms-full.txt is generated by concatenation: any violation in it mirrors a
 # source file and would be double-counted, so it is scanned separately at the end.
 GENERATED = {"llms-full.txt"}
-
-fails, warns = [], []
 
 def sources(include_generated=False):
     """Return the published pages every rule scans, at any depth.
@@ -192,13 +236,6 @@ def fetch_live(path):
     """Return status, headers, body, and any transport error for a live path."""
     return fetch_url("https://" + DOMAIN + path,
                      user_agent="%s-quality-check/%s" % (PROJECT, __version__))
-
-def header_values(headers, name):
-    """Return every value sent for one header, however the client stored them."""
-    if hasattr(headers, "get_all"):
-        return list(headers.get_all(name) or [])
-    value = headers.get(name)
-    return [] if value is None else [value]
 
 ATOM = "{http://www.w3.org/2005/Atom}"
 ATOM_STAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
@@ -346,7 +383,10 @@ def json_ld_blocks(document):
 
 
 def head(msg):
+    start = _capture.tell() if _capture is not None else 0
     print("\n" + "=" * 68 + "\n" + msg + "\n" + "=" * 68)
+    if _capture is not None:
+        _sections.append((msg, start, _capture.tell()))
 
 def search_index_issues(root):
     """Return violations of the search index and its static directory contract.
@@ -648,6 +688,14 @@ else:
             print("  FAIL %s" % issue)
     else:
         print("  ok   llms.txt follows the v2 file-list contract")
+    # The core links are hand-written, so a new page can be built, listed in
+    # the sitemap and included in llms-full.txt while the index never names it.
+    unlisted = unlisted_pages(read(llms_path), DOMAIN, R)
+    for rel in unlisted:
+        warns.append("llms.txt does not link %s" % shown_path(rel))
+        print("  WARN llms.txt does not link %s; link it, under ## Optional if it is secondary" % shown_path(rel))
+    if not unlisted:
+        print("  ok   every published Markdown page is linked from llms.txt")
 
 for rel, p in sources():
     if not rel.endswith(".html") or rel == "404.html":
@@ -872,8 +920,57 @@ else:
     if declared == [expected_sitemap] and not catch_all_blocked:
         print("  ok   robots.txt points crawlers at %s" % expected_sitemap)
 
+def file_sha256(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as source:
+        for chunk in iter(lambda: source.read(1 << 20), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+# Host configuration that the build ships for the host to read, never to serve.
+HOST_CONFIG_FILES = {".htaccess", "_headers", "vercel.json"}
+
+def build_path(rel):
+    """Return the URL path a host serves a build file at, as the sitemap does."""
+    return "/" if rel == "index.html" else "/" + quote(rel, safe="/-._~")
+
+def deployed_manifest_origin(body):
+    """Name the release and review date a deployed manifest records, if it is one.
+
+    Only values in the shapes the builder writes are echoed, so a response
+    the host rewrote cannot put arbitrary text into the report.
+    """
+    try:
+        document = json.loads(body.decode("utf-8"))
+    except (UnicodeDecodeError, ValueError):
+        return ""
+    if not isinstance(document, dict):
+        return ""
+    shown = []
+    for key, shape in (("generator", r"[A-Za-z0-9][A-Za-z0-9 .+-]{0,79}"), ("reviewed_date", r"\d{4}-\d{2}-\d{2}")):
+        value = document.get(key)
+        if isinstance(value, str) and re.fullmatch(shape, value):
+            shown.append("%s %s" % (key, value))
+    return " (deployed %s)" % ", ".join(shown) if shown else ""
+
 if LIVE:
     head("10. LIVE: LINKS AND SITEMAP")
+    # Each path is requested once and shared by every check below. Only a
+    # hash of each body is kept, so a large site is not held in memory.
+    live_responses, live_bodies = {}, {}
+
+    def live(path):
+        """Return status, headers, body SHA-256, and any transport error for a path."""
+        # A fragment such as /#person names a part of the same response and
+        # is never sent to the host.
+        path = path.split("#", 1)[0] or "/"
+        if path not in live_responses:
+            status, headers, body, error = fetch_live(path)
+            if path == "/content-manifest.json":
+                live_bodies[path] = body
+            live_responses[path] = (status, headers, hashlib.sha256(body).hexdigest(), error)
+        return live_responses[path]
+
     links = set()
     for rel, p in sources():
         for m in re.finditer(r"https://" + re.escape(DOMAIN) + r"(/[^\s)\"'<>\]]*)?", read(p)):
@@ -888,7 +985,7 @@ if LIVE:
     print("  checking %d distinct URLs..." % len(links))
     bad = []
     for u in sorted(links):
-        status, _, _, error = fetch_live(u)
+        status, _, _, error = live(u)
         if status != 200:
             bad.append((u, str(status) if status else error or "no status"))
     for u, c in bad:
@@ -899,37 +996,98 @@ if LIVE:
 
     # ownership proofs: deleting any of these un-verifies the site
     print("\n  ownership proofs:")
-    verification = _cfg.get("verification", {}) if isinstance(_cfg.get("verification", {}), dict) else {}
-    domain = _cfg.get("DOMAIN", "")
+    verification = _cfg.get("verification") or {}
     ownership_targets: list[str] = []
     google_file = verification.get("google_html_file") or ""
     if google_file:
-        ownership_targets.append(f"https://{domain}/{google_file}")
+        ownership_targets.append(google_file)
     indexnow_key = verification.get("indexnow_key") or ""
     if indexnow_key:
-        ownership_targets.append(f"https://{domain}/{indexnow_key}.txt")
-    for u in ownership_targets:
-        status, _, _, _ = fetch_live(u)
+        ownership_targets.append(indexnow_key + ".txt")
+    for name in ownership_targets:
+        # fetch_live adds the origin, so pass it the path alone. A full URL
+        # here was requested as https://DOMAINhttps://DOMAIN/... and failed.
+        path = "/" + quote(name, safe="-._~")
+        u = "https://%s%s" % (DOMAIN, path)
+        status, _, _, _ = live(path)
         ok = status == 200
         if not ok:
             fails.append("ownership proof missing: %s" % u)
         print("    %-4s %s" % ("ok" if ok else "FAIL", u))
 
+    # A 200 for every URL still passes a stale, partial or interrupted upload.
+    # Compare what the host serves with the bytes this build published. Host
+    # rewrites change bytes too, so drift warns unless --live-exact asks for
+    # an exact deployment.
+    print("\n  deployed bytes:")
+    drift_level, drift_sink = ("FAIL", fails) if EXACT else ("WARN", warns)
+    local_manifest = os.path.join(R, "content-manifest.json")
+    if not os.path.isfile(local_manifest):
+        warns.append("this build has no content-manifest.json; deployed files were compared without it")
+        print("    WARN this build has no content-manifest.json; deployed files were compared without it")
+    else:
+        status, _, digest, error = live("/content-manifest.json")
+        if status != 200:
+            problem = "deployed content-manifest.json is not served (%s)" % (status or "no response")
+        elif digest != file_sha256(local_manifest):
+            problem = ("deployed content-manifest.json differs from this build"
+                       + deployed_manifest_origin(live_bodies.get("/content-manifest.json", b"")))
+        else:
+            problem = None
+        if problem:
+            drift_sink.append(problem)
+            print("    %-4s %s" % (drift_level, problem))
+        else:
+            print("    ok   deployed manifest matches this build")
+    compared, differing = 0, []
+    for rel, local_path, _ in build_files():
+        # The Agent Card keeps its own failing byte check below.
+        if (os.path.basename(rel) in HOST_CONFIG_FILES or rel == "content-manifest.json"
+                or rel == ".well-known/agent-card.json"):
+            continue
+        path = build_path(rel)
+        status, _, digest, error = live(path)
+        if rel == "404.html" and status != 200:
+            continue  # many hosts answer it only as the error page
+        compared += 1
+        shown = path if shown_path(rel) == rel else "a withheld path"
+        if status != 200:
+            differing.append("%s (%s)" % (shown, status or "no response"))
+        elif digest != file_sha256(local_path):
+            differing.append("%s (bytes differ)" % shown)
+    if differing:
+        more = " and %d more" % (len(differing) - 8) if len(differing) > 8 else ""
+        problem = "%d of %d published files are not served with this build's bytes: %s%s" % (
+            len(differing), compared, ", ".join(differing[:8]), more)
+        drift_sink.append(problem)
+        print("    %-4s %s" % (drift_level, problem))
+        print("         a host that rewrites responses (email obfuscation, minification, injected"
+              " scripts or robots rules) also changes bytes")
+    else:
+        print("    ok   all %d published files are served with this build's bytes" % compared)
+
     # The shipped host configs send these on every response. A deployment made
     # before they were added still serves correct facts, so a missing header
     # warns instead of failing until the next redeploy picks it up.
-    status, headers, _, _ = fetch_live("/")
+    status, headers, _, _ = live("/")
     if status == 200:
         nosniff = [value.strip().lower() for value in header_values(headers, "X-Content-Type-Options")] == ["nosniff"]
         csp = any(value.strip() for value in header_values(headers, "Content-Security-Policy"))
-        for present, label in ((nosniff, "X-Content-Type-Options: nosniff"),
-                               (csp, "Content-Security-Policy")):
+        homepage = [(nosniff, "X-Content-Type-Options: nosniff"), (csp, "Content-Security-Policy")]
+        for name, expected in HOMEPAGE_HEADERS.items():
+            values = [value.strip() for value in header_values(headers, name)]
+            if expected is None:
+                homepage.append((any(values), name))
+            else:
+                homepage.append(([value.lower() for value in values] == [expected.lower()],
+                                 "%s: %s" % (name, expected)))
+        for present, label in homepage:
             if not present:
                 warns.append("live homepage is served without %s" % label)
             print("\n  %-4s homepage sends %s" % ("ok" if present else "WARN", label))
 
     # markdown must render inline, not download
-    status, headers, _, _ = fetch_live("/profile.md")
+    status, headers, _, _ = live("/profile.md")
     content_type = headers.get("Content-Type", "").lower()
     disposition = headers.get("Content-Disposition", "").lower()
     inline = status == 200 and "text/markdown" in content_type and "inline" in disposition
@@ -938,7 +1096,7 @@ if LIVE:
     print("\n  %-4s markdown served inline as text/markdown" % ("ok" if inline else "FAIL"))
 
     if os.path.exists(card_path):
-        status, headers, remote_bytes, _ = fetch_live("/.well-known/agent-card.json")
+        status, headers, remote_digest, _ = live("/.well-known/agent-card.json")
         status_ok = status == 200
         content_type_ok = (
             headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
@@ -964,13 +1122,12 @@ if LIVE:
             print("  %-4s A2A Agent Card sends Access-Control-Allow-Origin: *" % ("ok" if cors_ok else "FAIL"))
         print("  %-4s A2A Agent Card has an ETag" % ("ok" if etag_ok else "WARN"))
         if status_ok:
-            with open(card_path, "rb") as local_card:
-                current_bytes = remote_bytes == local_card.read()
+            current_bytes = remote_digest == file_sha256(card_path)
             if not current_bytes:
                 fails.append("live Agent Card bytes differ from the validated local build")
             print("  %-4s live Agent Card matches validated local bytes" % ("ok" if current_bytes else "FAIL"))
     else:
-        remote_status, _, _, remote_error = fetch_live("/.well-known/agent-card.json")
+        remote_status, _, _, remote_error = live("/.well-known/agent-card.json")
         card_absent = remote_status in {404, 410}
         if not card_absent:
             fails.append(
@@ -982,6 +1139,36 @@ if LIVE:
             % ("ok" if card_absent else "FAIL")
         )
 
+    # The header contract the shipped host configs promise, checked on every
+    # response fetched above, so it costs no extra requests. A host that
+    # cannot set headers gets one warning per rule, never a failure.
+    print("\n  response headers:")
+    served = {path: headers for path, (status, headers, _, _) in sorted(live_responses.items()) if status == 200}
+
+    def header_rule(ok_text, warn_text, paths, passes):
+        offenders = [shown_path(path) for path in paths if not passes(path, served[path])]
+        if offenders:
+            more = " and %d more" % (len(offenders) - 8) if len(offenders) > 8 else ""
+            problem = "%d of %d %s: %s%s" % (len(offenders), len(paths), warn_text, ", ".join(offenders[:8]), more)
+            warns.append(problem)
+            print("    WARN %s" % problem)
+        elif paths:
+            print("    ok   %s (%d)" % (ok_text, len(paths)))
+
+    header_rule("every response sends Link: </llms.txt>; rel=describedby",
+                "responses without Link: </llms.txt>; rel=describedby", list(served),
+                lambda path, headers: has_discovery_link(headers, DOMAIN))
+    # /profile.md keeps its own failing check above.
+    header_rule("Markdown files are served inline as text/markdown",
+                "Markdown files not served inline as text/markdown",
+                [path for path in served if promised_file_type(path) == ("text/markdown", "inline")
+                 and path != "/profile.md"], file_type_ok)
+    header_rule("text files are served inline as text/plain", "text files not served inline as text/plain",
+                [path for path in served if promised_file_type(path) == ("text/plain", "inline")], file_type_ok)
+    header_rule("sitemap.xml is served as XML", "sitemap.xml responses not served as XML",
+                [path for path in served if path == "/sitemap.xml"],
+                lambda path, headers: media_type(headers) in SITEMAP_TYPES)
+
 head("SUMMARY")
 print("  FAILURES: %d" % len(fails))
 for f in fails:
@@ -989,4 +1176,4 @@ for f in fails:
 print("  WARNINGS: %d" % len(warns))
 for w in warns:
     print("    - %s" % w)
-sys.exit(1 if fails else 0)
+finish(DOMAIN)

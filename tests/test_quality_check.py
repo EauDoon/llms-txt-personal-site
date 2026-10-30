@@ -183,6 +183,7 @@ class QualityCheckTests(unittest.TestCase):
         prepare=None,
         extra_config: dict | None = None,
         extra_env: dict | None = None,
+        extra_args: tuple[str, ...] = (),
     ) -> subprocess.CompletedProcess[str]:
         with tempfile.TemporaryDirectory() as directory:
             repo = Path(directory)
@@ -294,7 +295,7 @@ class QualityCheckTests(unittest.TestCase):
                 json.dumps(dict({"DOMAIN": domain, "LAST_UPDATED": "2026-08-30"}, **(extra_config or {}))),
                 encoding="utf-8",
             )
-            command = [sys.executable, str(scripts / "quality_check.py")]
+            command = [sys.executable, str(scripts / "quality_check.py"), *extra_args]
             if live:
                 command.append("--live")
             env = os.environ.copy()
@@ -716,8 +717,8 @@ class QualityCheckTests(unittest.TestCase):
         self.assertEqual(build.returncode, 0, build.stdout + build.stderr)
         return repo
 
-    def gate(self, repo: Path, rules=None) -> subprocess.CompletedProcess[str]:
-        command = [sys.executable, str(repo / "scripts" / "quality_check.py")]
+    def gate(self, repo: Path, rules=None, *extra_args: str) -> subprocess.CompletedProcess[str]:
+        command = [sys.executable, str(repo / "scripts" / "quality_check.py"), *extra_args]
         if rules is not None:
             path = repo / "rules.json"
             path.write_bytes(rules if isinstance(rules, bytes) else json.dumps(rules).encode("utf-8"))
@@ -756,6 +757,121 @@ class QualityCheckTests(unittest.TestCase):
             self.assertEqual(named.returncode, 1, named.stdout + named.stderr)
             self.assertIn("forbidden string #1 in the file name of a withheld path", named.stdout)
             self.assertNotIn(decoy, named.stdout + named.stderr)
+
+    @staticmethod
+    def summary_items(text: str, heading: str) -> list[str]:
+        """Return the "    - item" lines listed under FAILURES or WARNINGS."""
+        lines = text.splitlines()
+        start = next(index for index, line in enumerate(lines) if line.strip().startswith(heading + ":"))
+        items = []
+        for line in lines[start + 1:]:
+            if not line.startswith("    - "):
+                break
+            items.append(line[len("    - "):])
+        return items
+
+    def test_json_report_of_a_passing_build(self) -> None:
+        result = self.run_quality_check(extra_args=("--json",))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual(report["version"], 1)
+        self.assertRegex(report["generator"], r"^llms-txt-personal-site \d+\.\d+\.\d+$")
+        self.assertEqual(report["site"], "example.test")
+        self.assertIs(report["live"], False)
+        self.assertIs(report["passed"], True)
+        self.assertEqual(report["failures"], [])
+        titles = [section["title"] for section in report["sections"]]
+        self.assertEqual(titles[0], "1. RULE COMPLIANCE")
+        self.assertIn("9. SITEMAP MATCHES BUILD OUTPUT", titles)
+        self.assertNotIn("SUMMARY", titles)
+        rules = report["sections"][0]["lines"]
+        self.assertTrue(rules and all(line == line.strip() and line for line in rules), rules)
+        self.assertNotIn("=" * 68, result.stdout)
+
+    def test_json_failures_and_warnings_match_the_text_summary(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.rules_repo(directory)
+            page = repo / "site" / "now.md"
+            page.write_text(page.read_text(encoding="utf-8") + "\nA paragraph the full-text bundle does not have.\n",
+                            encoding="utf-8")
+            (repo / "site" / "about.md").write_text("# About\n\nNo date here.\n", encoding="utf-8")
+            text = self.gate(repo)
+            result = self.gate(repo, None, "--json")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        self.assertEqual(text.returncode, 1)
+        report = json.loads(result.stdout)
+        self.assertIs(report["passed"], False)
+        self.assertEqual(report["failures"], self.summary_items(text.stdout, "FAILURES"))
+        self.assertEqual(report["warnings"], self.summary_items(text.stdout, "WARNINGS"))
+        self.assertIn("llms-full.txt does not contain the current bytes of: ['about.md', 'now.md']",
+                      report["failures"])
+        self.assertIn("about.md has no 'Last updated'", report["warnings"])
+
+    def test_json_report_without_a_usable_config_has_one_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            repo = Path(directory)
+            shutil.copytree(ROOT / "scripts", repo / "scripts", ignore=shutil.ignore_patterns("__pycache__"))
+            (repo / "site").mkdir()
+            result = subprocess.run([sys.executable, str(repo / "scripts" / "quality_check.py"), "--json"],
+                                    cwd=repo, capture_output=True, text=True, check=False)
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        report = json.loads(result.stdout)
+        self.assertEqual(report["failures"], ["site.config.json not found; create it with: python scripts/fork.py --init"])
+        self.assertIsNone(report["site"])
+        self.assertEqual(report["sections"], [])
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_json_report_never_contains_a_forbidden_string(self) -> None:
+        secret = "UniqueCanaryTokenQ7"
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.rules_repo(directory)
+            profile = repo / "site" / "profile.md"
+            profile.write_text(profile.read_text(encoding="utf-8") + "\n%s\n" % secret, encoding="utf-8")
+            result = self.gate(repo, {"forbidden": [secret.lower()]}, "--json")
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        report = json.loads(result.stdout)
+        self.assertIn("forbidden strings (1)", report["failures"])
+        self.assertNotIn(secret.lower(), (result.stdout + result.stderr).lower())
+
+    def test_json_report_parses_on_an_output_encoding_that_lacks_page_text(self) -> None:
+        def prepare(site, domain):
+            profile = site / "profile.md"
+            profile.write_text(profile.read_text(encoding="utf-8") + "\nIn\u017cynier\n", encoding="utf-8")
+
+        result = self.run_quality_check(prepare=prepare, extra_config={"JOB_TITLE": "In\u017cynier"},
+                                        extra_env={"PYTHONIOENCODING": "cp1252"}, extra_args=("--json",))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        report = json.loads(result.stdout)
+        facts = next(section for section in report["sections"] if section["title"] == "2. CROSS-FILE FACT CONSISTENCY")
+        self.assertTrue(any("In\u017cynier" in line for line in facts["lines"]), facts)
+
+    def test_json_report_of_a_live_run(self) -> None:
+        result = self.run_quality_check(live=True, domain="127.0.0.1:9", path="", extra_args=("--json",))
+        self.assertEqual(result.returncode, 1, result.stdout + result.stderr)
+        report = json.loads(result.stdout)
+        self.assertIs(report["live"], True)
+        self.assertIn("10. LIVE: LINKS AND SITEMAP", [section["title"] for section in report["sections"]])
+        self.assertTrue(any(failure.startswith("link /") for failure in report["failures"]))
+        self.assertNotIn("Traceback", result.stderr)
+
+    def test_a_published_page_missing_from_llms_txt_warns(self) -> None:
+        def add_page(template):
+            (template / "notes.md").write_text("# Notes\n\nA short page of notes for readers.\n\n"
+                                               "Last updated: {{LAST_UPDATED}}\n", encoding="utf-8")
+
+        with tempfile.TemporaryDirectory() as directory:
+            sample = self.gate(self.rules_repo(directory))
+        self.assertEqual(sample.returncode, 0, sample.stdout + sample.stderr)
+        self.assertIn("ok   every published Markdown page is linked from llms.txt", sample.stdout)
+        self.assertNotIn("llms.txt does not link", sample.stdout)
+
+        with tempfile.TemporaryDirectory() as directory:
+            result = self.gate(self.rules_repo(directory, add_page))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn("WARN llms.txt does not link notes.md; link it, under ## Optional if it is secondary",
+                      result.stdout)
+        self.assertIn("FAILURES: 0", result.stdout)
+        self.assertEqual(self.summary_items(result.stdout, "WARNINGS"), ["llms.txt does not link notes.md"])
 
     def test_default_rules_file_lives_beside_the_scripts(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

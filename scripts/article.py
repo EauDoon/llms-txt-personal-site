@@ -1,7 +1,6 @@
 """Create and review local articles; never publish or deploy them."""
 import argparse
 import html
-import json
 import re
 from pathlib import Path
 
@@ -10,6 +9,7 @@ from build_llms_index import _safe_label
 from publishing import FIELDS, review_articles
 from build_writing_html import parse_front_matter
 from build_sitemap import validate_last_updated
+from console_output import configure, dump_json
 from version import __version__
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -80,6 +80,7 @@ def create_article(repo, slug, title, description='', topics=(), body_path=None,
 
 
 def main(argv=None):
+    configure()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
     commands = parser.add_subparsers(dest='command', required=True)
@@ -99,7 +100,7 @@ def main(argv=None):
         if args.command == 'review':
             report = review_articles(ROOT / 'template', load_config())
             if args.json:
-                print(json.dumps(report, ensure_ascii=False, indent=2))
+                dump_json(report)
             else:
                 print('%d published articles, %d drafts' % (report['published'], report['drafts']))
                 for row in report['articles']:

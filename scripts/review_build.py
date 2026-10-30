@@ -5,7 +5,6 @@ import hashlib
 import io
 import json
 import os
-import re
 import subprocess
 import sys
 import tempfile
@@ -14,6 +13,7 @@ from pathlib import Path
 from build import ROOT, build_site_staged, is_link_like, json_block, load_config, paths_overlap
 from build_inventory import MAX_FILE_BYTES, MAX_TOTAL_BYTES, inventory
 from check_artifacts import audit
+from console_output import configure, dump_json
 from version import __version__
 
 
@@ -31,6 +31,19 @@ def snapshot(root):
             raise ValueError('current output including manifest exceeds the byte budget')
         records.append({'path': manifest.name, 'bytes': size, 'sha256': hashlib.sha256(manifest.read_bytes()).hexdigest()})
     return {row['path']: row for row in records}
+
+
+def gate_report(stdout):
+    """Return the gate's --json document, or None when its output is not one."""
+    try:
+        document = json.loads(stdout)
+    except ValueError:
+        return None
+    if not isinstance(document, dict) or not all(
+            isinstance(document.get(key), list) and all(isinstance(item, str) for item in document[key])
+            for key in ('failures', 'warnings')):
+        return None
+    return document
 
 
 def review_candidate(template, current, cfg):
@@ -54,9 +67,16 @@ def review_candidate(template, current, cfg):
             raise ValueError('candidate artifact audit failed: ' + '; '.join(errors))
         config = root / 'public-config.json'
         config.write_text(json.dumps({key: value for key, value in cfg.items() if key not in {'JSON_LD', 'EMAIL_URI'}}), encoding='utf-8')
+        # The gate writes UTF-8 when told to. Decoding its output in the
+        # locale code page mangled non-ASCII text, or stopped on it.
         result = subprocess.run([sys.executable, str(Path(ROOT) / 'scripts' / 'quality_check.py'),
-                                 '--site', str(candidate), '--config', str(config)], capture_output=True, text=True, timeout=120)
+                                 '--site', str(candidate), '--config', str(config), '--json'], capture_output=True,
+                                encoding='utf-8', errors='replace', timeout=120,
+                                env=dict(os.environ, PYTHONIOENCODING='utf-8'))
+        gate = gate_report(result.stdout)
         if result.returncode:
+            if gate and gate['failures']:
+                raise ValueError('candidate quality gate failed:\n' + '\n'.join('- ' + item for item in gate['failures']))
             raise ValueError('candidate quality gate failed:\n' + (result.stdout + result.stderr)[-6000:])
         after = snapshot(candidate)
         if before != snapshot(current):
@@ -65,16 +85,17 @@ def review_candidate(template, current, cfg):
         removed = [before[name] for name in sorted(before.keys() - after.keys())]
         changed = [{'path': name, 'before': before[name], 'after': after[name]}
                    for name in sorted(before.keys() & after.keys()) if before[name] != after[name]]
-        warnings = re.search(r'WARNINGS: (\d+)', result.stdout)
         return {'version': 1, 'status': 'candidate-passed',
                 'scope': 'Local byte comparison and structural checks, not fact approval or deployment.',
                 'candidate_manifest_sha256': after['content-manifest.json']['sha256'],
-                'quality_warnings': int(warnings[1]) if warnings else None,
+                'quality_warnings': len(gate['warnings']) if gate else None,
+                'quality_warning_messages': list(gate['warnings']) if gate else None,
                 'current_artifact_issues': current_issues, 'added': added, 'changed': changed, 'removed': removed,
                 'unchanged': len(before.keys() & after.keys()) - len(changed)}
 
 
 def main(argv=None):
+    configure()
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
     parser.add_argument('--json', action='store_true', help='emit exact path/byte/hash records as JSON')
@@ -84,7 +105,7 @@ def main(argv=None):
     except (OSError, ValueError, TypeError, KeyError, subprocess.TimeoutExpired) as exc:
         parser.exit(1, 'Build review failed: %s\n' % exc)
     if args.json:
-        print(json.dumps(report, ensure_ascii=False, indent=2))
+        dump_json(report)
     else:
         print('Candidate passed the quality gate and artifact audit. Current site was not replaced.')
         for kind in ('added', 'changed', 'removed'):
@@ -92,6 +113,8 @@ def main(argv=None):
             for row in report[kind]:
                 print('  ' + row['path'])
         print('Unchanged: %d' % report['unchanged'])
+        for warning in report['quality_warning_messages'] or []:
+            print('Quality gate warning: ' + warning)
         for issue in report['current_artifact_issues']:
             print('Current output issue: ' + issue)
         print('Candidate manifest SHA-256: ' + report['candidate_manifest_sha256'])

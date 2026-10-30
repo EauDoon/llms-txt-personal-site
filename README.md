@@ -110,7 +110,17 @@ After deployment, run:
 python scripts/quality_check.py --live
 ```
 
-This makes requests to the configured domain. It checks the deployed responses as well as the local build, rejecting response bodies larger than 20 MiB. A homepage served without `nosniff` or a Content-Security-Policy is reported as a warning, so a deployment made before those headers shipped keeps passing until it is redeployed. A local pass alone does not establish that the host serves the same files or headers.
+This makes requests to the configured domain. It checks the deployed responses as well as the local build, rejecting response bodies larger than 20 MiB. A local pass alone does not establish that the host serves the same files or headers.
+
+On every response it fetched, the live check also confirms the headers the shipped host configs promise: an HTTP `Link: </llms.txt>; rel=describedby` header, Markdown files served inline as `text/markdown`, text files such as `llms.txt` and `llms-full.txt` served inline as `text/plain`, and `sitemap.xml` served as XML. The homepage must also send `nosniff`, a Content-Security-Policy, `X-Frame-Options: DENY` and a `Permissions-Policy`. Each rule that a response misses is one warning naming up to eight paths, so a deployment made before those headers shipped, or a host that cannot set headers, keeps passing. Only `/profile.md` served as anything but inline Markdown fails, as it always has.
+
+It also requests every file in `site/` at the path the host serves it from, `/` for `index.html`, and compares each response with the local bytes. The host configs (`.htaccess`, `_headers`, `vercel.json`) are not requested, and `404.html` is compared only when the host answers it with `200`. A stale, partial or interrupted upload is reported as a warning that names up to eight paths, and so is a deployed `content-manifest.json` that differs from this build, with the release and review date it records. A host that rewrites responses, for example with email obfuscation, minification, injected scripts or its own robots rules, changes bytes too, so these findings warn by default. To fail on them instead, for a check that runs after each deploy, use:
+
+```bash
+python scripts/quality_check.py --live-exact
+```
+
+`--live-exact` runs every `--live` check and turns only the deployed-bytes findings into failures. Header warnings stay warnings.
 
 ## How updates work
 
@@ -149,12 +159,14 @@ Every indexable page must also declare a document language, a title, a meta desc
 2. **Fact consistency.** Every address on the site's own domains, every `mailto:` link, and every JSON-LD `email` match the configured `EMAIL`, and the job title is listed for review.
 3. **Head metadata.** Language, title, description, and a canonical link to the page's own HTTPS URL.
 4. **Structured data.** Every JSON-LD block parses, declares schema.org, and links articles to the homepage's person record.
-5. **`llms.txt` v2.** The index structure and same-site targets, and the `describedby` and Markdown `alternate` links on every page.
+5. **`llms.txt` v2.** The index structure and same-site targets, and the `describedby` and Markdown `alternate` links on every page. A published Markdown page at the root or under `writing/` that `llms.txt` does not link is a warning, because the build generates only the `writing/` links and the core links are written by hand. The generated `writing.md`, `topics.md` and `search.md` are exempt; link a secondary page under `## Optional`.
 6. **Agent Card.** A published A2A Agent Card passes validation; none is published by default.
 7. **Dates.** `LAST_UPDATED` and every page's "Last updated" line are real calendar dates.
 8. **Generated files.** `llms-full.txt` holds the current bytes of every Markdown page, and the search index, `search.md`, and the feed agree with the build.
 9. **Sitemap and robots.** `sitemap.xml` lists exactly the public files with the configured date, and `robots.txt` points at it without blocking every crawler.
-10. **Live, with `--live` only.** Every link and sitemap URL answers `200` without a redirect, configured verification files are served, Markdown is served inline, the Agent Card headers are right, and missing security headers are reported as warnings.
+10. **Live, with `--live` or `--live-exact` only.** Every link and sitemap URL answers `200` without a redirect, configured verification files are served, every published file is served with this build's exact bytes (a warning, or a failure with `--live-exact`), Markdown is served inline, the Agent Card headers are right, and missing security, discovery and content-type headers are reported as warnings. Each path is requested once.
+
+For CI and other tools, `--json` prints one JSON document instead of the text report, with the same exit status: `version`, the `generator` release, the configured `site`, whether the run was `live`, whether it `passed`, the `failures` and `warnings` exactly as the text summary lists them, and `sections`, each a `title` with the report `lines` printed under it. A config or rules-file problem gives the same document with its single failure. It can be combined with `--live` or `--live-exact`.
 
 The rules file is optional. Copy [`quality.local.example.json`](quality.local.example.json) to `quality.local.json`, which Git ignores, or pass another file with `--rules FILE`:
 
@@ -178,7 +190,9 @@ To score an answer, run the command below, paste the answer, then end standard i
 python scripts/score_identity_eval.py current_title
 ```
 
-The scorer checks required phrases and known contradictions. It makes no model calls and saves no run or score. Replace the example questions and reference answers with source-backed material for your own site. A passing score still requires human review for unsupported claims.
+The scorer checks required phrases and known contradictions. It makes no model calls and saves no run or score. A passing score still requires human review for unsupported claims.
+
+The reference answers follow your config. A `{{KEY}}` token in a question, reference answer, `must_include` or `must_not_include` entry is filled from `site.config.json` when the scorer runs, the same placeholders the builder fills, so the shipped questions score your own name, title, employer, city, email, profiles, absence statements and `LAST_UPDATED` date, and keep scoring them after a fact or the date changes. Pass `--config FILE` to fill from another file. Without `site.config.json` the scorer fills from `site.config.example.json` and says so on standard error. `must_not_match` patterns stay literal, and an eval without tokens never reads a config. If a filled reference answer fails its own lists, for example because you rewrote an absence statement or put a year in it, the scorer names that question on standard error so you can adapt it. Add or replace questions with source-backed material for your own site.
 
 ## Writing principles
 
