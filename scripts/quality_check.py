@@ -29,6 +29,8 @@ from build import BINARY_SUFFIXES, fill
 from build_sitemap import public_urls, validate_last_updated, verification_files
 from build_writing_html import AUTOLINK_TRAILING
 from console_output import configure
+from host_contract import HOMEPAGE_HEADERS, SITEMAP_TYPES, file_type_ok, has_discovery_link, header_values, \
+    media_type, promised_file_type
 from http_client import fetch_url
 from llms_txt import _local_path, has_link_relation, markdown_alternate, validate_llms_txt
 from email_addresses import address_key, contact_values, validate_email_address
@@ -44,7 +46,8 @@ parser = argparse.ArgumentParser(description='Check a built static site against 
 parser.add_argument('--site', default=os.path.join(REPO, 'site'), help='built directory to inspect')
 parser.add_argument('--config', default=os.path.join(REPO, 'site.config.json'), help='matching public configuration')
 parser.add_argument('--live', action='store_true', help='also request the configured public HTTPS site, and warn '
-                                                         'when a deployed file differs from this build')
+                                                         'when a deployed file differs from this build or a '
+                                                         'response misses a header the host configs promise')
 parser.add_argument('--live-exact', action='store_true', help='as --live, but fail when a deployed file differs '
                                                                'from this build or is not served; use it after a deploy')
 parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
@@ -200,13 +203,6 @@ def fetch_live(path):
     """Return status, headers, body, and any transport error for a live path."""
     return fetch_url("https://" + DOMAIN + path,
                      user_agent="%s-quality-check/%s" % (PROJECT, __version__))
-
-def header_values(headers, name):
-    """Return every value sent for one header, however the client stored them."""
-    if hasattr(headers, "get_all"):
-        return list(headers.get_all(name) or [])
-    value = headers.get(name)
-    return [] if value is None else [value]
 
 ATOM = "{http://www.w3.org/2005/Atom}"
 ATOM_STAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z")
@@ -1033,8 +1029,15 @@ if LIVE:
     if status == 200:
         nosniff = [value.strip().lower() for value in header_values(headers, "X-Content-Type-Options")] == ["nosniff"]
         csp = any(value.strip() for value in header_values(headers, "Content-Security-Policy"))
-        for present, label in ((nosniff, "X-Content-Type-Options: nosniff"),
-                               (csp, "Content-Security-Policy")):
+        homepage = [(nosniff, "X-Content-Type-Options: nosniff"), (csp, "Content-Security-Policy")]
+        for name, expected in HOMEPAGE_HEADERS.items():
+            values = [value.strip() for value in header_values(headers, name)]
+            if expected is None:
+                homepage.append((any(values), name))
+            else:
+                homepage.append(([value.lower() for value in values] == [expected.lower()],
+                                 "%s: %s" % (name, expected)))
+        for present, label in homepage:
             if not present:
                 warns.append("live homepage is served without %s" % label)
             print("\n  %-4s homepage sends %s" % ("ok" if present else "WARN", label))
@@ -1091,6 +1094,36 @@ if LIVE:
             "  %-4s A2A disabled and live discovery is absent (404 or 410)"
             % ("ok" if card_absent else "FAIL")
         )
+
+    # The header contract the shipped host configs promise, checked on every
+    # response fetched above, so it costs no extra requests. A host that
+    # cannot set headers gets one warning per rule, never a failure.
+    print("\n  response headers:")
+    served = {path: headers for path, (status, headers, _, _) in sorted(live_responses.items()) if status == 200}
+
+    def header_rule(ok_text, warn_text, paths, passes):
+        offenders = [shown_path(path) for path in paths if not passes(path, served[path])]
+        if offenders:
+            more = " and %d more" % (len(offenders) - 8) if len(offenders) > 8 else ""
+            problem = "%d of %d %s: %s%s" % (len(offenders), len(paths), warn_text, ", ".join(offenders[:8]), more)
+            warns.append(problem)
+            print("    WARN %s" % problem)
+        elif paths:
+            print("    ok   %s (%d)" % (ok_text, len(paths)))
+
+    header_rule("every response sends Link: </llms.txt>; rel=describedby",
+                "responses without Link: </llms.txt>; rel=describedby", list(served),
+                lambda path, headers: has_discovery_link(headers, DOMAIN))
+    # /profile.md keeps its own failing check above.
+    header_rule("Markdown files are served inline as text/markdown",
+                "Markdown files not served inline as text/markdown",
+                [path for path in served if promised_file_type(path) == ("text/markdown", "inline")
+                 and path != "/profile.md"], file_type_ok)
+    header_rule("text files are served inline as text/plain", "text files not served inline as text/plain",
+                [path for path in served if promised_file_type(path) == ("text/plain", "inline")], file_type_ok)
+    header_rule("sitemap.xml is served as XML", "sitemap.xml responses not served as XML",
+                [path for path in served if path == "/sitemap.xml"],
+                lambda path, headers: media_type(headers) in SITEMAP_TYPES)
 
 head("SUMMARY")
 print("  FAILURES: %d" % len(fails))

@@ -110,7 +110,9 @@ After deployment, run:
 python scripts/quality_check.py --live
 ```
 
-This makes requests to the configured domain. It checks the deployed responses as well as the local build, rejecting response bodies larger than 20 MiB. A homepage served without `nosniff` or a Content-Security-Policy is reported as a warning, so a deployment made before those headers shipped keeps passing until it is redeployed. A local pass alone does not establish that the host serves the same files or headers.
+This makes requests to the configured domain. It checks the deployed responses as well as the local build, rejecting response bodies larger than 20 MiB. A local pass alone does not establish that the host serves the same files or headers.
+
+On every response it fetched, the live check also confirms the headers the shipped host configs promise: an HTTP `Link: </llms.txt>; rel=describedby` header, Markdown files served inline as `text/markdown`, text files such as `llms.txt` and `llms-full.txt` served inline as `text/plain`, and `sitemap.xml` served as XML. The homepage must also send `nosniff`, a Content-Security-Policy, `X-Frame-Options: DENY` and a `Permissions-Policy`. Each rule that a response misses is one warning naming up to eight paths, so a deployment made before those headers shipped, or a host that cannot set headers, keeps passing. Only `/profile.md` served as anything but inline Markdown fails, as it always has.
 
 It also requests every file in `site/` at the path the host serves it from, `/` for `index.html`, and compares each response with the local bytes. The host configs (`.htaccess`, `_headers`, `vercel.json`) are not requested, and `404.html` is compared only when the host answers it with `200`. A stale, partial or interrupted upload is reported as a warning that names up to eight paths, and so is a deployed `content-manifest.json` that differs from this build, with the release and review date it records. A host that rewrites responses, for example with email obfuscation, minification, injected scripts or its own robots rules, changes bytes too, so these findings warn by default. To fail on them instead, for a check that runs after each deploy, use:
 
@@ -162,7 +164,7 @@ Every indexable page must also declare a document language, a title, a meta desc
 7. **Dates.** `LAST_UPDATED` and every page's "Last updated" line are real calendar dates.
 8. **Generated files.** `llms-full.txt` holds the current bytes of every Markdown page, and the search index, `search.md`, and the feed agree with the build.
 9. **Sitemap and robots.** `sitemap.xml` lists exactly the public files with the configured date, and `robots.txt` points at it without blocking every crawler.
-10. **Live, with `--live` or `--live-exact` only.** Every link and sitemap URL answers `200` without a redirect, configured verification files are served, every published file is served with this build's exact bytes (a warning, or a failure with `--live-exact`), Markdown is served inline, the Agent Card headers are right, and missing security headers are reported as warnings. Each path is requested once.
+10. **Live, with `--live` or `--live-exact` only.** Every link and sitemap URL answers `200` without a redirect, configured verification files are served, every published file is served with this build's exact bytes (a warning, or a failure with `--live-exact`), Markdown is served inline, the Agent Card headers are right, and missing security, discovery and content-type headers are reported as warnings. Each path is requested once.
 
 The rules file is optional. Copy [`quality.local.example.json`](quality.local.example.json) to `quality.local.json`, which Git ignores, or pass another file with `--rules FILE`:
 

@@ -198,7 +198,7 @@ class LiveHeaderTests(unittest.TestCase):
 
     def run_live_gate(self, home: dict[str, list[str]] | None = None, card: dict[str, list[str]] | None = None,
                       extra_config: dict | None = None, *, responses: dict | None = None,
-                      exact: bool = False, prepare=None):
+                      exact: bool = False, prepare=None, edit_headers=None):
         config = json.loads((ROOT / "site.config.example.json").read_text(encoding="utf-8"))
         config.update(extra_config or {})
         responses = responses or {}
@@ -245,7 +245,12 @@ class LiveHeaderTests(unittest.TestCase):
                     return 200, message(card), card_bytes, ""
                 if not local.is_file() or local.name in {".htaccess", "_headers", "vercel.json"}:
                     return 404, message({}), b"", ""
-                headers = home if path == "/" and home is not None else host_headers(path)
+                if path == "/" and home is not None:
+                    headers = home
+                else:
+                    headers = host_headers(path)
+                    if edit_headers:
+                        headers = edit_headers(path, headers)
                 return 200, message(headers), local.read_bytes(), ""
 
             agents: set[str | None] = set()
@@ -274,8 +279,8 @@ class LiveHeaderTests(unittest.TestCase):
         self.assertIn("live homepage is served without Content-Security-Policy", output)
         self.assertIn("FAILURES: 0", output)
 
-        output = self.run_live_gate({"X-Content-Type-Options": ["nosniff"],
-                                     "Content-Security-Policy": ["default-src 'self'"]}, None)
+        # The full set the shipped host configs send on the homepage.
+        output = self.run_live_gate(host_headers("/"), None)
         self.assertIn("ok   homepage sends Content-Security-Policy", output)
         self.assertIn("WARNINGS: 0", output)
 
@@ -364,6 +369,113 @@ class LiveHeaderTests(unittest.TestCase):
         responses = {"/" + name: (404, {}, b"") for name in markdown}
         output = self.run_live_gate(responses=responses)
         self.assertIn(" and %d more" % (len(markdown) - 8), output)
+
+    def test_the_promised_response_headers_are_checked_on_every_response(self) -> None:
+        output = self.run_live_gate()
+        self.assertRegex(output, r"ok   every response sends Link: </llms.txt>; rel=describedby \(\d+\)")
+        self.assertRegex(output, r"ok   Markdown files are served inline as text/markdown \(\d+\)")
+        self.assertRegex(output, r"ok   text files are served inline as text/plain \(3\)")
+        self.assertIn("ok   sitemap.xml is served as XML (1)", output)
+        self.assertIn("ok   homepage sends X-Frame-Options: DENY", output)
+        self.assertIn("ok   homepage sends Permissions-Policy", output)
+        self.assertIn("WARNINGS: 0", output)
+
+    def test_a_host_without_the_discovery_link_header_warns_once(self) -> None:
+        def no_link(path, headers):
+            return {name: values for name, values in headers.items() if name != "Link"}
+
+        home = {name: values for name, values in host_headers("/").items() if name != "Link"}
+        output = self.run_live_gate(home, edit_headers=no_link)
+        self.assertRegex(output, r"WARN (\d+) of \1 responses without Link: </llms.txt>; rel=describedby: "
+                                 r"/, /404\.html, [^\n]* and \d+ more\n")
+        self.assertIn("WARNINGS: 1", output)
+        self.assertIn("FAILURES: 0", output)
+        self.assertEqual(self.exit_code, 0)
+
+    def test_text_and_markdown_served_wrongly_warn(self) -> None:
+        def wrong(path, headers):
+            if path == "/llms.txt":
+                return dict(headers, **{"Content-Disposition": ["attachment"]})
+            if path == "/writing/example-depth-page.md":
+                return dict(headers, **{"Content-Type": ["text/plain; charset=utf-8"]})
+            return headers
+
+        output = self.run_live_gate(edit_headers=wrong)
+        self.assertIn("WARN 1 of 3 text files not served inline as text/plain: /llms.txt", output)
+        self.assertRegex(output, r"WARN 1 of \d+ Markdown files not served inline as text/markdown: "
+                                 r"/writing/example-depth-page\.md\n")
+        self.assertIn("ok   markdown served inline as text/markdown", output)
+        self.assertIn("FAILURES: 0", output)
+
+    def test_profile_markdown_keeps_its_failing_check_and_is_not_counted_twice(self) -> None:
+        def wrong(path, headers):
+            if path == "/profile.md":
+                return dict(headers, **{"Content-Type": ["text/plain; charset=utf-8"]})
+            return headers
+
+        output = self.run_live_gate(edit_headers=wrong)
+        self.assertIn("FAIL markdown served inline as text/markdown", output)
+        self.assertIn("FAILURES: 1", output)
+        self.assertRegex(output, r"ok   Markdown files are served inline as text/markdown")
+
+    def test_a_sitemap_served_without_an_xml_type_warns(self) -> None:
+        output = self.run_live_gate(responses={"/sitemap.xml": (200, {"Content-Type": ["text/plain"]}, None)})
+        self.assertIn("WARN 1 of 1 sitemap.xml responses not served as XML: /sitemap.xml", output)
+
+    def test_a_homepage_without_frame_and_permissions_policies_warns(self) -> None:
+        home = {name: values for name, values in host_headers("/").items()
+                if name not in {"X-Frame-Options", "Permissions-Policy"}}
+        output = self.run_live_gate(home)
+        self.assertIn("WARN homepage sends X-Frame-Options: DENY", output)
+        self.assertIn("WARN homepage sends Permissions-Policy", output)
+        self.assertIn("live homepage is served without X-Frame-Options: DENY", output)
+        self.assertIn("WARNINGS: 2", output)
+        self.assertEqual(self.exit_code, 0)
+        output = self.run_live_gate(dict(home, **{"X-Frame-Options": ["SAMEORIGIN"]}))
+        self.assertIn("WARN homepage sends X-Frame-Options: DENY", output)
+
+    def test_link_headers_are_read_in_every_legal_spelling(self) -> None:
+        from email.message import Message as Headers
+        from host_contract import has_discovery_link
+
+        def headers(*values):
+            result = Headers()
+            for value in values:
+                result["Link"] = value
+            return result
+
+        for value in ("</llms.txt>; rel=describedby", '</llms.txt>; rel="describedby"',
+                      "<https://yourname.com/llms.txt>; rel=describedby", "</llms.txt>; REL=describedby",
+                      '</feed.xml>; rel="alternate", </llms.txt>; rel="describedby author"'):
+            with self.subTest(value=value):
+                self.assertTrue(has_discovery_link(headers(value), "yourname.com"))
+        self.assertTrue(has_discovery_link(headers("</feed.xml>; rel=alternate", "</llms.txt>; rel=describedby"),
+                                           "yourname.com"))
+        for value in ("</llms.txt>; rel=alternate", "</llms-full.txt>; rel=describedby",
+                      "<https://other.test/llms.txt>; rel=describedby", "</feed.xml>; rel=describedby"):
+            with self.subTest(value=value):
+                self.assertFalse(has_discovery_link(headers(value), "yourname.com"))
+
+    def test_the_checked_header_contract_matches_the_shipped_headers_file(self) -> None:
+        # The live checks and template/_headers must promise the same thing.
+        from host_contract import DISCOVERY_LINK, FILE_TYPES, HOMEPAGE_HEADERS, SITEMAP_TYPES
+
+        rules = dict(cloudflare_rules((TEMPLATE / "_headers").read_text(encoding="utf-8")))
+        for suffix, (media, disposition) in FILE_TYPES.items():
+            with self.subTest(suffix=suffix):
+                sent = dict(rules["/*" + suffix])
+                self.assertEqual(sent["Content-Type"].split(";", 1)[0].strip(), media)
+                self.assertEqual(sent["Content-Disposition"], disposition)
+        self.assertEqual(sorted(suffix for pattern in rules if pattern.startswith("/*.")
+                                for suffix in [pattern[2:]]), sorted(FILE_TYPES))
+        self.assertIn(dict(rules["/sitemap.xml"])["Content-Type"].split(";", 1)[0].strip(), SITEMAP_TYPES)
+        everywhere = dict(rules["/*"])
+        self.assertEqual(everywhere["Link"], "<%s>; rel=%s" % DISCOVERY_LINK)
+        for name, expected in HOMEPAGE_HEADERS.items():
+            with self.subTest(header=name):
+                self.assertTrue(everywhere[name].strip())
+                if expected is not None:
+                    self.assertEqual(everywhere[name], expected)
 
     def test_agent_card_cors_header_must_be_exactly_one_wildcard(self) -> None:
         home = {"X-Content-Type-Options": ["nosniff"], "Content-Security-Policy": ["default-src 'self'"]}
