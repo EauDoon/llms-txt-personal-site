@@ -329,6 +329,29 @@ class QualityCheckTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertNotIn("Traceback", result.stderr)
 
+    def test_robots_comments_end_a_record_as_they_do_for_crawlers(self) -> None:
+        # RFC 9309 ends a record at "#". The gate read a comment as part of the
+        # value, so it passed a file that blocks every unspecified crawler and
+        # failed a correct Sitemap line that carried a comment.
+        def robots(text):
+            return lambda site, domain: (site / "robots.txt").write_text(text % domain, encoding="utf-8")
+
+        for text in (
+            "User-agent: *\nDisallow: / # keep out\n\nSitemap: https://%s/sitemap.xml\n",
+            "User-agent: * # everyone else\nDisallow: /\n\nSitemap: https://%s/sitemap.xml\n",
+        ):
+            with self.subTest(robots=text):
+                blocked = self.run_quality_check(prepare=robots(text))
+                self.assertEqual(blocked.returncode, 1, blocked.stdout + blocked.stderr)
+                self.assertIn("robots.txt blocks every unspecified crawler with 'Disallow: /'", blocked.stdout)
+
+        commented = self.run_quality_check(prepare=robots(
+            "# Crawl everything.\nUser-agent: *\n# Comment lines do not end the group.\nAllow: / # all of it\n\n"
+            "Sitemap: https://%s/sitemap.xml # the page list\n"
+        ))
+        self.assertEqual(commented.returncode, 0, commented.stdout + commented.stderr)
+        self.assertIn("ok   robots.txt points crawlers at https://example.test/sitemap.xml", commented.stdout)
+
     def test_live_check_does_not_require_curl_executable(self) -> None:
         source = (ROOT / "scripts" / "quality_check.py").read_text(encoding="utf-8")
         self.assertNotIn("curl.exe", source)

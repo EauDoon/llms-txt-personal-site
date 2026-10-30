@@ -823,8 +823,11 @@ if not os.path.isfile(robots_path):
     print("  FAIL robots.txt is missing from the build")
 else:
     lines = [line.strip() for line in read(robots_path).splitlines()]
-    declared = [line[len("Sitemap:"):].strip() for line in lines
-                if line.casefold().startswith("sitemap:")]
+    # RFC 9309 ends a record at "#", as crawlers do: "Disallow: / # keep out"
+    # still blocks every path, and a comment is not part of the Sitemap URL.
+    records = [line.split("#", 1)[0].strip() for line in lines]
+    declared = [record[len("Sitemap:"):].strip() for record in records
+                if record.casefold().startswith("sitemap:")]
     expected_sitemap = "https://%s/sitemap.xml" % DOMAIN
     if not declared:
         fails.append("robots.txt declares no Sitemap")
@@ -840,18 +843,18 @@ else:
     # The colon may have no space after it: Disallow:/ is the same rule.
     catch_all_blocked = False
     agents, started_rules = [], False
-    for line in lines:
-        if not line or line.startswith("#"):
+    for line, record in zip(lines, records):
+        if not record:
             if not line:
                 agents, started_rules = [], False
             continue
-        if line.casefold().startswith("user-agent:"):
+        if record.casefold().startswith("user-agent:"):
             if started_rules:
                 agents, started_rules = [], False
-            agents.append(line.split(":", 1)[1].strip())
+            agents.append(record.split(":", 1)[1].strip())
             continue
         started_rules = True
-        directive, _, value = line.partition(":")
+        directive, _, value = record.partition(":")
         if directive.casefold() == "disallow" and value.strip() == "/" and "*" in agents:
             catch_all_blocked = True
     if catch_all_blocked:
