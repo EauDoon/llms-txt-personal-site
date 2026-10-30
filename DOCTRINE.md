@@ -138,7 +138,7 @@ legacy fields and credential material, then test the declared server separately.
 
 **The verification-file trap.** Search-engine verification files verify one domain. Never fork someone else's, and never delete your own: removing it un-verifies the site, usually without telling you.
 
-**The generated-file trap.** If a page is created but not added to the concatenation list, it is live, linked, in the sitemap, and invisible to anything reading the single-file copy. This happened during the reference build. When adding a page, update the generator list, the concatenation list, the sitemap, and the navigation. Missing one is silent.
+**The generated-file trap.** If a page is created but not added to the concatenation list, it is live, linked, in the sitemap, and invisible to anything reading the single-file copy. This happened during the reference build. This template's build now creates the HTML companion, the `llms-full.txt` section, and the sitemap entry for every published page. When adding a page, link it from `llms.txt` and from the homepage navigation by hand. The quality gate warns about a page `llms.txt` does not link, and nothing checks the navigation.
 
 **The regenerating-fix trap.** Fixing a word in a source file does nothing if the same word also lives in the generator's metadata. Regenerating puts it straight back. Also happened.
 
