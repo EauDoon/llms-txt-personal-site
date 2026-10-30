@@ -12,6 +12,10 @@ All notable changes to this template are recorded here. The format follows [Keep
 
 - The HTML companions render `*emphasis*` and `_emphasis_`, which used to appear with their delimiters, and `**strong**` and emphasis nest in either order. A delimiter that touches a letter, digit or `@` on its outside, follows a backslash, or is written as a character reference stays literal, so `snake_case`, `2*3*4` and `@_handle_` are unchanged. Emphasis now runs after links are parsed, so `**` inside a link destination stays in the `href`, and an image's `alt` text no longer carries `<strong>` markup. Check pages that use a literal pair of `*` or `_` around a word.
 
+### Removed
+
+- Seven unused pieces of code in the build scripts: a `json` import in `render_page`, an `unquote` import in `quality_check.py`, the `meta` half of the front-matter unpack in `build_search`, a `DESCRIPTION_NOISE` pattern in `build_catalog.py` that nothing read, and the `visible_markdown_text`, `ScriptSafeJson` and `markdown_label` wrappers, which only called the function they wrapped. The build output does not change.
+
 ### Fixed
 
 - A published Markdown page with an uppercase suffix, such as `notes.MD` or `writing/note.Md`, now stops the build with its path. It used to be listed in `sitemap.xml` while missing from `llms-full.txt`, `llms.txt`, search, the feed and the HTML companions, and the quality gate passed it. `article.py review` reports such an article as an error, or as a warning while it is a draft.
