@@ -18,7 +18,7 @@ from article import create_article
 from check_artifacts import audit
 from xml.etree import ElementTree as ET
 from build_catalog import topic_id
-from review_build import review_candidate
+from review_build import gate_report, review_candidate
 
 
 class PublishingTests(unittest.TestCase):
@@ -140,14 +140,29 @@ class PublishingTests(unittest.TestCase):
             self.assertIn('fresh.html', [row['path'] for row in report['added']])
             self.assertIn('retired.md', [row['path'] for row in report['removed']])
             self.assertIn('profile.html', [row['path'] for row in report['changed']])
+            # The gate's warnings arrive as its own messages, not a scraped count.
+            self.assertIn("fresh.md has no 'Last updated'", report['quality_warning_messages'])
+            self.assertEqual(report['quality_warnings'], len(report['quality_warning_messages']))
             self.assertEqual(original, {str(p): p.read_bytes() for p in site.rglob('*') if p.is_file()})
             self.assertFalse(list(Path(directory).glob('.site-review-*')))
             contact = template / 'contact.md'
             contact.write_text(contact.read_text(encoding='utf-8') + '\n[Wrong](mailto:other@outside.example)\n', encoding='utf-8')
-            with self.assertRaisesRegex(ValueError, 'quality gate failed'):
+            with self.assertRaisesRegex(ValueError, 'quality gate failed') as failed:
                 review_candidate(template, site, cfg)
+            # The error names the gate's failures instead of a raw report tail.
+            self.assertRegex(str(failed.exception), r"quality gate failed:\n- email: \[")
+            self.assertNotIn('=' * 68, str(failed.exception))
             self.assertEqual(original, {str(p): p.read_bytes() for p in site.rglob('*') if p.is_file()})
             self.assertFalse(list(Path(directory).glob('.site-review-*')))
+
+    def test_gate_report_accepts_only_the_gate_json_document(self):
+        report = gate_report('{"failures": [], "warnings": ["about.md has no date"], "passed": true}')
+        self.assertEqual(report['warnings'], ['about.md has no date'])
+        # Anything else falls back to the raw output in the error message.
+        for output in ('', 'FAIL site.config.json not found', '[]', '{"failures": "x", "warnings": []}',
+                       '{"failures": [1], "warnings": []}', '{"warnings": []}'):
+            with self.subTest(output=output):
+                self.assertIsNone(gate_report(output))
 
     def test_search_records_offer_bounded_author_topic_and_page_type_filters(self):
         with tempfile.TemporaryDirectory() as directory:
