@@ -24,6 +24,7 @@ import re
 import sys
 import xml.etree.ElementTree as ET
 from collections import Counter
+from datetime import date, datetime, timedelta, timezone
 from html.parser import HTMLParser
 from urllib.parse import quote, urlsplit
 
@@ -123,17 +124,21 @@ def load_gate_config(path):
 
 
 def load_rules(path, required):
-    """Return (forbidden, allowed, style) from the private rules file, or a problem.
+    """Return (forbidden, allowed, style, freshness) from the private rules file, or a problem.
 
     The file stays out of Git so a public fork never publishes its forbidden
     strings. A problem message names the field, never an entry's text.
     """
     style = {"em_dash": True, "american_spelling": True}
+    # The review-age limit is opt-in: with it on by default, the same build
+    # would pass today and warn next year, and the gate's verdict would depend
+    # on when it ran rather than on what was built.
+    freshness = {"max_age_days": None}
     name = os.path.basename(path)
     if not os.path.isfile(path):
         if required:
             return None, "rules file %s not found" % path
-        return ([], [], style), None
+        return ([], [], style, freshness), None
     try:
         with open(path, encoding="utf-8-sig") as rules_file:
             data = json.load(rules_file)
@@ -144,7 +149,7 @@ def load_rules(path, required):
     if not isinstance(data, dict):
         return None, "%s must contain a JSON object" % name
     unknown = sorted(key for key in data if not key.startswith("_")
-                     and key not in {"forbidden", "allowed", "style"})
+                     and key not in {"forbidden", "allowed", "style", "freshness"})
     if unknown:
         return None, "%s has unknown keys: %s" % (name, ", ".join(unknown))
     forbidden = data.get("forbidden", [])
@@ -175,7 +180,14 @@ def load_rules(path, required):
         if not isinstance(value, bool):
             return None, "%s: style.%s must be true or false" % (name, key)
         style[key] = value
-    return (forbidden, compiled, style), None
+    limits = data.get("freshness", {})
+    if not isinstance(limits, dict) or set(limits) - set(freshness):
+        return None, "%s: freshness may set only max_age_days" % name
+    max_age = limits.get("max_age_days")
+    if max_age is not None and (isinstance(max_age, bool) or not isinstance(max_age, int) or max_age < 1):
+        return None, "%s: freshness.max_age_days must be a positive whole number of days or null" % name
+    freshness["max_age_days"] = max_age
+    return (forbidden, compiled, style, freshness), None
 
 
 _cfg, _cfg_problem = load_gate_config(_cfg_path)
@@ -189,8 +201,9 @@ if _rules_problem:
     fails.append(_rules_problem)
     finish(_cfg["DOMAIN"])
 # Strings that must never appear anywhere in the build, deliberate exceptions
-# with their reasons, and the two writing-style switches.
-FORBIDDEN, ALLOWED, STYLE = _rules
+# with their reasons, the two writing-style switches, and the optional
+# review-age limit.
+FORBIDDEN, ALLOWED, STYLE, FRESHNESS = _rules
 if not os.path.isdir(R):
     parser.error('--site must name an existing built directory')
 DOMAIN = _cfg["DOMAIN"]
@@ -745,6 +758,11 @@ else:
             print("  note signature fields are present; cryptographic verification is external")
 
 head("7. LAST-UPDATED DATES")
+# Local dates run from UTC-12 to UTC+14, so an author's correct date can be
+# one day ahead of a UTC clock in CI. Only a date after tomorrow in UTC is
+# certainly in the future.
+TODAY = datetime.now(timezone.utc).date()
+LATEST_PLAUSIBLE = TODAY + timedelta(days=1)
 configured_lastmod = _cfg.get("LAST_UPDATED")
 try:
     expected_lastmod = validate_last_updated(configured_lastmod)
@@ -753,6 +771,24 @@ except ValueError as exc:
     expected_lastmod = None
     fails.append(str(exc))
     print("  FAIL %s" % exc)
+if expected_lastmod is not None:
+    reviewed = date.fromisoformat(expected_lastmod)
+    max_age = FRESHNESS["max_age_days"]
+    if reviewed > LATEST_PLAUSIBLE:
+        # The date is published on every page and as every sitemap lastmod,
+        # and an agent told the site is current reads it as a review date.
+        warns.append("LAST_UPDATED %s is after today (%s UTC)" % (expected_lastmod, TODAY))
+        print("  WARN LAST_UPDATED %s is after today (%s UTC); check it for a typo" % (expected_lastmod, TODAY))
+    elif max_age is not None:
+        age = max(0, (TODAY - reviewed).days)
+        if age > max_age:
+            warns.append("LAST_UPDATED %s is %d days old, over the %d-day review limit"
+                         % (expected_lastmod, age, max_age))
+            print("  WARN LAST_UPDATED %s is %d days old, over the %d-day review limit; review the facts, "
+                  "then update it" % (expected_lastmod, age, max_age))
+        else:
+            print("  ok   LAST_UPDATED is %d days old, within the %d-day review limit" % (age, max_age))
+future_pages = []
 for rel, p in sources():
     if not rel.endswith(".md"):
         continue
@@ -769,6 +805,15 @@ for rel, p in sources():
     except ValueError:
         fails.append("%s has an invalid Last updated date" % rel)
         print("  FAIL %-40s invalid Last updated date" % rel)
+        continue
+    if date.fromisoformat(page_lastmod) > LATEST_PLAUSIBLE:
+        future_pages.append(shown_path(rel))
+if future_pages:
+    more = " and %d more" % (len(future_pages) - 8) if len(future_pages) > 8 else ""
+    named = ", ".join(future_pages[:8]) + more
+    warns.append("%d page%s dated after today: %s" % (len(future_pages), "" if len(future_pages) == 1 else "s", named))
+    print("  WARN %d %s a Last updated date after today (%s UTC): %s"
+          % (len(future_pages), "page carries" if len(future_pages) == 1 else "pages carry", TODAY, named))
 print("  (files with a date are not listed)")
 
 def source_sections(bundle):
