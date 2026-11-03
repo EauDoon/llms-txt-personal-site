@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timedelta, timezone
 from urllib.parse import quote
 from pathlib import Path
 
@@ -704,12 +705,13 @@ class QualityCheckTests(unittest.TestCase):
                     self.assertNotIn("example.com", result.stdout + result.stderr)
                     self.assertNotIn("Traceback", result.stderr)
 
-    def rules_repo(self, directory: str, edit=None) -> Path:
-        """Build the sample site in a temp repo, optionally editing template/ first."""
+    def rules_repo(self, directory: str, edit=None, config=None) -> Path:
+        """Build the sample site in a temp repo, optionally editing template/ or the config first."""
         repo = Path(directory)
         shutil.copytree(ROOT / "scripts", repo / "scripts", ignore=shutil.ignore_patterns("__pycache__"))
         shutil.copytree(ROOT / "template", repo / "template")
-        shutil.copyfile(ROOT / "site.config.example.json", repo / "site.config.json")
+        sample = json.loads((ROOT / "site.config.example.json").read_text(encoding="utf-8"))
+        (repo / "site.config.json").write_text(json.dumps(dict(sample, **(config or {}))), encoding="utf-8")
         if edit:
             edit(repo / "template")
         build = subprocess.run([sys.executable, str(repo / "scripts" / "build.py")], cwd=repo,
@@ -871,7 +873,72 @@ class QualityCheckTests(unittest.TestCase):
         self.assertIn("WARN llms.txt does not link notes.md; link it, under ## Optional if it is secondary",
                       result.stdout)
         self.assertIn("FAILURES: 0", result.stdout)
-        self.assertEqual(self.summary_items(result.stdout, "WARNINGS"), ["llms.txt does not link notes.md"])
+        # The new page is missing from both hand-written routes.
+        self.assertEqual(self.summary_items(result.stdout, "WARNINGS"),
+                         ["llms.txt does not link notes.md", "the homepage does not link notes.md"])
+
+    def test_a_core_page_missing_from_the_homepage_warns(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            sample = self.gate(self.rules_repo(directory))
+        self.assertEqual(sample.returncode, 0, sample.stdout + sample.stderr)
+        self.assertIn("ok   the homepage links every core page", sample.stdout)
+
+        def unlink_about(template):
+            index = template / "index.html"
+            text = index.read_text(encoding="utf-8")
+            self.assertIn('<a href="/about.html">', text)
+            index.write_text(text.replace('  <li><a href="/about.html">About this site</a></li>\n', ""),
+                             encoding="utf-8")
+
+        with tempfile.TemporaryDirectory() as directory:
+            result = self.gate(self.rules_repo(directory, unlink_about), None, "--json")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        report = json.loads(result.stdout)
+        self.assertIs(report["passed"], True)
+        self.assertEqual(report["warnings"], ["the homepage does not link about.md"])
+
+    def test_a_future_review_date_warns(self) -> None:
+        # Past every time zone's today, with a day to spare if UTC midnight
+        # passes while the test runs.
+        future = (datetime.now(timezone.utc).date() + timedelta(days=3)).isoformat()
+        with tempfile.TemporaryDirectory() as directory:
+            result = self.gate(self.rules_repo(directory, config={"LAST_UPDATED": future}), None, "--json")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        warnings = json.loads(result.stdout)["warnings"]
+        self.assertTrue(warnings[0].startswith("LAST_UPDATED %s is after today (" % future), warnings)
+        self.assertRegex(warnings[1], r"^\d+ pages dated after today: about\.md, changelog\.md, .* and \d+ more$")
+        self.assertEqual(len(warnings), 2, warnings)
+
+    def test_tomorrow_is_not_the_future_in_every_time_zone(self) -> None:
+        # UTC+14 is a day ahead of a UTC clock in CI, so tomorrow is a correct local date.
+        tomorrow = (datetime.now(timezone.utc).date() + timedelta(days=1)).isoformat()
+        with tempfile.TemporaryDirectory() as directory:
+            result = self.gate(self.rules_repo(directory, config={"LAST_UPDATED": tomorrow}))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn("after today", result.stdout)
+        self.assertIn("WARNINGS: 0", result.stdout)
+
+    def test_the_review_age_limit_is_opt_in(self) -> None:
+        today = datetime.now(timezone.utc).date()
+        old = (today - timedelta(days=200)).isoformat()
+        recent = (today - timedelta(days=30)).isoformat()
+        limit = {"freshness": {"max_age_days": 180}}
+        with tempfile.TemporaryDirectory() as directory:
+            repo = self.rules_repo(directory, config={"LAST_UPDATED": old})
+            default = self.gate(repo)
+            limited = self.gate(repo, limit, "--json")
+        # Without the limit, an old review date passes as it always has.
+        self.assertIn("WARNINGS: 0", default.stdout)
+        self.assertNotIn("review limit", default.stdout)
+        self.assertEqual(limited.returncode, 0, limited.stdout + limited.stderr)
+        warnings = json.loads(limited.stdout)["warnings"]
+        self.assertEqual(len(warnings), 1, warnings)
+        # 201 if UTC midnight passes while the test runs.
+        self.assertRegex(warnings[0], r"^LAST_UPDATED %s is 20[01] days old, over the 180-day review limit$" % old)
+        with tempfile.TemporaryDirectory() as directory:
+            fresh = self.gate(self.rules_repo(directory, config={"LAST_UPDATED": recent}), limit)
+        self.assertRegex(fresh.stdout, r"ok   LAST_UPDATED is 3[01] days old, within the 180-day review limit")
+        self.assertIn("WARNINGS: 0", fresh.stdout)
 
     def test_default_rules_file_lives_beside_the_scripts(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -896,6 +963,12 @@ class QualityCheckTests(unittest.TestCase):
                 b'{"allowed": [{"pattern": "(", "reason": "r"}]}': "allowed entry #1 pattern is not a valid regular expression",
                 b'{"style": {"em_dash": "no"}}': "style.em_dash must be true or false",
                 b'{"style": {"oxford_comma": true}}': "style may set only em_dash and american_spelling",
+                b'{"freshness": 365}': "freshness may set only max_age_days",
+                b'{"freshness": {"days": 365}}': "freshness may set only max_age_days",
+                b'{"freshness": {"max_age_days": 0}}': "freshness.max_age_days must be a positive whole number",
+                b'{"freshness": {"max_age_days": "365"}}': "freshness.max_age_days must be a positive whole number",
+                b'{"freshness": {"max_age_days": true}}': "freshness.max_age_days must be a positive whole number",
+                b'{"freshness": {"max_age_days": 1.5}}': "freshness.max_age_days must be a positive whole number",
             }
             for raw, expected in cases.items():
                 with self.subTest(raw=raw):

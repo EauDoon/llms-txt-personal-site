@@ -6,7 +6,7 @@ import os
 import re
 from html.parser import HTMLParser
 from pathlib import Path, PurePosixPath
-from urllib.parse import quote, unquote, urlsplit
+from urllib.parse import quote, unquote, urljoin, urlsplit
 
 FILE_LINK = re.compile(
     r"^\s*[-*]\s+\[([^\]]+)\]\((\S+)\)(?:\s*:\s*(.+))?\s*$"
@@ -194,6 +194,46 @@ def unlisted_pages(text: str, expected_domain: str, site_dir: str | os.PathLike[
                 continue
             if path.resolve() not in linked:
                 pages.append(relative)
+    return pages
+
+
+class _AnchorParser(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.hrefs: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs) -> None:
+        if tag.lower() == "a":
+            self.hrefs.extend(value.strip() for key, value in attrs if key.lower() == "href" and value)
+
+
+def homepage_unlinked_pages(document: str, expected_domain: str, site_dir: str | os.PathLike[str]) -> list[str]:
+    """Return the root Markdown pages the homepage links in neither format.
+
+    The homepage navigation is written by hand, like the core llms.txt links,
+    so a new core page can go live with no route from the page a human or a
+    crawler lands on first. A page counts as linked when an <a href> on the
+    homepage names its Markdown source or its HTML companion, as a relative,
+    root-relative or absolute same-site URL. Articles under writing/ reach the
+    homepage through the generated writing index, and the generated
+    directories are exempt.
+    """
+    root = Path(site_dir).resolve()
+    parser = _AnchorParser()
+    parser.feed(document)
+    parser.close()
+    base = "https://%s/" % expected_domain
+    linked = set()
+    for href in parser.hrefs:
+        local = _local_path(urljoin(base, href), expected_domain, root)
+        if isinstance(local, Path):
+            linked.add(local)
+    pages = []
+    for path in sorted(root.iterdir()):
+        if path.suffix != ".md" or not path.is_file() or path.name in GENERATED_DIRECTORIES:
+            continue
+        if path.resolve() not in linked and path.with_suffix(".html").resolve() not in linked:
+            pages.append(path.name)
     return pages
 
 

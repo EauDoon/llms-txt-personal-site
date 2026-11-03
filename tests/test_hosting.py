@@ -28,6 +28,7 @@ CONTRACT = (
     "Content-Security-Policy",
     "X-Frame-Options",
     "Permissions-Policy",
+    "Strict-Transport-Security",
     "Link",
 )
 
@@ -137,6 +138,11 @@ class HostingConfigTests(unittest.TestCase):
         self.assertEqual(expected["X-Frame-Options"], "DENY")
         self.assertIn("frame-ancestors 'none'", expected["Content-Security-Policy"])
         self.assertIn("object-src 'none'", expected["Content-Security-Policy"])
+        # Apache alone used to send HSTS, with includeSubDomains, which forces
+        # every subdomain of a fork's apex domain to HTTPS. All three now send
+        # one year or more for this host only.
+        hsts = expected["Strict-Transport-Security"]
+        self.assertGreaterEqual(int(re.fullmatch(r"max-age=(\d+)", hsts).group(1)), 31536000)
 
     def test_no_header_is_set_by_both_a_specific_rule_and_the_catch_all(self) -> None:
         # Cloudflare Pages joins a header set by two matching rules with a
@@ -378,7 +384,17 @@ class LiveHeaderTests(unittest.TestCase):
         self.assertIn("ok   sitemap.xml is served as XML (1)", output)
         self.assertIn("ok   homepage sends X-Frame-Options: DENY", output)
         self.assertIn("ok   homepage sends Permissions-Policy", output)
+        self.assertIn("ok   homepage sends Strict-Transport-Security", output)
         self.assertIn("WARNINGS: 0", output)
+
+    def test_a_homepage_without_hsts_warns_without_failing(self) -> None:
+        home = {name: values for name, values in host_headers("/").items() if name != "Strict-Transport-Security"}
+        output = self.run_live_gate(home)
+        self.assertIn("WARN homepage sends Strict-Transport-Security", output)
+        self.assertIn("live homepage is served without Strict-Transport-Security", output)
+        self.assertIn("WARNINGS: 1", output)
+        self.assertIn("FAILURES: 0", output)
+        self.assertEqual(self.exit_code, 0)
 
     def test_a_host_without_the_discovery_link_header_warns_once(self) -> None:
         def no_link(path, headers):

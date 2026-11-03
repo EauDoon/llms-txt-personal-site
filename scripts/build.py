@@ -174,7 +174,14 @@ def fill(text, cfg, plain_text=False):
 
 
 def json_block(cfg):
-    """Generate the complete JSON-LD document with script-safe JSON encoding."""
+    """Generate the complete JSON-LD document with script-safe JSON encoding.
+
+    Every statement in the graph comes from a config field that says it.
+    CITY, COUNTRY_CODE and COUNTRY_NAME say where the subject is based, so
+    they describe the Person's home location only. They are not a
+    nationality, and they are not the employer's address: the config states
+    neither, and structured data is read as fact.
+    """
     domain_url = "https://%s/" % cfg["DOMAIN"]
     person_id = "%s#person" % domain_url
     employer_id = "%s#employer" % domain_url
@@ -199,13 +206,13 @@ def json_block(cfg):
                 "worksFor": {"@id": employer_id},
                 "homeLocation": {
                     "@type": "Place",
+                    "name": "%s, %s" % (cfg["CITY"], cfg["COUNTRY_NAME"]),
                     "address": {
                         "@type": "PostalAddress",
                         "addressLocality": cfg["CITY"],
                         "addressCountry": cfg["COUNTRY_CODE"],
                     },
                 },
-                "nationality": {"@type": "Country", "name": cfg["COUNTRY_NAME"]},
                 "knowsAbout": cfg.get("KNOWS_ABOUT", []),
                 "alumniOf": [
                     {
@@ -228,11 +235,6 @@ def json_block(cfg):
                 "name": cfg["EMPLOYER"],
                 "url": cfg["EMPLOYER_URL"],
                 "description": cfg["EMPLOYER_DESC"],
-                "address": {
-                    "@type": "PostalAddress",
-                    "addressLocality": cfg["CITY"],
-                    "addressCountry": cfg["COUNTRY_CODE"],
-                },
             },
             {
                 "@type": "ProfilePage",

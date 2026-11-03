@@ -11,5 +11,10 @@
   "style": {
     "em_dash": true,
     "american_spelling": true
+  },
+
+  "_freshness_note": "Optional review-age limit, off by default. Set max_age_days to a positive whole number to warn when LAST_UPDATED is older than that many days, for example 180 in a scheduled check of a deployed site. It is off by default so that a build's result does not change with the date the gate runs. A LAST_UPDATED or page date after tomorrow (UTC) always warns.",
+  "freshness": {
+    "max_age_days": null
   }
 }
