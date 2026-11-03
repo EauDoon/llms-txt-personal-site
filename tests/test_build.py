@@ -257,6 +257,65 @@ class BuildTests(unittest.TestCase):
         )
         self.assertEqual(person["worksFor"], {"@id": employer["@id"]})
 
+    def test_generated_pages_name_the_owner_once_and_carry_link_previews(self) -> None:
+        from html.parser import HTMLParser
+
+        class Head(HTMLParser):
+            def __init__(self) -> None:
+                super().__init__()
+                self.title, self.in_title, self.meta, self.canonical = "", False, {}, None
+
+            def handle_starttag(self, tag, attrs):
+                values = dict(attrs)
+                if tag == "title":
+                    self.in_title = True
+                elif tag == "meta":
+                    key = values.get("property") or values.get("name")
+                    if key:
+                        self.meta[key] = values.get("content")
+                elif tag == "link" and values.get("rel") == "canonical":
+                    self.canonical = values.get("href")
+
+            def handle_endtag(self, tag):
+                if tag == "title":
+                    self.in_title = False
+
+            def handle_data(self, data):
+                if self.in_title:
+                    self.title += data
+
+        config = json.loads((ROOT / "site.config.example.json").read_text(encoding="utf-8"))
+        config["FULL_NAME"] = 'Ana "A&B" Lima'
+        config = dict(config, **json_block(config))
+        with tempfile.TemporaryDirectory() as directory:
+            site = Path(directory) / "site"
+            build_site(str(ROOT / "template"), str(site), config)
+            pages = {path.relative_to(site).as_posix(): path.read_text(encoding="utf-8")
+                     for path in site.rglob("*.html") if path.name != "404.html"}
+
+        self.assertIn("profile.html", pages)
+        for rel, document in pages.items():
+            with self.subTest(page=rel):
+                head = Head()
+                head.feed(document)
+                self.assertEqual(head.title.count(config["FULL_NAME"]), 1, head.title)
+                self.assertEqual(head.meta.get("og:site_name"), config["FULL_NAME"])
+                self.assertTrue(head.meta.get("og:title"))
+                self.assertEqual(head.meta.get("twitter:card"), "summary")
+                self.assertEqual(head.meta.get("og:url"), head.canonical)
+                self.assertEqual(head.meta.get("author"), config["FULL_NAME"])
+                # The homepage previews the TAGLINE by design; every other
+                # page previews its own meta description.
+                if rel != "index.html":
+                    self.assertEqual(head.meta.get("og:description"), head.meta.get("description"))
+        profile = Head()
+        profile.feed(pages["profile.html"])
+        self.assertEqual(profile.title, config["FULL_NAME"])
+        roles = Head()
+        roles.feed(pages["experience.html"])
+        self.assertEqual(roles.title, "Roles | %s" % config["FULL_NAME"])
+        self.assertEqual(roles.meta["og:title"], "Roles")
+
     def test_example_is_exact_rebuild_from_example_config(self) -> None:
         # One comparator: scripts/regenerate_example.py --check reports the
         # same differences and a plain run repairs them.

@@ -564,12 +564,22 @@ def reading_estimate(md):
 
 
 
+def document_title(title, name):
+    """Name the site owner once in a page title.
+
+    A heading that already carries the name, such as the profile's own name or
+    "Name: public record", would otherwise read "Name | Name" in search
+    results and link previews.
+    """
+    return title if name and name in title else "%s | %s" % (title, name)
+
+
 SHELL = """<!doctype html>
 <html lang="{lang}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{title} | {name}</title>
+<title>{document_title}</title>
 <meta name="description" content="{desc}">
 <meta name="author" content="{name}">
 <link rel="canonical" href="https://{domain}/writing/{slug}.html">
@@ -577,6 +587,7 @@ SHELL = """<!doctype html>
 <link rel="describedby" href="/llms.txt">
 <link rel="alternate" type="application/atom+xml" href="/feed.xml" title="Writing feed">
 <meta property="og:type" content="article">
+<meta property="og:site_name" content="{name}">
 <meta property="og:title" content="{title}">
 <meta property="og:description" content="{desc}">
 <meta property="og:url" content="https://{domain}/writing/{slug}.html">
@@ -675,6 +686,7 @@ def render_page(slug, source, cfg, style=""):
         lang=html.escape(language, quote=True),
         lang_json=script_json(language),
         title=html.escape(title, quote=True),
+        document_title=html.escape(document_title(title, cfg.get("FULL_NAME", "")), quote=True),
         desc=html.escape(desc, quote=True),
         slug=quote(slug, safe="-._~"),
         domain=html.escape(cfg.get("DOMAIN", ""), quote=True),

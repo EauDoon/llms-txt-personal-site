@@ -17,6 +17,8 @@ All notable changes to this template are recorded here. The format follows [Keep
 
 ### Changed
 
+- A generated page names you once in its `<title>`. A heading that already holds `FULL_NAME` is the whole title, so `profile.html` is titled `Your Full Name` instead of `Your Full Name | Your Full Name`, and `press.html` and `now.html` no longer repeat the name. Other pages keep the `Heading | Name` form.
+- The core page companions, `writing.html`, `topics.html` and `search.html` carry `author`, Open Graph (`og:type`, `og:site_name`, `og:title`, `og:description`, `og:url`) and `twitter:card` tags, so a link to `profile.html` or `contact.html` shared in chat or on social media shows a preview. Only the homepage and articles had them. The homepage and articles also gain `og:site_name`.
 - The HTML companions render `*emphasis*` and `_emphasis_`, which used to appear with their delimiters, and `**strong**` and emphasis nest in either order. A delimiter that touches a letter, digit or `@` on its outside, follows a backslash, or is written as a character reference stays literal, so `snake_case`, `2*3*4` and `@_handle_` are unchanged. Emphasis now runs after links are parsed, so `**` inside a link destination stays in the `href`, and an image's `alt` text no longer carries `<strong>` markup. Check pages that use a literal pair of `*` or `_` around a word.
 - `quality_check.py --live` requests each path once and shares the response between its checks. A link with a fragment, such as the JSON-LD `@id` `https://yourname.com/#person`, is checked through the page it names rather than requested again, and the homepage and `/profile.md` are no longer fetched twice.
 

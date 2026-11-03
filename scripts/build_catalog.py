@@ -8,7 +8,7 @@ from urllib.parse import quote, unquote
 from xml.etree import ElementTree as ET
 from build_sitemap import validate_last_updated
 
-from build_writing_html import article_description, parse_front_matter, markdown_display, reading_estimate
+from build_writing_html import article_description, document_title, parse_front_matter, markdown_display, reading_estimate
 from build_llms_index import _safe_label
 from publishing import article_topics
 
@@ -113,6 +113,21 @@ def build_topics(site_dir, cfg, entries):
     (Path(site_dir) / 'topics.md').write_text(markdown, encoding='utf-8', newline='')
 
 
+def social_meta(title, cfg, desc=None, canonical=None):
+    """Author, Open Graph and Twitter tags, so a shared link has a preview."""
+    esc = html.escape
+    tags = ['<meta name="author" content="%s">' % esc(cfg["FULL_NAME"], quote=True),
+            '<meta property="og:type" content="website">',
+            '<meta property="og:site_name" content="%s">' % esc(cfg["FULL_NAME"], quote=True),
+            '<meta property="og:title" content="%s">' % esc(title, quote=True)]
+    if desc:
+        tags.append('<meta property="og:description" content="%s">' % esc(desc, quote=True))
+    if canonical:
+        tags.append('<meta property="og:url" content="%s">' % esc(canonical, quote=True))
+    tags.append('<meta name="twitter:card" content="summary">')
+    return "\n".join(tags)
+
+
 def page(title, body, cfg, source=None, heading=True, desc=None, canonical=None):
     esc = html.escape
     description = (
@@ -123,9 +138,11 @@ def page(title, body, cfg, source=None, heading=True, desc=None, canonical=None)
     canonical_link = (
         '<link rel="canonical" href="%s">' % esc(canonical, quote=True) if canonical else ''
     )
+    full_title = document_title(title, cfg["FULL_NAME"])
     return '''<!doctype html>
 <html lang="%s"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>%s | %s</title>%s%s<link rel="describedby" href="/llms.txt">
+<title>%s</title>%s%s<link rel="describedby" href="/llms.txt">
+%s
 <link rel="alternate" type="application/atom+xml" href="/feed.xml" title="Writing feed">
 <link rel="alternate" type="text/markdown" href="%s" title="Source in Markdown">
 <style>
@@ -146,7 +163,8 @@ pre,.table-scroll { overflow-x: auto; max-width: 100%%; } pre { padding: 1rem; b
 <nav aria-label="Site"><a href="/">%s</a> · <a href="/writing.html">Writing</a> · <a href="/topics.html">Topics</a> · <a href="/search.html">Search</a> · <a href="/llms.txt">Machine-readable index</a></nav>
 <main id="main-content">%s%s</main></body></html>
 ''' % (esc(cfg.get("SITE_LANGUAGE") or "en", quote=True),
-       esc(title), esc(cfg["FULL_NAME"]), description, canonical_link,
+       esc(full_title), description, canonical_link,
+       social_meta(title, cfg, desc, canonical),
        esc(source or '/' + title.lower() + '.md', quote=True),
        esc(cfg["FULL_NAME"]), '<h1>%s</h1>' % esc(title) if heading else '', body)
 
