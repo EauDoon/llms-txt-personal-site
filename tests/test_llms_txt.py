@@ -9,7 +9,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from build_writing_html import render_page
-from llms_txt import has_link_relation, markdown_alternate, unlisted_pages, validate_llms_txt
+from llms_txt import has_link_relation, homepage_unlinked_pages, markdown_alternate, unlisted_pages, validate_llms_txt
 
 
 class UnlistedPagesTests(unittest.TestCase):
@@ -60,6 +60,47 @@ class UnlistedPagesTests(unittest.TestCase):
             site = self.site(directory, "profile.md")
             (site / "writing").write_text("not a directory\n", encoding="utf-8")
             self.assertEqual(unlisted_pages("# Example\n", "example.test", site), ["profile.md"])
+
+
+class HomepageUnlinkedPagesTests(unittest.TestCase):
+    """A core page the homepage never links has no route from the landing page."""
+
+    def site(self, directory: str, *pages: str) -> Path:
+        root = Path(directory)
+        for page in pages:
+            path = root / page
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text("# Page\n", encoding="utf-8")
+        return root
+
+    def test_markdown_or_companion_links_count_in_any_same_site_form(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            site = self.site(directory, "profile.md", "faq.md", "contact.md", "about.md", "notes.md")
+            document = (
+                '<a href="/profile.md">Profile</a>'
+                '<a href="faq.html#top">FAQ</a>'
+                '<a href="https://EXAMPLE.test/contact.html?ref=home">Contact</a>'
+                '<a href="https://other.test/about.html">Elsewhere</a>'
+                '<link rel="alternate" href="/notes.md">'
+            )
+            self.assertEqual(homepage_unlinked_pages(document, "example.test", site), ["about.md", "notes.md"])
+
+    def test_generated_pages_articles_and_other_files_need_no_link(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            site = self.site(directory, "writing.md", "topics.md", "search.md", "llms.txt",
+                             "profile.html", "writing/essay.md")
+            self.assertEqual(homepage_unlinked_pages("<p>No links</p>", "example.test", site), [])
+
+    def test_url_encoded_links_match_their_page(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            site = self.site(directory, "café notes.md")
+            document = '<a href="/caf%C3%A9%20notes.html">Notes</a>'
+            self.assertEqual(homepage_unlinked_pages(document, "example.test", site), [])
+
+    def test_the_shipped_homepage_links_every_core_page(self) -> None:
+        example = ROOT / "example"
+        document = (example / "index.html").read_text(encoding="utf-8")
+        self.assertEqual(homepage_unlinked_pages(document, "yourname.com", example), [])
 
 
 class LlmsTxtTests(unittest.TestCase):

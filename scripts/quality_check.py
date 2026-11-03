@@ -35,7 +35,8 @@ from console_output import configure, dump_json
 from host_contract import HOMEPAGE_HEADERS, SITEMAP_TYPES, file_type_ok, has_discovery_link, header_values, \
     media_type, promised_file_type
 from http_client import fetch_url
-from llms_txt import _local_path, has_link_relation, markdown_alternate, unlisted_pages, validate_llms_txt
+from llms_txt import _local_path, has_link_relation, homepage_unlinked_pages, markdown_alternate, unlisted_pages, \
+    validate_llms_txt
 from email_addresses import address_key, contact_values, validate_email_address
 from version import PROJECT, __version__
 
@@ -696,6 +697,18 @@ else:
         print("  WARN llms.txt does not link %s; link it, under ## Optional if it is secondary" % shown_path(rel))
     if not unlisted:
         print("  ok   every published Markdown page is linked from llms.txt")
+
+# The homepage navigation is hand-written too. A core page it never links has
+# no route from the page a reader or crawler lands on first.
+index_path = os.path.join(R, "index.html")
+if os.path.isfile(index_path):
+    unlinked = homepage_unlinked_pages(read(index_path), DOMAIN, R)
+    for rel in unlinked:
+        warns.append("the homepage does not link %s" % shown_path(rel))
+        print("  WARN the homepage does not link %s or its HTML companion; add it to index.html"
+              % shown_path(rel))
+    if not unlinked:
+        print("  ok   the homepage links every core page")
 
 for rel, p in sources():
     if not rel.endswith(".html") or rel == "404.html":

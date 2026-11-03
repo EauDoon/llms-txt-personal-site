@@ -871,7 +871,29 @@ class QualityCheckTests(unittest.TestCase):
         self.assertIn("WARN llms.txt does not link notes.md; link it, under ## Optional if it is secondary",
                       result.stdout)
         self.assertIn("FAILURES: 0", result.stdout)
-        self.assertEqual(self.summary_items(result.stdout, "WARNINGS"), ["llms.txt does not link notes.md"])
+        # The new page is missing from both hand-written routes.
+        self.assertEqual(self.summary_items(result.stdout, "WARNINGS"),
+                         ["llms.txt does not link notes.md", "the homepage does not link notes.md"])
+
+    def test_a_core_page_missing_from_the_homepage_warns(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            sample = self.gate(self.rules_repo(directory))
+        self.assertEqual(sample.returncode, 0, sample.stdout + sample.stderr)
+        self.assertIn("ok   the homepage links every core page", sample.stdout)
+
+        def unlink_about(template):
+            index = template / "index.html"
+            text = index.read_text(encoding="utf-8")
+            self.assertIn('<a href="/about.html">', text)
+            index.write_text(text.replace('  <li><a href="/about.html">About this site</a></li>\n', ""),
+                             encoding="utf-8")
+
+        with tempfile.TemporaryDirectory() as directory:
+            result = self.gate(self.rules_repo(directory, unlink_about), None, "--json")
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        report = json.loads(result.stdout)
+        self.assertIs(report["passed"], True)
+        self.assertEqual(report["warnings"], ["the homepage does not link about.md"])
 
     def test_default_rules_file_lives_beside_the_scripts(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
