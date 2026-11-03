@@ -19,6 +19,7 @@
   "CITY": "Your City",
   "COUNTRY_CODE": "XX",
   "COUNTRY_NAME": "Your Country",
+  "_location_note": "CITY, COUNTRY_CODE and COUNTRY_NAME say where you are based. The structured data publishes them as your home location only, never as a nationality or as your employer's address.",
 
   "X_HANDLE": "yourhandle",
   "LINKEDIN_SLUG": "your-linkedin-slug",

@@ -87,8 +87,8 @@
     },
     {
       "path": "index.html",
-      "bytes": 9802,
-      "sha256": "1a334d35c5dbf42ed546b67320b0516be432ada4630b5d32f1c4a8f82635da20"
+      "bytes": 9621,
+      "sha256": "a64eccb762002f13e53f3df7d13d3b93f4eec796b663d515cc49f8ac3abc8b1c"
     },
     {
       "path": "llms-full.txt",

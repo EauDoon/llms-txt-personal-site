@@ -235,6 +235,28 @@ class BuildTests(unittest.TestCase):
         self.assertNotIn("</script><script>", match.group(1).lower())
         self.assertIn(r"\u003c/script\u003e", match.group(1).lower())
 
+    def test_json_ld_states_only_facts_the_config_supplies(self) -> None:
+        # The location fields say where the subject is based. Publishing them
+        # as a nationality or as the employer's address asserts two facts the
+        # config never states, and structured data is read as fact.
+        config = json.loads(
+            (ROOT / "site.config.example.json").read_text(encoding="utf-8")
+        )
+        config.update({"CITY": "Lisbon", "COUNTRY_CODE": "PT", "COUNTRY_NAME": "Portugal"})
+        encoded = json_block(config)["JSON_LD"]
+        nodes = {node["@type"]: node for node in json.loads(encoded)["@graph"]}
+
+        person, employer = nodes["Person"], nodes["Organization"]
+        self.assertNotIn("nationality", person)
+        self.assertNotIn("address", employer)
+        self.assertNotIn("Lisbon", json.dumps(employer))
+        self.assertEqual(person["homeLocation"]["name"], "Lisbon, Portugal")
+        self.assertEqual(
+            person["homeLocation"]["address"],
+            {"@type": "PostalAddress", "addressLocality": "Lisbon", "addressCountry": "PT"},
+        )
+        self.assertEqual(person["worksFor"], {"@id": employer["@id"]})
+
     def test_example_is_exact_rebuild_from_example_config(self) -> None:
         # One comparator: scripts/regenerate_example.py --check reports the
         # same differences and a plain run repairs them.
