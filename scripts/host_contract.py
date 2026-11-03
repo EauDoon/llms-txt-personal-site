@@ -22,7 +22,7 @@ SITEMAP_TYPES = ("application/xml", "text/xml")
 DISCOVERY_LINK = ("/llms.txt", "describedby")
 # Sent on the homepage beside nosniff and the Content-Security-Policy. None
 # means any nonempty value.
-HOMEPAGE_HEADERS = {"X-Frame-Options": "DENY", "Permissions-Policy": None}
+HOMEPAGE_HEADERS = {"X-Frame-Options": "DENY", "Permissions-Policy": None, "Strict-Transport-Security": None}
 
 
 def header_values(headers, name):

@@ -70,7 +70,10 @@ AddDefaultCharset UTF-8
 
   # HTTPS is forced unconditionally below, so tell browsers not to try plaintext
   # at all. Remove this line if the site ever needs to be reachable over HTTP.
-  Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
+  # It covers this host only. Add "; includeSubDomains" in all three host
+  # configs only once every subdomain of the domain serves HTTPS, or browsers
+  # will refuse a plain-HTTP subdomain for two years.
+  Header always set Strict-Transport-Security "max-age=63072000"
 </IfModule>
 
 # --- One canonical host: force HTTPS, strip www ------------------------------
