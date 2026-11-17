@@ -6,6 +6,8 @@ All notable changes to this template are recorded here. The format follows [Keep
 
 ### Added
 
+- Writing HTML supports tilde-fenced code blocks and preserves comments and headings inside them. Closing fences must match the opening character and minimum length.
+
 - `review_build.py --check` provides a read-only drift gate: a passing identical candidate exits 0, added/changed/removed output exits 2 with the full report, and review failure exits 1. It never replaces the current site.
 
 - An article without a `desc` is described by its own first sentence in its `llms.txt` link, the writing directory (`writing.html` and `writing.md`) and the Atom `summary`, the same sentence its meta description already used. They used to publish no description, and the feed an empty `summary`. An article with no sentence gets no `summary` element. Search still shows only an authored `desc`.

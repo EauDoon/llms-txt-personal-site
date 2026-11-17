@@ -13,6 +13,28 @@ from build_writing_html import md_to_html, page_description, render_page, run
 
 
 class WritingHtmlTests(unittest.TestCase):
+    def test_tilde_fences_keep_code_and_comments_literal(self) -> None:
+        self.assertEqual(
+            md_to_html("~~~html\n<!-- visible sample -->\n# code heading\n~~~\nAfter."),
+            '<pre><code class="language-html">&lt;!-- visible sample --&gt;\n# code heading</code></pre>\n<p>After.</p>',
+        )
+
+    def test_tilde_fences_interrupt_paragraphs_and_list_continuations(self) -> None:
+        self.assertEqual(md_to_html("Before.\n~~~\ncode\n~~~"),
+                         '<p>Before.</p>\n<pre><code>code</code></pre>')
+        self.assertEqual(md_to_html("- Item\n  ~~~\ncode\n  ~~~"),
+                         '<ul>\n<li>Item</li>\n</ul>\n<pre><code>code</code></pre>')
+
+    def test_fence_closer_must_match_character_and_length(self) -> None:
+        self.assertEqual(
+            md_to_html("~~~~\n~~~\n```\n~~~~~ \t\nAfter."),
+            '<pre><code>~~~\n```</code></pre>\n<p>After.</p>',
+        )
+        self.assertEqual(
+            md_to_html("```\n~~~\n```\nAfter."),
+            '<pre><code>~~~</code></pre>\n<p>After.</p>',
+        )
+
     def test_unmatched_block_prefixes_render_as_literal_paragraphs(self) -> None:
         rendered = md_to_html("| not a table\n>not a quote\n# Next section")
 
