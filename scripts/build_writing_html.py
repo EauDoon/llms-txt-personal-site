@@ -172,11 +172,16 @@ def opening_fence(line):
     candidate = fence_line(line)
     if candidate is None:
         return None
-    return re.fullmatch(r"(`{3,})([^`]*)", candidate)
+    match = re.fullmatch(r"(`{3,}|~{3,})(.*)", candidate)
+    # CommonMark forbids backticks in a backtick fence's info string, but
+    # tilde fences may describe literal backticks.
+    if match and match[1][0] == "`" and "`" in match[2]:
+        return None
+    return match
 
 
 def closes_fence(line, marker):
-    """A closer is a long enough run of backticks, then only spaces or tabs.
+    """A closer repeats the opening fence character, then only spaces or tabs.
 
     `strip("`")` treats a trailing space as content, so the fence never
     closes and the rest of the page is rendered as code.
@@ -184,7 +189,7 @@ def closes_fence(line, marker):
     candidate = fence_line(line)
     if candidate is None:
         return False
-    return re.fullmatch(r"`{%d,}[ \t]*" % len(marker), candidate) is not None
+    return re.fullmatch(re.escape(marker[0]) + r"{%d,}[ \t]*" % len(marker), candidate) is not None
 
 
 def strip_guidance_comments(md):
@@ -368,7 +373,7 @@ def md_to_html(md):
         while i < len(lines):
             line, stripped = lines[i], lines[i].strip()
             if (not stripped or not line[0].isspace()
-                    or re.match(r"^(#{1,4}\s|[-*]\s|\d+\.\s|\||>|`{3,}|---$)", stripped)):
+                    or re.match(r"^(#{1,4}\s|[-*]\s|\d+\.\s|\||>|`{3,}|~{3,}|---$)", stripped)):
                 break
             buf.append(stripped)
             i += 1
@@ -458,7 +463,7 @@ def md_to_html(md):
 
         close()
         buf = []
-        while i < len(lines) and lines[i].strip() and not re.match(r"^(#{1,4}\s|[-*]\s|\d+\.\s|\||>|`{3,}|---$)", lines[i].strip()):
+        while i < len(lines) and lines[i].strip() and not re.match(r"^(#{1,4}\s|[-*]\s|\d+\.\s|\||>|`{3,}|~{3,}|---$)", lines[i].strip()):
             buf.append(lines[i].strip()); i += 1
         # A reserved block prefix is not necessarily a valid block. Consume it
         # as literal paragraph text when none of the block parsers matched so
