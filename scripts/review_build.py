@@ -39,7 +39,7 @@ def gate_report(stdout):
         document = json.loads(stdout)
     except ValueError:
         return None
-    if not isinstance(document, dict) or not all(
+    if not isinstance(document, dict) or not isinstance(document.get('passed'), bool) or not all(
             isinstance(document.get(key), list) and all(isinstance(item, str) for item in document[key])
             for key in ('failures', 'warnings')):
         return None
@@ -74,9 +74,11 @@ def review_candidate(template, current, cfg):
                                 encoding='utf-8', errors='replace', timeout=120,
                                 env=dict(os.environ, PYTHONIOENCODING='utf-8'))
         gate = gate_report(result.stdout)
-        if result.returncode:
+        if result.returncode or not gate or not gate['passed'] or gate['failures']:
             if gate and gate['failures']:
                 raise ValueError('candidate quality gate failed:\n' + '\n'.join('- ' + item for item in gate['failures']))
+            if not result.returncode:
+                raise ValueError('candidate quality gate did not return a valid passing JSON report')
             raise ValueError('candidate quality gate failed:\n' + (result.stdout + result.stderr)[-6000:])
         after = snapshot(candidate)
         if before != snapshot(current):
@@ -99,6 +101,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--version", action="version", version="%(prog)s " + __version__)
     parser.add_argument('--json', action='store_true', help='emit exact path/byte/hash records as JSON')
+    parser.add_argument('--check', action='store_true',
+                        help='exit 2 when a passing candidate differs from current output; never replace it')
     args = parser.parse_args(argv)
     try:
         report = review_candidate(Path(ROOT) / 'template', Path(ROOT) / 'site', load_config())
@@ -118,6 +122,8 @@ def main(argv=None):
         for issue in report['current_artifact_issues']:
             print('Current output issue: ' + issue)
         print('Candidate manifest SHA-256: ' + report['candidate_manifest_sha256'])
+    if args.check and any(report[kind] for kind in ('added', 'changed', 'removed')):
+        return 2
     return 0
 
 

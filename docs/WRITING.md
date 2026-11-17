@@ -1,5 +1,14 @@
 # Writing, discovery, and build review
 
+Use `python scripts/review_build.py --check --json` to detect candidate drift
+in a read-only local CI step. Exit 0 means the passing candidate has identical
+bytes to the current output; exit 2 means files were added, changed or removed;
+exit 1 means the candidate could not pass review. The same full report is
+printed on exit 0 or 2. A missing `site/` is a first build and exits 2. Without
+`--check`, a passing candidate still exits 0 even when its files differ.
+The quality subprocess must return both a zero exit status and a valid JSON
+report with `passed: true` and no failures before the review can pass.
+
 Before replacing a local build, run `python scripts/review_build.py` (or `--json`). It builds in a temporary directory, runs the real required quality gate and offline artifact audit, then reports added, changed, removed, and unchanged outputs against actual current bytes. The JSON includes path, byte counts, hashes, the candidate manifest hash, and the gate's warnings, counted in `quality_warnings` and listed in `quality_warning_messages`. A candidate that fails the gate is reported with the gate's own failure messages. Existing artifact drift is reported separately. Missing `site/` is treated as a first build. The command leaves current output untouched, removes its temporary candidate, and fails if current output changes during review. It never deploys or approves factual claims. Run the regular builder when ready to replace the local output. The quality CLI accepts `--site DIRECTORY --config FILE` for inspecting an explicit candidate; `--live` remains a separate opt-in network check.
 
 Search supports page-type and authored-topic filters, literal text snippets, and shareable `q`, `type`, and `topic` URL parameters. Typing updates the current URL; filter changes and clearing create navigation history, and Back/Forward restore it. Query text remains client-side search input, but a shared or reloaded URL contains that text and may appear in ordinary hosting logs. No analytics service is added. If loading fails or exceeds ten seconds, the original complete page list stays available and Retry fetches fresh data; successful retry restores the chosen filters. Without JavaScript, use that static directory.
