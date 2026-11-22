@@ -174,6 +174,28 @@ class WritingHtmlTests(unittest.TestCase):
         self.assertEqual(re.findall(r'href="([^"]*)"', rendered),
                          ["https://a.test/b", "https://a.test/c", "https://a.test/d_e"])
 
+    def test_bare_url_trailing_underscore(self) -> None:
+        def anchor(url):
+            return f'<a href="{url}">{url}</a>'
+
+        url = "https://a.test/guide"
+        cases = (
+            ("path", f"See {url}_", f"See {anchor(url + '_')}"),
+            ("repeated underscores before punctuation", f"{url}__!?", anchor(url + "__") + "!?"),
+            ("query value", f"{url}?tag=read_, next", anchor(url + "?tag=read_") + ", next"),
+            ("fragment after parentheses", f"({url}(v2)#part_).", "(" + anchor(url + "(v2)#part_") + ")."),
+            ("underscore emphasis", f"_{url}_.", f"<em>{anchor(url)}</em>."),
+            ("underscore in emphasized URL", f"_Read {url}__!", f"<em>Read {anchor(url + '_')}</em>!"),
+            ("asterisk strong", f"**{url}_**", f"<strong>{anchor(url + '_')}</strong>"),
+            ("escaped opener", rf"\_{url}_", r"\_" + anchor(url + "_")),
+            ("punctuation inside emphasis", f"_Read {url}._", f"<em>Read {anchor(url)}.</em>"),
+            ("independent spans", f"_{url}_ and {url}_ and _notes_",
+             f"<em>{anchor(url)}</em> and {anchor(url + '_')} and <em>notes</em>"),
+        )
+        for case, markdown, expected in cases:
+            with self.subTest(case=case):
+                self.assertEqual(md_to_html(markdown), f"<p>{expected}</p>")
+
     def test_bare_url_autolink_keeps_interior_path_characters(self) -> None:
         rendered = md_to_html("Path https://a.test/x.b/c?d=1. done")
 

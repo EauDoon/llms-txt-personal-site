@@ -278,6 +278,37 @@ class LiveHeaderTests(unittest.TestCase):
             headers["Access-Control-Allow-Origin"] = list(origins)
         return headers
 
+    def test_live_link_requests_keep_literal_underscores(self) -> None:
+        root = "https://links.example/link-eval/"
+        sources = {
+            "profile.md": (
+                f"See {root}bare_.\n\nRepeated {root}double__!?\n\n"
+                f"_{root}em_. _Read\n{root}both__! **{root}bold_**.\n\n"
+                f"Escaped \\_{root}escaped_, [guide]({root}explicit_), and <{root}angle_>.\n\n"
+                f"({root}guide(v2)_). Query {root}query?tag=one&next=two_, next.\n\n"
+                f"_Query {root}query-name?first=one&copy=two__! Entity {root}encoded&#95;.\n\n"
+                f"_See {root}period._ and {root}period._\n\n"
+                f"<!-- Raw metadata {root}metadata_ -->\n"
+            ),
+            "llms.txt": f"\n_Read {root}index___.\n",
+            "index.html": f'<a href="{root}html_">Guide</a>\n',
+            "feed.xml": f'<!-- {root}xml_ -->\n',
+        }
+
+        def prepare(site):
+            for name, content in sources.items():
+                with (site / name).open("a", encoding="utf-8") as target:
+                    target.write("\n" + content)
+
+        expected = {"bare_", "double__", "em", "both_", "bold_", "escaped_", "explicit_", "angle_",
+                    "guide(v2)_", "query?tag=one&next=two_", "period", "period._", "metadata_",
+                    "index__", "html_", "xml_", "query-name?first=one&copy=two_", "encoded_"}
+        responses = {urlsplit(root + path).path: (200, {}, b"") for path in expected}
+        output = self.run_live_gate(extra_config={"DOMAIN": "links.example"}, prepare=prepare, responses=responses)
+        actual = [url.removeprefix(root) for url in self.requests if url.startswith(root)]
+        self.assertCountEqual(actual, expected)
+        self.assertIn("every URL resolves 200", output)
+
     def test_missing_security_headers_warn_without_failing(self) -> None:
         output = self.run_live_gate({}, None)
         self.assertIn("WARN homepage sends X-Content-Type-Options: nosniff", output)
