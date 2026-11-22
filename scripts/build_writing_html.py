@@ -36,13 +36,16 @@ def inline_parts(text):
 
 
 STRONG = re.compile(r"\*\*([^*]+)\*\*")
+# An underscore at the end of a URL can close an open span, but cannot open
+# one. Source text is HTML-escaped before any internal markers are inserted.
+URL_UNDERSCORE = "<url-underscore>"
 # *text* and _text_ are emphasis when the delimiters do not touch a letter,
 # digit or @ on the outside, so snake_case_name, 2*3*4, @_handle_ and
 # _local_@example.com stay literal. A delimiter after a backslash is never
 # one, so \*literal\* keeps its text. Rendered tags may sit inside the span.
 EMPHASIS = re.compile(
     r"(?<![\w*@\\])\*(?![\s*])((?:[^*<]|<[^>]*>)+?)(?<![\s*\\])\*(?![\w*@])"
-    r"|(?<![\w@\\])_(?![\s_])((?:[^_<]|<[^>]*>)+?)(?<![\s_\\])_(?![\w@])"
+    rf"|(?<![\w@\\])_(?![\s_])((?:[^_<]|<[^>]*>)+?)(?<![\s_\\])(?:_|{URL_UNDERSCORE})(?![\w@])"
 )
 
 
@@ -85,7 +88,9 @@ LINK_TRAILING = ".,;:!?"
 # A bare URL can also sit inside emphasis, as in *https://example.com/a*.
 # The closing delimiter ends the URL, as in GitHub's autolink extension, so
 # the link points at /a rather than /a*.
-AUTOLINK_TRAILING = LINK_TRAILING + "*_"
+BARE_TRAILING = LINK_TRAILING + "*"
+# The live quality check scans raw source, including emphasis delimiters.
+AUTOLINK_TRAILING = BARE_TRAILING + "_"
 
 
 def _quoted_title(value):
@@ -128,19 +133,8 @@ def markdown_destination(target):
     return destination
 
 
-def autolink(match):
-    """Wrap a bare URL, leaving sentence punctuation outside the anchor.
-
-    A full stop is a legal path character, so a greedy match publishes
-    https://example.com. as the destination and the link resolves nowhere.
-    """
-    url = match.group(0)
-    trimmed = url.rstrip(AUTOLINK_TRAILING)
-    # A bare scheme with nothing after it is not a URL worth linking.
-    if not re.match(r"https?://[^/?#]+", trimmed):
-        return url
-    tail = url[len(trimmed):]
-    return '<a href="%s">%s</a>%s' % (trimmed, trimmed, tail)
+def url_anchor(url):
+    return '<a href="%s">%s</a>' % (url, url)
 
 
 def parse_front_matter(md):
@@ -342,22 +336,39 @@ def md_to_html(md):
             trimmed = url.rstrip(LINK_TRAILING)
             if not re.match(r"https?://[^/?#]+", trimmed):
                 return match.group(0)
-            return hold('<a href="%s">%s</a>' % (trimmed, trimmed)) + url[len(trimmed):]
+            return hold(url_anchor(trimmed)) + url[len(trimmed):]
 
         def hold(anchor):
             placeholder = '<span data-rendered-link="%d"></span>' % len(rendered_links)
             rendered_links.append((placeholder, anchor))
             return placeholder
 
+        literal_underscores = []
+
         def bare(match):
-            linked = autolink(match)
-            anchor = re.match(r"<a [^>]*>[^<]*</a>", linked)
-            return hold(anchor[0]) + linked[anchor.end():] if anchor else linked
+            url = match[0]
+            trimmed = url.rstrip(BARE_TRAILING)
+            tail = url[len(trimmed):]
+            if not re.match(r"https?://[^/?#]+", trimmed):
+                return url
+            if trimmed.endswith("_"):
+                # Offer only the last underscore to the emphasis parser. If it
+                # closes a span, the preceding punctuation belongs inside it.
+                stem = trimmed[:-1].rstrip(BARE_TRAILING)
+                if re.match(r"https?://[^/?#]+", stem):
+                    marker = hold(url_anchor(stem)) + trimmed[len(stem):-1] + URL_UNDERSCORE
+                    literal_underscores.append((marker, url_anchor(trimmed)))
+                    return marker + tail
+            return hold(url_anchor(trimmed)) + tail
 
         s = re.sub(r"&lt;(" + url_body + r")&gt;", bracketed, s)
         # An opening _ is emphasis, not part of a word, so _https://..._ links.
         s = re.sub(r"(?<![\">=/])(?<![^\W_])(" + url_body + r")", bare, s)
         s = emphasis(s)
+        # A marker still next to its link was literal URL content.
+        for marker, anchor in literal_underscores:
+            s = s.replace(marker, anchor)
+        s = s.replace(URL_UNDERSCORE, "_")
         for placeholder, inert_text in inert_links:
             s = s.replace(placeholder, inert_text)
         for placeholder, rendered in rendered_links:

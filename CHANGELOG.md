@@ -37,6 +37,7 @@ All notable changes to this template are recorded here. The format follows [Keep
 
 ### Fixed
 
+- HTML companions preserve trailing underscores in bare URL destinations and link text. An underscore that closes Markdown emphasis still renders as formatting.
 - Build review now requires a valid quality-gate JSON report with `passed: true` and an empty failures list as well as a zero subprocess exit code. Empty, malformed or contradictory successful output can no longer be labelled a passing candidate.
 
 - The homepage JSON-LD no longer states two facts the config never supplies. It published `COUNTRY_NAME`, the country you are based in, as the Person's `nationality`, and gave the employer `Organization` an `address` in your `CITY`. A subject based abroad, or an employer headquartered elsewhere, was misdescribed in the data assistants read as fact. The location fields now describe only the Person's `homeLocation`, which also gains a `name` such as `Lisbon, Portugal`. The config keys are unchanged.
