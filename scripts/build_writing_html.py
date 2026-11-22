@@ -23,6 +23,7 @@ from build_sitemap import validate_last_updated
 WRITING_INDEX_BEGIN = "<!-- BEGIN GENERATED WRITING INDEX -->"
 WRITING_INDEX_END = "<!-- END GENERATED WRITING INDEX -->"
 INLINE_CODE = re.compile(r"(?<!`)(`+)(?!`)(.+?)(?<!`)\1(?!`)")
+CHARACTER_REFERENCE = re.compile(r'&(?:#[0-9]+|#[xX][0-9A-Fa-f]+|[A-Za-z][A-Za-z0-9]+);')
 
 
 def inline_parts(text):
@@ -89,8 +90,6 @@ LINK_TRAILING = ".,;:!?"
 # The closing delimiter ends the URL, as in GitHub's autolink extension, so
 # the link points at /a rather than /a*.
 BARE_TRAILING = LINK_TRAILING + "*"
-# The live quality check scans raw source, including emphasis delimiters.
-AUTOLINK_TRAILING = BARE_TRAILING + "_"
 
 
 def _quoted_title(value):
@@ -226,7 +225,8 @@ def strip_guidance_comments(md):
     return "\n".join(output)
 
 
-def md_to_html(md):
+def md_to_html(md, *, closed_url_underscores=None):
+    """Render Markdown and optionally record source URLs shortened by emphasis."""
     md = strip_guidance_comments(md)
     lines = md.split("\n")
     out, i = [], 0
@@ -261,7 +261,7 @@ def md_to_html(md):
                 literal_code.append((marker, '<code>%s</code>' % html.escape(value, quote=True)))
                 parts.append(marker)
             else:
-                value = re.sub(r'&(?:#[0-9]+|#[xX][0-9A-Fa-f]+|[A-Za-z][A-Za-z0-9]+);', entity, value)
+                value = CHARACTER_REFERENCE.sub(entity, value)
                 parts.append(html.escape(value, quote=True))
         s = "".join(parts)
         # Emphasis runs after every link and URL is held in a placeholder, so
@@ -357,7 +357,7 @@ def md_to_html(md):
                 stem = trimmed[:-1].rstrip(BARE_TRAILING)
                 if re.match(r"https?://[^/?#]+", stem):
                     marker = hold(url_anchor(stem)) + trimmed[len(stem):-1] + URL_UNDERSCORE
-                    literal_underscores.append((marker, url_anchor(trimmed)))
+                    literal_underscores.append((marker, trimmed, stem))
                     return marker + tail
             return hold(url_anchor(trimmed)) + tail
 
@@ -366,8 +366,12 @@ def md_to_html(md):
         s = re.sub(r"(?<![\">=/])(?<![^\W_])(" + url_body + r")", bare, s)
         s = emphasis(s)
         # A marker still next to its link was literal URL content.
-        for marker, anchor in literal_underscores:
-            s = s.replace(marker, anchor)
+        for marker, trimmed, stem in literal_underscores:
+            if closed_url_underscores is not None and marker not in s:
+                closed_url_underscores.append(tuple(
+                    restore_entities(html.unescape(url), escaped=False) for url in (trimmed, stem)
+                ))
+            s = s.replace(marker, url_anchor(trimmed))
         s = s.replace(URL_UNDERSCORE, "_")
         for placeholder, inert_text in inert_links:
             s = s.replace(placeholder, inert_text)

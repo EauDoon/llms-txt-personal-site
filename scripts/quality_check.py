@@ -16,6 +16,7 @@
 # which is worse than having none. Every rule below is therefore scoped to the
 # thing it actually forbids, and the deliberate exceptions are named in code.
 import hashlib
+import html
 import io
 import json
 import argparse
@@ -31,7 +32,7 @@ from urllib.parse import quote, urlsplit
 from a2a_agent_card import load_agent_card, validate_agent_card
 from build import BINARY_SUFFIXES, fill
 from build_sitemap import public_urls, validate_last_updated, verification_files
-from build_writing_html import AUTOLINK_TRAILING
+from build_writing_html import BARE_TRAILING, CHARACTER_REFERENCE, md_to_html
 from console_output import configure, dump_json
 from host_contract import HOMEPAGE_HEADERS, SITEMAP_TYPES, file_type_ok, has_discovery_link, header_values, \
     media_type, promised_file_type
@@ -1011,6 +1012,29 @@ def deployed_manifest_origin(body):
             shown.append("%s %s" % (key, value))
     return " (deployed %s)" % ", ".join(shown) if shown else ""
 
+def source_link_paths(document, origin, *, markdown):
+    """Keep raw-source coverage and apply the renderer's actual emphasis closures."""
+    # Accept one balanced pair at a time, as the Markdown renderer does.
+    pattern = re.compile(re.escape(origin) + r"""(/(?:[^\s()"'<>\]]|\([^\s()"'<>\]]*\))*)?""")
+    counts = Counter()
+    for match in pattern.finditer(document):
+        # A query parameter such as &copy=value is literal in a URL.
+        path = CHARACTER_REFERENCE.sub(lambda ref: html.unescape(ref[0]), match[1] or "/")
+        counts[path.rstrip(BARE_TRAILING)] += 1
+    paths = set()
+    if markdown and any(path.endswith("_") for path in counts):
+        closed = []
+        md_to_html(document, closed_url_underscores=closed)
+        for original, destination in closed:
+            if original.startswith(origin + "/"):
+                path = original[len(origin):]
+                if counts[path]:
+                    # The same URL can appear once as a literal and once with
+                    # a formatting delimiter. Correct only this occurrence.
+                    counts[path] -= 1
+                    paths.add(destination[len(origin):])
+    return paths | {path for path, count in counts.items() if count}
+
 if LIVE:
     head("10. LIVE: LINKS AND SITEMAP")
     # Each path is requested once and shared by every check below. Only a
@@ -1030,14 +1054,9 @@ if LIVE:
         return live_responses[path]
 
     links = set()
+    origin = "https://" + DOMAIN
     for rel, p in sources():
-        for m in re.finditer(r"https://" + re.escape(DOMAIN) + r"(/[^\s)\"'<>\]]*)?", read(p)):
-            # Sentence punctuation and a closing * or _ end a URL the same way
-            # the Markdown autolinker does. Leaving them on the path makes --live
-            # request a file that was never built, such as /faq.html** from
-            # **https://domain/faq.html**.
-            u = (m.group(1) or "/").rstrip(AUTOLINK_TRAILING)
-            links.add(u)
+        links.update(source_link_paths(read(p), origin, markdown=rel.endswith((".md", ".txt"))))
     sm = read(os.path.join(R, "sitemap.xml"))
     links |= set(re.findall(r"<loc>https://" + re.escape(DOMAIN) + r"(/[^<]*)</loc>", sm))
     print("  checking %d distinct URLs..." % len(links))
