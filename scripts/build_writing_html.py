@@ -491,24 +491,30 @@ def md_to_html(md, *, closed_url_underscores=None):
     return "\n".join(out)
 
 
-def markdown_display(md):
+def markdown_display(md, *, prose_only=False):
     """Return rendered text and the first real H1's text from one HTML parse."""
     class Text(HTMLParser):
         def __init__(self):
             super().__init__(convert_charrefs=True)
             self.parts = []
+            self.skip_block = None
             self.heading, self.in_heading, self.heading_done = [], False, False
 
         def handle_starttag(self, tag, attrs):
+            if prose_only and tag in {"pre", "h1", "h2", "h3", "h4", "h5", "h6"}:
+                self.skip_block = tag
             if tag == "h1" and not self.heading_done:
                 self.in_heading = True
 
         def handle_data(self, value):
-            self.parts.append(value)
+            if self.skip_block is None:
+                self.parts.append(value)
             if self.in_heading:
                 self.heading.append(value)
 
         def handle_endtag(self, tag):
+            if tag == self.skip_block:
+                self.skip_block = None
             if tag == "h1" and self.in_heading:
                 self.in_heading, self.heading_done = False, True
             if tag in {"h1", "h2", "h3", "h4", "p", "li", "pre", "tr"}:
@@ -573,8 +579,8 @@ def article_description(meta, body):
     """
     if meta.get("desc"):
         return meta["desc"]
-    text, heading = markdown_display(body)
-    return page_description(text, heading=heading)
+    text, _ = markdown_display(body, prose_only=True)
+    return page_description(text, heading="")
 
 
 def reading_estimate(md):
@@ -693,9 +699,8 @@ def render_page(slug, source, cfg, style=""):
     """Render one writing page without requiring its slug to be a local filename."""
     meta, md = parse_front_matter(source)
     title = meta.get("title") or slug.replace("-", " ").title()
-    rendered_text, rendered_heading = markdown_display(md)
     content, outline = article_outline(md_to_html(md))
-    desc = meta.get("desc") or page_description(rendered_text, heading=rendered_heading)
+    desc = article_description(meta, md)
     about = [a.strip() for a in meta.get("about", "").split(",") if a.strip()]
     modified = validate_last_updated(meta.get("updated") or cfg.get("LAST_UPDATED"))
     published = validate_last_updated(meta["published"]) if meta.get("published") else None

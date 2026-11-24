@@ -4,6 +4,10 @@ All notable changes to this template are recorded here. The format follows [Keep
 
 ## [Unreleased]
 
+### Fixed
+
+- Next publisher patch: when an article has no authored description, its HTML, machine-readable index, directory and Atom summary skip headings and fenced code examples. Inline code in prose is retained, and code-only articles no longer use a command as their description. Gate this on the writing regressions plus the reproducible sample build; keep authored summaries, visible code and search content unchanged.
+
 ### Added
 
 - Writing HTML supports tilde-fenced code blocks and preserves comments and headings inside them. Closing fences must match the opening character and minimum length.
