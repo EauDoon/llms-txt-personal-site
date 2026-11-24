@@ -315,6 +315,18 @@ class WritingHtmlTests(unittest.TestCase):
         )
         self.assertNotIn("The rest is detail.", rendered.split('name="description"', 1)[1].split(">", 1)[0])
 
+    def test_article_summary_skips_code_and_subheadings_but_keeps_inline_code(self):
+        from build_writing_html import article_description
+        cfg = {"LAST_UPDATED": "2026-01-01"}
+        sample = "# Walkthrough\n\n## Example\n\n~~~sh\nnot-a-description\n~~~\n\n"
+        prose = "Run `status` to see changes. Then review them."
+        for body, desc in [(sample + prose, "Run status to see changes."), (sample, "")]:
+            self.assertEqual(article_description({}, body), desc)
+            output = render_page("walkthrough", body, cfg)
+            self.assertIn(f'<meta name="description" content="{desc}">', output)
+            self.assertIn("not-a-description", output)
+        self.assertEqual(article_description({"desc": "Authored."}, sample + prose), "Authored.")
+
     def test_page_description_stops_at_the_first_sentence(self) -> None:
         # A domain or email contains a period that is not the end of the
         # sentence. The following sentence must not be published as the
