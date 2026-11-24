@@ -364,6 +364,33 @@ class PublishingTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 create_article(repo, 'other', 'Title\nstatus: published')
 
+    def test_deep_headings_are_outline_links_not_fallback_summaries(self):
+        with tempfile.TemporaryDirectory() as directory:
+            template, site, cfg = self.fixture(directory)
+            source = "# Details\n\n##### Nested title\n\n###### Nested title\n\n"
+            source += "~~~text\n###### Literal code title\n~~~\n\n"
+            source += "First visible sentence. Another sentence.\n###### Attached heading"
+            page = template / 'writing' / 'deep-headings.md'
+            page.write_text(source, encoding='utf-8')
+            build_site_staged(str(template), str(site), cfg)
+            html = (site / 'writing/deep-headings.html').read_text(encoding='utf-8')
+            self.assertIn('<h5 id="nested-title">Nested title</h5>', html)
+            self.assertIn('<h6 id="nested-title-2">Nested title</h6>', html)
+            self.assertIn('<a href="#nested-title-2">Nested title</a>', html)
+            self.assertIn('</p>\n<h6 id="attached-heading">Attached heading</h6>', html)
+            self.assertIn('###### Literal code title</code>', html)
+            self.assertNotIn('id="literal-code-title"', html)
+            self.assertIn('name="description" content="First visible sentence."', html)
+            for path in ('writing.html', 'writing.md', 'llms.txt'):
+                listing = (site / path).read_text(encoding='utf-8')
+                self.assertIn('First visible sentence.', listing)
+                self.assertNotIn('Nested title', listing)
+            ns = {'atom': 'http://www.w3.org/2005/Atom'}
+            entries = ET.parse(site / 'feed.xml').findall('atom:entry', ns)
+            entry = next(row for row in entries if row.find('atom:title', ns).text == 'Deep Headings')
+            self.assertEqual(entry.find('atom:summary', ns).text, 'First visible sentence.')
+            self.assertEqual((site / 'writing/deep-headings.md').read_text(encoding='utf-8'), source)
+
     def fixture(self, directory):
         template, site = Path(directory) / 'template', Path(directory) / 'site'
         shutil.copytree(ROOT / 'template', template)

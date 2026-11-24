@@ -388,7 +388,7 @@ def md_to_html(md, *, closed_url_underscores=None):
         while i < len(lines):
             line, stripped = lines[i], lines[i].strip()
             if (not stripped or not line[0].isspace()
-                    or re.match(r"^(#{1,4}\s|[-*]\s|\d+\.\s|\||>|`{3,}|~{3,}|---$)", stripped)):
+                    or re.match(r"^(#{1,6}\s|[-*]\s|\d+\.\s|\||>|`{3,}|~{3,}|---$)", stripped)):
                 break
             buf.append(stripped)
             i += 1
@@ -430,7 +430,7 @@ def md_to_html(md, *, closed_url_underscores=None):
         if s == "---":
             close(); out.append("<hr>"); i += 1; continue
 
-        m = re.match(r"^(#{1,4})\s+(.*)$", s)
+        m = re.match(r"^(#{1,6})\s+(.*)$", s)
         if m:
             close()
             lvl = len(m.group(1))
@@ -478,7 +478,7 @@ def md_to_html(md, *, closed_url_underscores=None):
 
         close()
         buf = []
-        while i < len(lines) and lines[i].strip() and not re.match(r"^(#{1,4}\s|[-*]\s|\d+\.\s|\||>|`{3,}|~{3,}|---$)", lines[i].strip()):
+        while i < len(lines) and lines[i].strip() and not re.match(r"^(#{1,6}\s|[-*]\s|\d+\.\s|\||>|`{3,}|~{3,}|---$)", lines[i].strip()):
             buf.append(lines[i].strip()); i += 1
         # A reserved block prefix is not necessarily a valid block. Consume it
         # as literal paragraph text when none of the block parsers matched so
@@ -517,7 +517,7 @@ def markdown_display(md, *, prose_only=False):
                 self.skip_block = None
             if tag == "h1" and self.in_heading:
                 self.in_heading, self.heading_done = False, True
-            if tag in {"h1", "h2", "h3", "h4", "p", "li", "pre", "tr"}:
+            if tag in {"h1", "h2", "h3", "h4", "h5", "h6", "p", "li", "pre", "tr"}:
                 self.parts.append("\n")
             elif tag in {"td", "th"}:
                 self.parts.append("\t")
@@ -688,7 +688,7 @@ def article_outline(content):
         if level != "1":
             entries.append('<li><a href="#%s">%s</a></li>' % (identifier, html.escape(plain)))
         return '<h%s id="%s">%s</h%s>' % (level, identifier, label, level)
-    content = re.sub(r"<h([1-4])>(.*?)</h\1>", heading, content)
+    content = re.sub(r"<h([1-6])>(.*?)</h\1>", heading, content)
     content = content.replace("<table>", '<div class="table-scroll" role="region" aria-label="Article table" tabindex="0"><table>')
     content = content.replace("</table>", "</table></div>")
     outline = '<nav class="outline" aria-label="On this page"><p>On this page</p><ul>%s</ul></nav>' % "".join(entries) if entries else ""
