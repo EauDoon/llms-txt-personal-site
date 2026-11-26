@@ -48,7 +48,7 @@ You want to fork this repository, replace the starter content with your own fact
 
 Search results include a link to the Markdown source when the readable page is HTML. Topic pages open search with that topic already selected. Each Atom entry also links to its Markdown alternate for readers that prefer plain text.
 
-The [publication map](docs/publication-map.html) traces the build from authored files to discovery outputs and byte hashes. From the repository root, run `python -m http.server 8000 --bind 127.0.0.1` and open [the local map](http://127.0.0.1:8000/docs/publication-map.html). Select a component to inspect its dependencies and open its source or sample output. Each selection has a shareable URL fragment and a read-only JSON view. The directory works with JavaScript disabled.
+The [publication map](docs/publication-map.html) traces the build from authored files to discovery outputs and byte hashes. From the repository root, run `python -m http.server 8000 --bind 127.0.0.1` and open [the local map](http://127.0.0.1:8000/docs/publication-map.html). Arrows run from each input to its consumer. Select a component to inspect its dependencies and open its source or sample output. Each selection has a shareable URL fragment and a read-only JSON view. The directory works with JavaScript disabled.
 
 The example is generic starter content, not a verified biography or a site ready to publish as your own.
 

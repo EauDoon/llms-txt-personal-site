@@ -5,10 +5,82 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Publication map · llms-txt-personal-site</title>
 <style>
-:root{color-scheme:dark;--ink:#ebf3ed;--dim:#a9bcb3;--mint:#7fe2b8;--blue:#a3c7fb;--gold:#efc588;--line:#36504a;font:16px/1.55 system-ui,sans-serif;background:#0c1514;color:var(--ink)}
-*{box-sizing:border-box}body{margin:0}main{max-width:76rem;margin:auto;padding:clamp(1rem,4vw,3rem)}a{color:var(--mint);text-underline-offset:.23em}a:focus-visible,button:focus-visible,select:focus-visible,svg:focus-visible,summary:focus-visible{outline:3px solid var(--gold);outline-offset:3px}header{max-width:55rem}header>a,.label,dt,option,select{font: .86rem/1.5 ui-monospace,monospace}h1{font:normal clamp(2.8rem,7vw,6rem)/1.06 Georgia,serif;letter-spacing:-.05em;margin:1rem 0}.lead{max-width:44rem;color:var(--dim);font-size:1.15rem}h2{font:normal 2rem/1.15 Georgia,serif}h3{font:normal 1.4rem/1.25 Georgia,serif}figure{margin:0}.frame{display:grid;grid-template-columns:minmax(0,2fr) minmax(14rem,1fr);border:1px solid var(--line);margin-top:2rem}.plot{min-width:0;background:radial-gradient(ellipse at 50% 44%,#1c3731,#0d1917 72%);padding:1rem}.plot svg{display:block;width:100%;height:auto;touch-action:pan-y;cursor:ew-resize}.plot svg text{fill:var(--ink);font:15px ui-monospace,monospace;paint-order:stroke;stroke:#12241e;stroke-width:4px;stroke-linejoin:round}.plot svg g[data-id]{cursor:pointer}.legend,.actions{display:flex;gap:.5rem 1rem;align-items:center;flex-wrap:wrap}.legend{color:var(--dim);font-size:.84rem}.dot{display:inline-block;width:.65rem;height:.65rem;border-radius:50%;margin-right:.35rem}.source{background:var(--gold)}.build{background:var(--mint)}.output{background:var(--blue)}.actions{justify-content:space-between}.actions button,select{color:var(--ink);background:#1b2e28;border:1px solid var(--line);border-radius:4px;min-height:44px;padding:.5rem .75rem}button{cursor:pointer}.actions button:hover{border-color:var(--mint)}.label,dt{color:var(--dim)}.panel{border-left:1px solid var(--line);padding:clamp(1rem,2.5vw,2rem);background:#14201d}.panel select{width:100%;margin:.5rem 0}.panel h2{margin:.8rem 0}dt{margin-top:1rem}dd{margin:0}.directory{margin-top:2rem}.directory>summary{cursor:pointer;padding:1rem 0;border-top:1px solid var(--line);font-size:1.2rem}.directory ol{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,19rem),1fr));gap:1rem;list-style:none;padding:0}.directory li{padding:1rem;border:1px solid var(--line)}.directory h3{margin:0}.directory p{color:var(--dim)}pre{overflow:auto;background:#13231e;padding:1rem}small{color:var(--dim)}[hidden]{display:none!important}.skip{position:absolute;left:-10000px}.skip:focus{left:1rem;top:.5rem}
-@media(max-width:720px){.frame{grid-template-columns:1fr}.panel{border-left:0;border-top:1px solid var(--line)}.plot{padding:.6rem}.plot svg text{font-size:20px}.legend{gap:.55rem}}
-@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+:root {
+  color-scheme: dark;
+  --ink: #edf4ed;
+  --dim: #afc4b9;
+  --mint: #7fe2b8;
+  --blue: #a3c7fb;
+  --gold: #efc588;
+  --line: #385149;
+  font: 16px/1.55 system-ui, sans-serif;
+  background: #0b1412;
+  color: var(--ink);
+}
+* { box-sizing: border-box; }
+body, figure, dd { margin: 0; }
+main { max-width: 82rem; margin: auto; padding: clamp(1rem, 3.8vw, 3.25rem); }
+a { color: var(--mint); text-underline-offset: .22em; }
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+header { display: grid; grid-template-columns: 1.2fr 1fr; gap: .4rem 2rem; align-items: end; }
+header > a { grid-column: 1 / -1; justify-self: start; }
+header > a, .label, dt, select { font: .85rem/1.5 ui-monospace, monospace; }
+h1 { font: normal clamp(2.7rem, 6.3vw, 5.8rem)/1.06 Georgia, serif; letter-spacing: -.055em; margin: .45rem 0 0; }
+h2, h3 { font: normal 2rem/1.16 Georgia, serif; }
+h3 { font-size: 1.35rem; }
+.lead { margin: 0; color: var(--dim); max-width: 39rem; font-size: clamp(1rem, 1.4vw, 1.15rem); }
+.frame { display: grid; grid-template-columns: minmax(0, 2.15fr) minmax(17rem, 1fr); border: 1px solid var(--line); margin-top: 2rem; }
+.plot {
+  min-width: 0; display: flex; flex-direction: column;
+  background: radial-gradient(ellipse at 48% 42%, #18362b, #101d19 72%);
+}
+.legend, .actions { display: flex; align-items: center; flex-wrap: wrap; gap: .45rem 1.15rem; padding: .85rem 1rem; }
+.legend { font-size: .85rem; color: var(--dim); border-bottom: 1px solid var(--line); }
+.dot { display: inline-block; width: .65rem; height: .65rem; border-radius: 50%; margin-right: .35rem; }
+.source { background: var(--gold); } .build { background: var(--mint); } .output { background: var(--blue); }
+.plot svg {
+  display: block; width: 100%; height: 430px; cursor: ew-resize; touch-action: pan-y;
+  background-image: radial-gradient(circle, #42604e66 .8px, transparent 1px);
+  background-size: 22px 22px;
+}
+.plot svg:focus-visible { outline-offset: -3px; }
+.plot svg text {
+  fill: var(--ink); font: 15px ui-monospace, monospace;
+  paint-order: stroke; stroke: #12261d; stroke-width: 5px; stroke-linejoin: round;
+}
+.plot svg g[data-id] { cursor: pointer; }
+.actions { margin-top: auto; justify-content: space-between; border-top: 1px solid var(--line); }
+button, select { color: var(--ink); background: #20322a; border: 1px solid #527062; border-radius: 4px; min-height: 44px; padding: .5rem .75rem; }
+button { cursor: pointer; } button:hover { border-color: var(--mint); }
+small, .label, dt, .directory p { color: var(--dim); }
+.panel { border-left: 1px solid var(--line); padding: clamp(1rem, 2.2vw, 2rem); background: #15231d; overflow-wrap: anywhere; }
+.panel select { width: 100%; margin: .4rem 0 .75rem; }
+.panel h2 { margin: .7rem 0; }
+.panel dl { margin: 1.25rem 0; }
+dt { margin-top: .9rem; }
+.panel dd { display: flex; flex-wrap: wrap; gap: .25rem; }
+.panel dd a { display: inline-flex; align-items: center; min-height: 2.2rem; padding: .1rem .55rem; background: #21362c; border: 1px solid var(--line); border-radius: .3rem; font-size: .875rem; }
+.panel dd a:hover { border-color: var(--mint); }
+.directory { margin-top: 1.25rem; }
+.directory > summary { cursor: pointer; padding: 1rem 0; border-top: 1px solid var(--line); font-size: 1.1rem; }
+.directory ol { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr)); gap: 1rem; list-style: none; padding: 0; }
+.directory li { padding: 1rem; border: 1px solid var(--line); } .directory h3 { margin: 0; }
+pre { overflow: auto; background: #13231e; padding: 1rem; }
+[hidden] { display: none !important; }
+.skip { position: absolute; left: -10000px; } .skip:focus { left: 1rem; top: .5rem; }
+@media (max-width: 800px) {
+  header, .frame { grid-template-columns: 1fr; }
+  header { gap: .7rem; } .frame { margin-top: 1.25rem; }
+  .panel { border-left: 0; border-top: 1px solid var(--line); }
+}
+@media (max-width: 500px) {
+  .legend { padding: .75rem .65rem; gap: .3rem .6rem; font-size: .79rem; }
+  .actions { flex-wrap: nowrap; gap: .8rem; padding: .65rem; }
+  .actions button { flex-shrink: 0; }
+  .plot svg { height: 414px; }
+  .plot svg text { font-size: 14px; }
+  .panel dd a { min-height: 44px; }
+}
 </style>
 </head>
 <body><a class="skip" href="#map">Skip to publication map</a>
@@ -17,29 +89,30 @@
 <section id="interactive" hidden aria-label="Interactive build graph">
 <div class="frame"><figure class="plot">
 <div class="legend"><span><i class="dot source"></i>Inputs</span><span><i class="dot build"></i>Build stages</span><span><i class="dot output"></i>Published files</span></div>
-<svg viewBox="0 0 640 385" id="scene" tabindex="0" role="group" aria-label="Publication graph. Left and right arrows rotate. Choose any node with the component menu."></svg>
-<div class="actions"><small>Drag sideways or use the arrow keys to rotate.</small><button type="button" id="reset">Reset view</button></div>
+<svg viewBox="0 0 640 385" id="scene" tabindex="0" role="group" aria-label="Publication graph. Arrows point from input to consumer. Left and right arrows rotate. Choose any node with the component menu."></svg>
+<div class="actions"><small>Arrows point to consumers. Drag or use ← → to rotate.</small><button type="button" id="reset">Reset view</button></div>
 </figure><aside class="panel"><label class="label" for="node">Inspect component</label><select id="node"></select><div id="detail" aria-live="polite"></div></aside></div>
 <details class="directory"><summary>Inspect the selected node as JSON</summary><p>The local view returns the fields in <code>{ publication { node { id label inputs consumers } } }</code>.</p><pre id="json"></pre></details>
 </section>
 <details id="directory" class="directory" open><summary>Source and dependency directory</summary>
 <ol>
-<li id="config" data-label="Identity config" data-short="Identity" data-kind="source" data-point="-220 -100 28" data-inputs=""><h3>Identity config</h3><p>The sample config supplies repeated identity and review-date fields. A fork edits its private copy.</p><dl><dt>Inputs</dt><dd>Authored input</dd></dl><a href="../site.config.example.json">Inspect site.config.example.json</a></li>
-<li id="markdown" data-label="Markdown sources" data-short="Markdown" data-kind="source" data-point="-180 65 -60" data-inputs=""><h3>Markdown sources</h3><p>The profile and writing files carry the narrative and citations that readers consume.</p><dl><dt>Inputs</dt><dd>Authored input</dd></dl><a href="../template/profile.md">Inspect profile.md</a></li>
-<li id="builder" data-label="Staged build" data-short="Build" data-kind="build" data-point="-45 -25 45" data-inputs="config markdown"><h3>Staged build</h3><p>The builder fills placeholders and stages the complete site before replacing previous output.</p><dl><dt>Inputs</dt><dd>Identity config, Markdown sources</dd></dl><a href="../scripts/build.py">Inspect build.py</a></li>
-<li id="catalog" data-label="Reader catalog" data-short="Catalog" data-kind="build" data-point="72 79 -88" data-inputs="builder"><h3>Reader catalog</h3><p>The catalog collects published writing and root pages into search, topics, and feed outputs.</p><dl><dt>Inputs</dt><dd>Staged build</dd></dl><a href="../scripts/build_catalog.py">Inspect build_catalog.py</a></li>
-<li id="index" data-label="Assistant index" data-short="llms.txt" data-kind="output" data-point="52 -128 -52" data-inputs="builder"><h3>Assistant index</h3><p>The concise index directs assistants to canonical sources, including published writing.</p><dl><dt>Inputs</dt><dd>Staged build</dd></dl><a href="../example/llms.txt">Inspect llms.txt</a></li>
-<li id="bundle" data-label="Full site context" data-short="llms-full.txt" data-kind="output" data-point="197 -65 77" data-inputs="builder catalog"><h3>Full site context</h3><p>The bundle joins published Markdown, including generated directories, for a single read.</p><dl><dt>Inputs</dt><dd>Staged build, Reader catalog</dd></dl><a href="../example/llms-full.txt">Inspect llms-full.txt</a></li>
-<li id="search" data-label="Search index" data-short="Search" data-kind="output" data-point="210 38 -45" data-inputs="catalog"><h3>Search index</h3><p>Each search record carries a readable URL, Markdown source, topics, and searchable text.</p><dl><dt>Inputs</dt><dd>Reader catalog</dd></dl><a href="../example/search-index.json">Inspect search-index.json</a></li>
-<li id="feed" data-label="Writing feed" data-short="Atom feed" data-kind="output" data-point="101 142 52" data-inputs="catalog"><h3>Writing feed</h3><p>The Atom feed supplies article dates, text, and alternate links to original Markdown.</p><dl><dt>Inputs</dt><dd>Reader catalog</dd></dl><a href="../example/feed.xml">Inspect feed.xml</a></li>
-<li id="manifest" data-label="Build inventory" data-short="Manifest" data-kind="output" data-point="-78 139 105" data-inputs="bundle index search feed"><h3>Build inventory</h3><p>The inventory records relative paths, sizes, and hashes for the published files. The connections shown here cover the outputs in this map.</p><dl><dt>Inputs</dt><dd>Full site context, Assistant index, Search index, Writing feed</dd></dl><a href="../example/content-manifest.json">Inspect content-manifest.json</a></li>
+<li id="config" data-portrait-x="-180" data-label="Identity config" data-short="Identity" data-kind="source" data-point="-242 -108 28" data-inputs=""><h3>Identity config</h3><p>The sample config supplies repeated identity and review-date fields. A fork edits its private copy.</p><dl><dt>Inputs</dt><dd>Authored input</dd></dl><a href="../site.config.example.json">Inspect site.config.example.json</a></li>
+<li id="markdown" data-portrait-x="160" data-label="Markdown sources" data-short="Markdown" data-kind="source" data-point="-216 78 -60" data-inputs=""><h3>Markdown sources</h3><p>The profile and writing files carry the narrative and citations that readers consume.</p><dl><dt>Inputs</dt><dd>Authored input</dd></dl><a href="../template/profile.md">Inspect profile.md</a></li>
+<li id="builder" data-portrait-x="-72" data-label="Staged build" data-short="Build" data-kind="build" data-point="-108 -40 45" data-inputs="config markdown"><h3>Staged build</h3><p>The builder fills placeholders and stages the complete site before replacing previous output.</p><dl><dt>Inputs</dt><dd>Identity config, Markdown sources</dd></dl><a href="../scripts/build.py">Inspect build.py</a></li>
+<li id="catalog" data-portrait-x="142" data-label="Reader catalog" data-short="Catalog" data-kind="build" data-point="0 0 -88" data-inputs="builder"><h3>Reader catalog</h3><p>The catalog collects published writing and root pages into search, topics, and feed outputs.</p><dl><dt>Inputs</dt><dd>Staged build</dd></dl><a href="../scripts/build_catalog.py">Inspect build_catalog.py</a></li>
+<li id="index" data-portrait-x="-178" data-label="Assistant index" data-short="llms.txt" data-kind="output" data-point="50 -155 -52" data-inputs="builder"><h3>Assistant index</h3><p>The concise index directs assistants to canonical sources, including published writing.</p><dl><dt>Inputs</dt><dd>Staged build</dd></dl><a href="../example/llms.txt">Inspect llms.txt</a></li>
+<li id="bundle" data-portrait-x="92" data-label="Full site context" data-short="llms-full.txt" data-kind="output" data-point="158 -75 77" data-inputs="builder catalog"><h3>Full site context</h3><p>The bundle joins published Markdown, including generated directories, for a single read.</p><dl><dt>Inputs</dt><dd>Staged build, Reader catalog</dd></dl><a href="../example/llms-full.txt">Inspect llms-full.txt</a></li>
+<li id="search" data-portrait-x="-110" data-label="Search index" data-short="Search" data-kind="output" data-point="150 39 -45" data-inputs="catalog"><h3>Search index</h3><p>Each search record carries a readable URL, Markdown source, topics, and searchable text.</p><dl><dt>Inputs</dt><dd>Reader catalog</dd></dl><a href="../example/search-index.json">Inspect search-index.json</a></li>
+<li id="feed" data-portrait-x="158" data-label="Writing feed" data-short="Atom feed" data-kind="output" data-point="129 123 52" data-inputs="catalog"><h3>Writing feed</h3><p>The Atom feed supplies article dates, text, and alternate links to original Markdown.</p><dl><dt>Inputs</dt><dd>Reader catalog</dd></dl><a href="../example/feed.xml">Inspect feed.xml</a></li>
+<li id="manifest" data-portrait-x="-18" data-label="Build inventory" data-short="Manifest" data-kind="output" data-point="245 162 105" data-inputs="bundle index search feed"><h3>Build inventory</h3><p>The inventory records relative paths, sizes, and hashes for the published files. The connections shown here cover the outputs in this map.</p><dl><dt>Inputs</dt><dd>Full site context, Assistant index, Search index, Writing feed</dd></dl><a href="../example/content-manifest.json">Inspect content-manifest.json</a></li>
 </ol></details></main>
 <script>
 "use strict";
 const rows = [...document.querySelectorAll("#directory li")];
 const nodes = new Map(rows.map(row => [row.id, {
   id: row.id, label: row.dataset.label, short: row.dataset.short, kind: row.dataset.kind,
-  point: row.dataset.point.split(" ").map(Number), inputs: row.dataset.inputs.split(" ").filter(Boolean),
+  point: row.dataset.point.split(" ").map(Number), portraitX: Number(row.dataset.portraitX),
+  inputs: row.dataset.inputs.split(" ").filter(Boolean),
   description: row.querySelector("p"), link: row.querySelector("a")
 }]));
 const menu = document.querySelector("#node");
@@ -53,31 +126,62 @@ function shape(tag, attrs) {
   return el;
 }
 function draw() {
+  const width = scene.clientWidth;
+  const height = scene.clientHeight;
+  if (!width || !height) return;
+  scene.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  const narrow = width < 500;
   const projected = new Map();
-  for (const n of nodes.values()) {
-    const [x,y,z] = n.point;
+  // Keep text and finger targets in CSS pixels. On narrow screens, use one
+  // row per component in dependency order so labels stay apart at every angle.
+  for (const [row, n] of [...nodes.values()].entries()) {
+    const [wideX, y, z] = n.point;
+    const x = narrow ? n.portraitX : wideX;
     const depth = x * Math.sin(angle) + z * Math.cos(angle);
-    const scale = 590 / (650 - depth);
-    projected.set(n.id, {x:320 + (x * Math.cos(angle) - z * Math.sin(angle)) * scale,
-      y:185 + y * scale, depth, scale});
+    const scale = 820 / (820 - depth);
+    const rotated = (x * Math.cos(angle) - z * Math.sin(angle)) * scale;
+    const px = width / 2 + rotated * (width / 660);
+    const py = narrow
+      ? 25 + row * (height - 50) / (nodes.size - 1)
+      : height / 2 + y * (height - 70) / 335;
+    projected.set(n.id, { x: px, y: py, depth, scale });
   }
   const drawing = document.createDocumentFragment();
+  const defs = shape("defs", {});
+  for (const [name, color] of [["active", "#9fdfba"], ["quiet", "#668979"]]) {
+    const marker = shape("marker", { id: "arrow-" + name, viewBox: "0 0 10 10",
+      refX: 9, refY: 5, markerWidth: 9, markerHeight: 9,
+      markerUnits: "userSpaceOnUse", orient: "auto" });
+    marker.append(shape("path", { d: "M1 1 L9 5 L1 9", fill: "none", stroke: color, "stroke-width": 1.7 }));
+    defs.append(marker);
+  }
+  drawing.append(defs);
   for (const node of nodes.values()) {
     const end = projected.get(node.id);
     for (const input of node.inputs) {
       const start = projected.get(input);
       const selected = input === menu.value || node.id === menu.value;
-      drawing.append(shape("line", {x1:start.x,y1:start.y,x2:end.x,y2:end.y,
-        stroke:selected ? "#80d6b0" : "#406659","stroke-width":selected ? 2 : 1.4}));
+      const dx = end.x - start.x, dy = end.y - start.y;
+      const length = Math.hypot(dx, dy);
+      const inset = (node.id === menu.value ? 16 : 11) / length;
+      drawing.append(shape("line", {
+        x1: start.x, y1: start.y, x2: end.x - dx * inset, y2: end.y - dy * inset,
+        stroke: selected ? "#9fdfba" : "#668979", "stroke-width": selected ? 2 : 1.2,
+        "marker-end": selected ? "url(#arrow-active)" : "url(#arrow-quiet)"
+      }));
     }
   }
-  for (const [id,p] of [...projected].sort((a,b) => a[1].depth - b[1].depth)) {
+  for (const [id, p] of [...projected].sort((a, b) => a[1].depth - b[1].depth)) {
     const node = nodes.get(id);
-    const group = shape("g", {"data-id":id,transform:"translate("+p.x+" "+p.y+")","aria-hidden":"true"});
-    group.append(shape("circle",{r:17,fill:"transparent"}));
-    if (id === menu.value) group.append(shape("circle",{r:13,fill:"none",stroke:colors[node.kind]}));
-    group.append(shape("circle",{r:5.5*p.scale,fill:colors[node.kind]}));
-    const label = shape("text",{x:0,y:-17,"text-anchor":"middle"});
+    const group = shape("g", { "data-id": id, transform: `translate(${p.x} ${p.y})`, "aria-hidden": "true" });
+    group.append(shape("circle", { r: 22, fill: "transparent" }));
+    if (id === menu.value) group.append(shape("circle", { r: 14, fill: "#142c21", stroke: colors[node.kind], "stroke-width": 2 }));
+    group.append(shape("circle", { r: 5.8 * p.scale, fill: colors[node.kind], stroke: "#102219", "stroke-width": 1.8 }));
+    // Labels face into the graph so long filenames stay inside the viewport.
+    const rightFacing = p.x < width / 2;
+    const label = shape("text", narrow
+      ? { x: rightFacing ? 19 : -19, y: 5, "text-anchor": rightFacing ? "start" : "end" }
+      : { x: 0, y: -18, "text-anchor": "middle" });
     label.textContent = node.short;
     group.append(label);
     drawing.append(group);
@@ -88,15 +192,17 @@ function select(id) {
   const n = nodes.get(id) || nodes.get("builder");
   menu.value = n.id;
   const consumers = [...nodes.values()].filter(other => other.inputs.includes(n.id)).map(other => other.id);
+  const detail = document.querySelector("#detail");
+  const followedRelation = detail.contains(document.activeElement);
   const title = document.createElement("h2");
+  title.tabIndex = -1;
   title.textContent = n.label;
   const relations = document.createElement("dl");
   for (const [label,ids,empty] of [["Inputs",n.inputs,"Authored input"],["Used by",consumers,"Final inventory"]]) {
     const dt = document.createElement("dt"), dd = document.createElement("dd");
     dt.textContent = label;
     if (!ids.length) dd.textContent = empty;
-    ids.forEach((key,i) => {
-      if (i) dd.append(", ");
+    ids.forEach(key => {
       const link = document.createElement("a");
       link.href = "#view-" + key;
       link.textContent = nodes.get(key).label;
@@ -104,7 +210,8 @@ function select(id) {
     });
     relations.append(dt,dd);
   }
-  document.querySelector("#detail").replaceChildren(title,n.description.cloneNode(true),relations,n.link.cloneNode(true));
+  detail.replaceChildren(title,n.description.cloneNode(true),relations,n.link.cloneNode(true));
+  if (followedRelation) title.focus({ preventScroll: true });
   document.querySelector("#json").textContent = JSON.stringify({data:{publication:{node:{
     id:n.id,label:n.label,inputs:n.inputs,consumers}}}},null,2);
   draw();
@@ -138,7 +245,8 @@ scene.addEventListener("pointerup", event => {
 });
 scene.addEventListener("lostpointercapture", () => { drag = null; });
 document.querySelector("#reset").addEventListener("click", () => { angle = 0; draw(); });
-fromAddress();
 document.querySelector("#interactive").hidden = false;
+fromAddress();
+new ResizeObserver(draw).observe(scene);
 document.querySelector("#directory").open = false;
 </script></body></html>
