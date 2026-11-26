@@ -103,7 +103,9 @@ def build_topics(site_dir, cfg, entries):
         for entry in group['entries']:
             body += '<li><a href="%s">%s</a></li>' % (entry['url'], html.escape(entry['title']))
             markdown += '- [%s](%s)\n' % (_safe_label(entry['title']), entry['source'])
-        body += '</ul></section>'
+        search_url = '/search.html?type=article&amp;topic=' + quote(topic_key(group['label']), safe='')
+        body += '</ul><p><a href="%s">Search within %s</a></p></section>' % (
+            search_url, html.escape(group['label']))
         markdown += '\n'
     (Path(site_dir) / 'topics.html').write_text(
         page('Topics', body, cfg,
@@ -220,6 +222,7 @@ def build_feed(site_dir, cfg, entries):
         node(item, "id", base + entry["url"])
         node(item, "title", entry["title"])
         node(item, "link", href=base + entry["url"])
+        node(item, "link", href=base + entry["source"], rel="alternate", type="text/markdown")
         if entry["summary"]:
             node(item, "summary", entry["summary"])
         node(item, 'content', markdown_display(entry['body'])[0], type='text')
@@ -249,13 +252,19 @@ def build_search(site_dir, cfg, entries):
         readable = '/' + quote(companion.name, safe='-._~') if (path.parent == Path(site_dir) and companion.is_file()
                     and has_link_relation(companion.read_text(encoding='utf-8'), 'alternate', source, 'text/markdown')) else source
         records.append({"title": article.get("title") or heading or path.stem.title(),
-                        "url": article.get("url", readable), "text": body[:100000],
+                        "url": article.get("url", readable), "source": source, "text": body[:100000],
                         "type": "article" if article else "page",
                         "description": article.get('description', '')[:500],
                         "topics": article.get('topics', []),
                         "topic_keys": sorted({topic_key(topic) for topic in article.get('topics', [])})})
     (Path(site_dir) / "search-index.json").write_text(json.dumps(records, ensure_ascii=False, indent=2) + "\n", encoding="utf-8", newline="")
-    links = ''.join('<li><a href="%s">%s</a></li>' % (r["url"], html.escape(r["title"])) for r in records)
+    links = []
+    for record in records:
+        title = html.escape(record["title"], quote=True)
+        row = '<li><a href="%s">%s</a>' % (record["url"], title)
+        if record["source"] != record["url"]:
+            row += ' · <a href="%s" aria-label="Markdown source for %s">Markdown source</a>' % (record["source"], title)
+        links.append(row + '</li>')
     options = ''.join('<option value="%s">%s</option>' % (html.escape(topic_key(group['label']), quote=True), html.escape(group['label']))
                       for group in topic_groups(entries))
     body = '''<p>Search runs in this browser. The page URL stores your query and filters for sharing or reloading.</p>
@@ -268,7 +277,7 @@ def build_search(site_dir, cfg, entries):
 <div class="search-actions"><button type="submit">Search pages</button><button type="reset">Clear search</button></div></form>
 <p id="search-status" role="status" aria-live="polite">All published pages. Search requires JavaScript.</p>
 <button id="search-retry" type="button" hidden>Retry search</button>
-<ul id="search-results">%s</ul><button id="search-more" type="button" hidden>Show more results</button><script src="/search.js" defer></script>''' % (options, links)
+<ul id="search-results">%s</ul><button id="search-more" type="button" hidden>Show more results</button><script src="/search.js" defer></script>''' % (options, ''.join(links))
     (Path(site_dir) / "search.html").write_text(
         page("Search", body, cfg,
              desc="Search the published pages of %s. Search runs in the browser and needs no account." % cfg["FULL_NAME"],

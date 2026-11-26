@@ -79,6 +79,13 @@
       const context = document.createElement('p');
       context.textContent = [record.type === 'article' ? 'Writing' : 'Core page', ...(record.topics || [])].join(' · ');
       li.append(context);
+      if (record.source && record.source !== record.url) {
+        const source = document.createElement("a");
+        source.href = record.source;
+        source.textContent = "Markdown source";
+        source.setAttribute("aria-label", "Markdown source for " + record.title);
+        li.append(source);
+      }
       fragment.append(li);
     }
     results.replaceChildren(fragment);
@@ -120,8 +127,10 @@
       }
       const records = JSON.parse(text);
       if (!Array.isArray(records) || records.length > 5000 || records.some(record =>
-        !record || typeof record.title !== "string" || typeof record.text !== "string" || record.text.length > 100000
+        !record || typeof record.title !== "string" || typeof record.text !== "string" || (record.text.length > 100000 && (record.text.length > 200000 || [...record.text].length > 100000))
         || typeof record.url !== "string" || !/^\/(?!\/)[^\\\s]*$/.test(record.url)
+        || (record.source !== undefined && (typeof record.source !== "string"
+          || record.source !== record.url.replace(/\.html$/, ".md")))
         || !["article", "page"].includes(record.type) || !Array.isArray(record.topic_keys)
         || record.topic_keys.length > 12 || record.topic_keys.some(key => typeof key !== "string")
         || (record.description !== undefined && (typeof record.description !== 'string' || record.description.length > 1000))

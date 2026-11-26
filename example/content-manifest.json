@@ -72,8 +72,8 @@
     },
     {
       "path": "feed.xml",
-      "bytes": 1494,
-      "sha256": "c996f31974f7185ccc8d5540c61cce7bd9d28076790cb1032970175fe75652af"
+      "bytes": 1597,
+      "sha256": "fd5e3a7e692530b4a2c313f500c5a2fc5b05bfe69913d6b8c7b3d16cae1ead2b"
     },
     {
       "path": "focus.html",
@@ -147,18 +147,18 @@
     },
     {
       "path": "search-index.json",
-      "bytes": 10397,
-      "sha256": "40688becc8b823d54d0b2261ffb101b68e844263b26252fa80a0ffa1f196df02"
+      "bytes": 10727,
+      "sha256": "c06687d36b8c3fe99e3b64a0c8577404a6ec598135afb0c500521160dad38988"
     },
     {
       "path": "search.html",
-      "bytes": 4402,
-      "sha256": "0f55f02cb4f1705da6835126681ee56dbe74d7e01b7ef71e21feec79c9b81452"
+      "bytes": 5472,
+      "sha256": "6517f0fc6a9678164f7e222ad5c504cfec8e19adcd27a564f0f1134fc2e94a1c"
     },
     {
       "path": "search.js",
-      "bytes": 7446,
-      "sha256": "eda29772fe61f2932dc6886e4c07910a1415db7f469b2bba5a07104e3917908c"
+      "bytes": 7978,
+      "sha256": "fad4287a75ad59c21dbb1bccb75196591a373a6b44b29bbf61cfdb77f6f01fbc"
     },
     {
       "path": "search.md",
