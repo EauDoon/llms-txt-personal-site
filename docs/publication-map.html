@@ -229,15 +229,20 @@ scene.addEventListener("keydown", event => {
 let drag;
 scene.addEventListener("pointerdown", event => {
   if (!event.isPrimary || event.button !== 0) return;
-  drag = {id:event.pointerId,x:event.clientX,angle,node:event.target.closest("[data-id]")?.dataset.id,moved:false};
+  drag = {id:event.pointerId,x:event.clientX,y:event.clientY,angle,node:event.target.closest("[data-id]")?.dataset.id,moved:false};
   scene.setPointerCapture(event.pointerId);
 });
 scene.addEventListener("pointermove", event => {
   if (!drag || event.pointerId !== drag.id) return;
   const dx = event.clientX - drag.x;
-  if (Math.abs(dx) > 4) drag.moved = true;
+  if (Math.abs(dx) > 4 && Math.abs(dx) > Math.abs(event.clientY - drag.y)) drag.moved = true;
   if (drag.moved) { angle = drag.angle + dx * .009; draw(); }
 });
+// When the graph consumes a horizontal touch, cancel its browser gesture
+// too. Otherwise Chromium can treat the next tap as stopping a fling.
+scene.addEventListener("touchmove", event => {
+  if (drag?.moved && event.touches.length === 1 && event.cancelable) event.preventDefault();
+}, { passive: false });
 scene.addEventListener("pointerup", event => {
   if (!drag || event.pointerId !== drag.id) return;
   if (!drag.moved && drag.node) location.hash = "view-" + drag.node;

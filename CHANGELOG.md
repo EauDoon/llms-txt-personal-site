@@ -4,7 +4,7 @@ All notable changes to this template are recorded here. The format follows [Keep
 
 ## [Unreleased]
 
-- Add a local, interactive publication map of the template build and its artifacts, with a linked dependency directory. Directional arrows identify consumers, and a portrait layout keeps labels separated as the graph rotates on narrow screens.
+- Add a local, interactive publication map of the template build and its artifacts, with a linked dependency directory. Directional arrows identify consumers, and a portrait layout keeps labels separated as the graph rotates on narrow screens. A horizontal touch rotation now leaves the first tap on Reset view available in Chromium.
 - Search results link to original Markdown in both interactive and static views. Topic directories link to a prefiltered writing search, and writing feed entries link to their Markdown alternate.
 - Accept the builder’s 100,000-character search text limit for supplementary Unicode characters. Previously JavaScript counted UTF-16 code units, so one valid long page could disable search for the entire site.
 
