@@ -7,6 +7,7 @@ const vm = require('node:vm');
 async function search(query, records, response) {
   const element = () => ({
     children: [], value: '', options: [{ value: '' }], listeners: {},
+    setAttribute(name, value) { this[name] = value; },
     append(child) { this.children.push(child); },
     replaceChildren(...children) { this.children = children; },
     addEventListener(name, fn) { this.listeners[name] = fn; },
@@ -117,4 +118,21 @@ test('large result sets expand in bounded batches and reset on a new query', asy
   result.controls['#query'].form.listeners.reset({preventDefault() {}});
   assert.equal(result.rows().length, 25);
   assert.equal(result.controls['#query'].focused, true);
+});
+
+test('builder-sized Unicode pages keep the index available', async () => {
+  const text = '𠮷'.repeat(100000);
+  const valid = await search('needle', [record('Needle', text)]);
+  assert.deepEqual(valid.titles(), ['Needle']);
+  const invalid = await search('', [record('Too long', text + 'a')]);
+  assert.equal(invalid.controls['#search-results'].children[0], invalid.fallback);
+});
+
+test('source link points to the matching Markdown companion', async () => {
+  const valid = await search('notes', [record('Notes', '', {source: '/Notes.md'})]);
+  const link = valid.rows()[0].children.at(-1);
+  assert.equal(link.href, '/Notes.md');
+  assert.equal(link['aria-label'], 'Markdown source for Notes');
+  const invalid = await search('', [record('Notes', '', {source: '/Other.md'})]);
+  assert.equal(invalid.controls['#search-results'].children[0], invalid.fallback);
 });

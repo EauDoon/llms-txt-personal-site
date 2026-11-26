@@ -36,6 +36,23 @@ class TextCollector(HTMLParser):
 
 
 class ReaderFeatures(unittest.TestCase):
+    def test_source_discovery_and_prefiltered_topic_search(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "writing").mkdir()
+            (root / "writing" / "note 1.md").write_text(
+                "<!--\ntitle: Note\nabout: Research & policy\n-->\n# Note\n", encoding="utf-8")
+            build_catalog(root, CFG)
+            record, = json.loads((root / "search-index.json").read_text(encoding="utf-8"))
+            self.assertEqual(record["source"], "/writing/note%201.md")
+            self.assertIn('href="/writing/note%201.md" aria-label="Markdown source for Note"',
+                          (root / "search.html").read_text(encoding="utf-8"))
+            self.assertIn('href="/search.html?type=article&amp;topic=research%20%26%20policy"',
+                          (root / "topics.html").read_text(encoding="utf-8"))
+            feed = ET.parse(root / "feed.xml")
+            alternate = feed.find(".//{*}entry/{*}link[@type='text/markdown']")
+            self.assertEqual(alternate.get("href"), "https://example.test/writing/note%201.md")
+
     def test_generated_markdown_labels_preserve_inert_metadata(self):
         repo = Path(__file__).resolve().parents[1]
         cfg = json.loads((repo / 'site.config.example.json').read_text(encoding='utf-8'))
