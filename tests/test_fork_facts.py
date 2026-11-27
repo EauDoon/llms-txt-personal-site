@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from article import create_article
-from build import build_site_staged
+from build import build_site_staged, fill, json_block
 from publishing import review_articles
 
 
@@ -20,6 +20,46 @@ def config(**changes):
     cfg = json.loads((ROOT / "site.config.example.json").read_text(encoding="utf-8"))
     cfg.update(changes)
     return cfg
+
+
+class QuotedFactTests(unittest.TestCase):
+    NAME = "Aoife O'Brien"
+    EMPLOYER = 'Smith "Widgets" & Sons'
+
+    def test_markdown_and_text_keep_apostrophes_and_quotes_literal(self) -> None:
+        cfg = config(FULL_NAME=self.NAME, FAMILY_NAME="O'Brien", EMPLOYER=self.EMPLOYER)
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            shutil.copytree(ROOT / "template", root / "template")
+            build_site_staged(str(root / "template"), str(root / "site"), dict(cfg, **json_block(cfg)))
+            site = root / "site"
+            llms = (site / "llms.txt").read_text(encoding="utf-8")
+            profile = (site / "profile.md").read_text(encoding="utf-8")
+            full = (site / "llms-full.txt").read_text(encoding="utf-8")
+            homepage = (site / "index.html").read_text(encoding="utf-8")
+            companion = (site / "profile.html").read_text(encoding="utf-8")
+
+        self.assertIn("- Name: Aoife O'Brien\n", llms)
+        # & still follows the Markdown entity policy; only the quotes changed.
+        self.assertIn('- Employer: Smith "Widgets" &amp; Sons\n', llms)
+        self.assertIn("| Full name | Aoife O'Brien |", profile)
+        for name, text in (("llms.txt", llms), ("profile.md", profile), ("llms-full.txt", full)):
+            with self.subTest(name=name):
+                self.assertNotIn("&#x27;", text)
+                self.assertNotIn("&quot;", text)
+        # HTML keeps attribute-safe escaping, in templates and in companions.
+        self.assertIn('<meta name="author" content="Aoife O&#x27;Brien">', homepage)
+        self.assertNotIn('content="Aoife O\'Brien', homepage)
+        self.assertIn("Aoife O&#x27;Brien", companion)
+        self.assertNotIn("Aoife O'Brien", companion)
+
+    def test_fill_escapes_quotes_unless_the_target_is_markdown(self) -> None:
+        cfg = {"FULL_NAME": self.NAME, "EMPLOYER": self.EMPLOYER, "EMAIL": "o'b@example.test"}
+        self.assertEqual(fill("{{FULL_NAME}}", cfg), "Aoife O&#x27;Brien")
+        self.assertEqual(fill("{{FULL_NAME}}", cfg, markdown=True), self.NAME)
+        self.assertEqual(fill("{{EMPLOYER}}", cfg, markdown=True), 'Smith "Widgets" &amp; Sons')
+        # The contact address keeps its own rules in both targets.
+        self.assertEqual(fill("{{EMAIL}}", cfg, markdown=True), fill("{{EMAIL}}", cfg))
 
 
 class ArticleDateMessageTests(unittest.TestCase):

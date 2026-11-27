@@ -143,7 +143,7 @@ def validate_public_contacts(cfg):
             raise ValueError("%s must be an absolute HTTP(S) URL without credentials or fragment" % key)
 
 
-def fill(text, cfg, plain_text=False):
+def fill(text, cfg, plain_text=False, markdown=False):
     """Replace {{KEY}} with the config value. Scalars only; lists are handled by the caller.
 
     User-configured values are HTML-escaped because {{KEY}} substitutions
@@ -151,6 +151,12 @@ def fill(text, cfg, plain_text=False):
     which serializes and script-escapes the complete document, so it must
     be inserted without HTML entity encoding. plain_text preserves the configured
     EMAIL spelling only; other substitutions retain their existing escaping.
+
+    markdown marks a Markdown or text target such as profile.md or llms.txt.
+    Nothing there is an HTML attribute, so quotation marks and apostrophes
+    stay literal, as they do in the generated writing links: a reader of the
+    source sees O'Brien, not O&#x27;Brien. &, < and > are still escaped, and
+    the EMAIL rules do not change.
     """
     import html as _html
     def sub(m):
@@ -164,7 +170,7 @@ def fill(text, cfg, plain_text=False):
             return str(val)
         if key == 'EMAIL' and plain_text:
             return str(val)
-        escaped = _html.escape(str(val), quote=True)
+        escaped = _html.escape(str(val), quote=key == 'EMAIL' or not markdown)
         if key == 'EMAIL':
             # Contact spelling is literal in both HTML and Markdown tables,
             # emphasis and code. EMAIL_URI separately carries the URI encoding.
@@ -444,9 +450,11 @@ def build_site(template_dir, out_dir, cfg):
                     "template file is not UTF-8 text: %s; add its suffix to "
                     "BINARY_SUFFIXES or convert it" % relative.replace('\\', '/')
                 ) from exc
-            filled = fill(t, cfg, plain_text=src.lower().endswith('.txt'))
+            markdown = src.lower().endswith(('.md', '.txt'))
+            filled = fill(t, cfg, plain_text=src.lower().endswith('.txt'), markdown=markdown)
             if src.lower().endswith('.md') and '{{EMAIL}}' in t:
-                plain_email_sources[relative.replace('\\', '/')] = (filled, fill(t, cfg, plain_text=True))
+                plain_email_sources[relative.replace('\\', '/')] = (
+                    filled, fill(t, cfg, plain_text=True, markdown=True))
             with open(dst, "w", encoding="utf-8", newline="") as output:
                 output.write(filled)
         copied += 1
