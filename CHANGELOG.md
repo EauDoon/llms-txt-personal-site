@@ -12,6 +12,8 @@ All notable changes to this template are recorded here. The format follows [Keep
 
 ### Fixed
 
+- An invalid article date names the article and the field. A `published` or `updated` value such as `2026-13-01` used to stop `build.py` with "LAST_UPDATED must be a calendar-valid YYYY-MM-DD date", although the config date was valid, and `article.py review` and `article.py new --updated` reported the same wrong field. The build now says `writing/notes.md: article updated date must be ...`, and `article.py new` names `--published` or `--updated`.
+
 - Next publisher patch: when an article has no authored description, its HTML, machine-readable index, directory and Atom summary skip headings and fenced code examples. Inline code in prose is retained, and code-only articles no longer use a command as their description. Gate this on the writing regressions plus the reproducible sample build; keep authored summaries, visible code and search content unchanged.
 
 ### Added
