@@ -11,11 +11,22 @@
 
 A biography can drift across old profiles, employer pages, and search results. This template helps you maintain your own reference: sourced facts, dated corrections, verified contact routes, and explicit gaps in the record.
 
-Write in Markdown, keep repeated facts in one JSON config, and build a static site with HTML, an `llms.txt` index, and structured data. The Python tooling uses the standard library. No package installation or application server is required.
+Write in Markdown, keep repeated facts in one JSON config, and build a static site where every page is HTML first, with a Markdown twin and structured data, plus an `llms.txt` index. The Python tooling uses the standard library. No package installation or application server is required.
 
 **Start with the [generated example](example/), or [build your own site](#build-your-own-site).**
 
 The goal is to make accurate information easier to retrieve and cite. Publishing a site does not guarantee indexing, assistant adoption, correct answers, or recommendations.
+
+## What agents actually read
+
+The site is built in the order the evidence supports. As of 27 Nov 2026:
+
+1. **HTML pages.** Google says its generative AI features run on its core Search systems and need no AI text files, Markdown or special markup ([Google Search Central](https://developers.google.com/search/docs/fundamentals/ai-optimization-guide), updated 10 Jul 2026). Browser agents read screenshots, HTML and the accessibility tree ([web.dev](https://web.dev/articles/ai-agent-site-ux)). Every page is therefore a complete HTML page with a title, a description, a canonical link and its facts in visible text.
+2. **Markdown twins.** Some coding agents, such as Claude Code and Cursor, ask for `text/markdown`. Each HTML page links its `.md` twin, and the shipped `.htaccess` answers `Accept: text/markdown` with that twin at the same URL.
+3. **JSON-LD.** Google uses it for rich results. Tests by searchVIU found that third-party AI fetchers dropped JSON-LD and read the visible text, so every fact in the structured data also appears on the page.
+4. **`llms.txt` and `llms-full.txt`.** They are cheap to publish, but server-log studies in 2026 found very few requests for them ([Arrivl](https://arrivl.ai/blog/does-anything-fetch-your-llms-txt): 100 requests across 39 sites in 46 days). Treat them as an extra index, not the main surface.
+
+Agent cards, MCP server cards, WebMCP and the IETF AI preference vocabulary are not needed for a static personal site today. The template publishes an A2A Agent Card only when you supply one.
 
 ## How to use this README
 
@@ -38,6 +49,7 @@ You want to fork this repository, replace the starter content with your own fact
 
 | Output | Purpose |
 | --- | --- |
+| `*.html` for every page | The primary face for search engines, AI search and browser agents, each with its Markdown twin linked. |
 | [`llms.txt`](example/llms.txt) | A concise index that guides assistants to the relevant source pages. |
 | [`llms-full.txt`](example/llms-full.txt) | The site's Markdown content collected into one text file. |
 | [`profile.md`](example/profile.md), [`experience.md`](example/experience.md), [`faq.md`](example/faq.md) | Reusable answers about identity, roles, and common questions. |
@@ -107,6 +119,8 @@ The template includes [Apache rules](template/.htaccess), [a `_headers` file](te
 All three configs send the same security headers on every response: a Content-Security-Policy that allows only same-origin scripts, inline styles, same-origin requests, and HTTPS or `data:` images, plus `X-Frame-Options: DENY`, a `Permissions-Policy` that turns off the camera, microphone, and geolocation, `X-Content-Type-Options: nosniff`, and `Strict-Transport-Security: max-age=63072000`. The generated pages need nothing more. HSTS tells browsers to use only HTTPS for this host for two years, so remove it from all three files before you deploy if the site must stay reachable over plain HTTP. It leaves out `includeSubDomains` on purpose: add that only once every subdomain of your domain serves HTTPS. If you add third-party scripts, fonts, analytics, or embeds, widen the policy in all three files, or browsers will block them. A test keeps the three files in step.
 
 To prove ownership to search engines, put your own tokens under `verification` in `site.config.json`. The build publishes each nonempty value: `bing_msvalidate` as a `msvalidate.01` meta tag on the homepage, `google_html_file` as that file at the site root, and `indexnow_key` as `<key>.txt` at the site root. It refuses a value that is not a plain token, keeps the proof files out of `sitemap.xml` and the page checks, and `--live` confirms the files are served. Do not place proof files in `template/` or `site/` by hand: the first are checked as pages, and the second disappear on the next clean build.
+
+On Apache or LiteSpeed, the `.htaccess` also answers a request that sends `Accept: text/markdown` with the page's Markdown twin at the same URL (the homepage answers with `profile.md`), and marks HTML and Markdown responses `Vary: Accept`. Browsers and search crawlers do not send that type, so they keep getting HTML. Cloudflare Pages `_headers` and `vercel.json` cannot choose a response by request header, so on those hosts agents fetch the `.md` URL instead. Check with `curl -s -D - -o /dev/null -H "Accept: text/markdown" https://yourname.com/`.
 
 Whatever the host, serve every `.html` file at its own path with a `200` response. Canonical links, `sitemap.xml`, the feed, and `quality_check.py --live` all use the `.html` path, and the live check treats a redirect as a failure. The build does not publish extensionless URLs, so leave options such as Vercel's `cleanUrls` off.
 

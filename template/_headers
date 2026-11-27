@@ -5,6 +5,10 @@
 # A request inherits the headers of every rule it matches, and a header set by
 # two matching rules is joined with a comma. Set each catch-all header only in
 # the /* block; Access-Control-Allow-Origin: *, * is rejected by browsers.
+#
+# _headers cannot choose a response by request header, so Cloudflare Pages
+# does not answer "Accept: text/markdown" with the Markdown twin the way the
+# shipped .htaccess does. Every .md file stays reachable at its own URL.
 
 /.well-known/agent-card.json
   Content-Type: application/a2a+json; charset=utf-8

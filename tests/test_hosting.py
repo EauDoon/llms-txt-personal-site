@@ -144,6 +144,33 @@ class HostingConfigTests(unittest.TestCase):
         hsts = expected["Strict-Transport-Security"]
         self.assertGreaterEqual(int(re.fullmatch(r"max-age=(\d+)", hsts).group(1)), 31536000)
 
+    def test_apache_answers_accept_markdown_with_the_markdown_twin(self) -> None:
+        # Coding agents such as Claude Code and Cursor send Accept: text/markdown.
+        # The .htaccess serves them the page's .md twin at the same URL and
+        # marks both faces Vary: Accept so a cache never mixes them up.
+        text = self.read(".htaccess")
+        rewrite = text[text.index("<IfModule mod_rewrite.c>"):]
+        rewrite = rewrite[:rewrite.index("</IfModule>")]
+        self.assertEqual(rewrite.count("RewriteCond %{HTTP:Accept} text/markdown [NC]"), 2)
+        self.assertIn("RewriteRule ^(index\\.html)?$ profile.md [L]", rewrite)
+        self.assertIn("RewriteCond %1.md -f", rewrite)
+        self.assertIn("RewriteRule ^(.+)\\.html$ $1.md [L]", rewrite)
+        vary = re.search(r'<FilesMatch "\\\.\(html\|md\)\$">\s*Header always merge Vary "Accept"\s*</FilesMatch>', text)
+        self.assertIsNotNone(vary, "both faces of a negotiated URL must send Vary: Accept")
+
+        config = json.loads((ROOT / "site.config.example.json").read_text(encoding="utf-8"))
+        with tempfile.TemporaryDirectory() as directory:
+            site = Path(directory) / "site"
+            with contextlib.redirect_stdout(io.StringIO()):
+                build_site(str(TEMPLATE), str(site), dict(config, **json_block(config)))
+            home = (site / "index.html").read_text(encoding="utf-8")
+            self.assertRegex(home, r'<link rel="alternate" type="text/markdown" href="/profile\.md"',
+                             "the homepage rule serves profile.md, so the homepage must declare it")
+            self.assertTrue((site / "profile.md").is_file())
+            twinless = sorted(path.relative_to(site).as_posix() for path in site.rglob("*.html")
+                              if path.name != "index.html" and not path.with_suffix(".md").is_file())
+            self.assertEqual(twinless, ["404.html"])
+
     def test_no_header_is_set_by_both_a_specific_rule_and_the_catch_all(self) -> None:
         # Cloudflare Pages joins a header set by two matching rules with a
         # comma, which turned the Agent Card's CORS header into "*, *".

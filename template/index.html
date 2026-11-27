@@ -100,11 +100,15 @@
 <main id="main-content">
 
 <!-- GUIDANCE, delete this block.
-     Keep the human page short. Its job is to carry the JSON-LD above and to
-     point at the Markdown pages, which is what agents actually read.
+     This HTML page is what search engines, AI search and browser agents read
+     first. Keep it short, but state every fact in visible text: the Key facts
+     and Common questions below are generated from the same config as the
+     JSON-LD, because many AI fetchers drop JSON-LD and read only the page.
      Everything you write here should also exist in profile.md. -->
 
 <p>{{SUMMARY}}</p>
+
+{{HOME_FACTS}}
 
 <h2>Machine-readable</h2>
 <ul>

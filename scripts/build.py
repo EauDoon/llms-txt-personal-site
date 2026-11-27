@@ -19,6 +19,7 @@ A failure in any step leaves the previous site/ in place. Then run
 scripts/quality_check.py before you deploy.
 """
 import argparse
+import html
 import json
 import os
 import re
@@ -203,6 +204,7 @@ def json_block(cfg):
     """
     domain_url = "https://%s/" % cfg["DOMAIN"]
     person_id = "%s#person" % domain_url
+    faq = home_questions(cfg)
     employer_id = "%s#employer" % domain_url
     same_as = [
         "https://www.linkedin.com/in/%s" % cfg["LINKEDIN_SLUG"],
@@ -271,34 +273,10 @@ def json_block(cfg):
                 "mainEntity": [
                     {
                         "@type": "Question",
-                        "name": "Who is %s?" % cfg["FULL_NAME"],
-                        "acceptedAnswer": {
-                            "@type": "Answer",
-                            "text": cfg["SUMMARY"],
-                        },
-                    },
-                    {
-                        "@type": "Question",
-                        "name": "What is %s's job title?" % cfg["FULL_NAME"],
-                        "acceptedAnswer": {
-                            "@type": "Answer",
-                            "text": "%s at %s."
-                            % (cfg["JOB_TITLE"], cfg["EMPLOYER"]),
-                        },
-                    },
-                    {
-                        "@type": "Question",
-                        "name": "How should I contact %s?" % cfg["FULL_NAME"],
-                        "acceptedAnswer": {
-                            "@type": "Answer",
-                            "text": (
-                                "%s for business, partnerships and integrations. "
-                                "LinkedIn at https://www.linkedin.com/in/%s. "
-                                "Public discussion on X at @%s."
-                            )
-                            % (cfg["EMAIL"], cfg["LINKEDIN_SLUG"], cfg["X_HANDLE"]),
-                        },
-                    },
+                        "name": question,
+                        "acceptedAnswer": {"@type": "Answer", "text": answer},
+                    }
+                    for question, answer in faq
                 ],
             },
         ],
@@ -313,7 +291,58 @@ def json_block(cfg):
     )
     return {
         "JSON_LD": PreEscapedMarkup(encoded),
+        "HOME_FACTS": home_facts(cfg, faq),
     }
+
+
+def home_questions(cfg):
+    """Return the homepage questions and answers as (question, answer) pairs.
+
+    The FAQPage JSON-LD and the visible homepage section both read this list,
+    so the structured data never states a question the page does not show.
+    """
+    return [
+        ("Who is %s?" % cfg["FULL_NAME"], cfg["SUMMARY"]),
+        ("What is %s's job title?" % cfg["FULL_NAME"],
+         "%s at %s." % (cfg["JOB_TITLE"], cfg["EMPLOYER"])),
+        ("How should I contact %s?" % cfg["FULL_NAME"],
+         "%s for business, partnerships and integrations. "
+         "LinkedIn at https://www.linkedin.com/in/%s. "
+         "Public discussion on X at @%s."
+         % (cfg["EMAIL"], cfg["LINKEDIN_SLUG"], cfg["X_HANDLE"])),
+    ]
+
+
+def home_facts(cfg, faq):
+    """Render the homepage's visible copy of every fact in its JSON-LD.
+
+    AI fetchers outside Google have been observed to drop JSON-LD and read
+    only the visible text, so a fact that lives only in structured data is a
+    fact most agents never see. This section states each one in plain HTML.
+    """
+    esc = html.escape
+    rows = [
+        ("Role", "%s at %s" % (cfg["JOB_TITLE"], cfg["EMPLOYER"])),
+        ("Based in", "%s, %s" % (cfg["CITY"], cfg["COUNTRY_NAME"])),
+    ]
+    if cfg.get("EMPLOYER_DESC"):
+        rows.append(("About %s" % cfg["EMPLOYER"], cfg["EMPLOYER_DESC"]))
+    known = cfg.get("KNOWS_ABOUT", [])
+    if isinstance(known, str):
+        known = [known]
+    if known:
+        rows.append(("Knows about", "; ".join(known)))
+    alumni = [entry.get("name", "") for entry in cfg.get("ALUMNI_OF", [])]
+    if alumni:
+        rows.append(("Previously", "; ".join(alumni)))
+    lines = ["<h2>Key facts</h2>", "<dl>"]
+    for term, value in rows:
+        lines.append("  <dt>%s</dt><dd>%s</dd>" % (esc(term), esc(value)))
+    lines += ["</dl>", "", "<h2>Common questions</h2>"]
+    for question, answer in faq:
+        lines.append("<h3>%s</h3>" % esc(question))
+        lines.append("<p>%s</p>" % esc(answer))
+    return PreEscapedMarkup("\n".join(lines))
 
 
 def is_link_like(path):
