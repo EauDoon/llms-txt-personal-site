@@ -120,14 +120,27 @@ def validate_site_language(value):
 def validate_public_contacts(cfg):
     """Reject executable URLs and ambiguous contact routes before publishing."""
     validate_email_address(cfg.get("EMAIL"))
-    for key, pattern in (("LINKEDIN_SLUG", r"[A-Za-z0-9_-]+"),
-                         ("X_HANDLE", r"[A-Za-z0-9_]+")):
+    for key, pattern, hint in (
+        ("LINKEDIN_SLUG", r"[A-Za-z0-9_-]+",
+         "the part of your profile address after linkedin.com/in/, such as your-name, not the full URL"),
+        ("X_HANDLE", r"[A-Za-z0-9_]+", "the handle alone, such as yourhandle, without @ or a URL"),
+    ):
         if not isinstance(cfg.get(key), str) or not re.fullmatch(pattern, cfg[key]):
-            raise ValueError("%s must be a plain public contact identifier" % key)
+            raise ValueError("%s must be a plain public contact identifier: %s" % (key, hint))
     urls = [("EMPLOYER_URL", cfg.get("EMPLOYER_URL"))]
     alumni = cfg.get("ALUMNI_OF", [])
     if not isinstance(alumni, list) or any(not isinstance(item, dict) for item in alumni):
         raise ValueError("ALUMNI_OF must be an array of objects")
+    # Both collections are published as JSON-LD, which is read as fact: an
+    # organization without a name or a null topic says nothing true.
+    if any(not isinstance(item.get("name"), str) or not item["name"].strip() for item in alumni):
+        raise ValueError("every ALUMNI_OF entry needs a nonempty name")
+    topics = cfg.get("KNOWS_ABOUT", [])
+    if not isinstance(topics, str) and (
+        not isinstance(topics, list)
+        or any(not isinstance(topic, str) or not topic.strip() for topic in topics)
+    ):
+        raise ValueError("KNOWS_ABOUT must be an array of nonempty strings")
     urls.extend(("ALUMNI_OF url", item.get("url")) for item in alumni)
     for key, value in urls:
         try:

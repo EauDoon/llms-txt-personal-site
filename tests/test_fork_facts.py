@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from article import create_article
-from build import build_site_staged, fill, json_block
+from build import build_site_staged, fill, json_block, validate_public_contacts
 from publishing import review_articles
 
 
@@ -101,6 +101,38 @@ class ArticleDateMessageTests(unittest.TestCase):
                 (Path(directory) / "template").mkdir()
                 with self.assertRaisesRegex(ValueError, "^--%s must be a calendar-valid" % option):
                     create_article(directory, "notes", "Notes", **{option: "2026-13-01"})
+
+
+class StructuredDataInputTests(unittest.TestCase):
+    def test_alumni_entry_without_a_name_is_refused(self) -> None:
+        for entry in ({"url": "https://previous.example.com"},
+                      {"name": "", "url": "https://previous.example.com"},
+                      {"name": 7, "url": "https://previous.example.com"}):
+            with self.subTest(entry=entry):
+                with self.assertRaisesRegex(ValueError, "every ALUMNI_OF entry needs a nonempty name"):
+                    validate_public_contacts(config(ALUMNI_OF=[entry]))
+
+    def test_knows_about_entries_must_be_nonempty_strings(self) -> None:
+        for value in ([1], [None], [{"a": 1}], [""], ["Real topic", " "], {"a": 1}, 5):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(ValueError, "KNOWS_ABOUT must be an array of nonempty strings"):
+                    validate_public_contacts(config(KNOWS_ABOUT=value))
+
+    def test_valid_and_absent_collections_still_pass(self) -> None:
+        validate_public_contacts(config())
+        validate_public_contacts(config(KNOWS_ABOUT=[], ALUMNI_OF=[]))
+        validate_public_contacts(config(KNOWS_ABOUT="One topic"))
+        sample = config()
+        del sample["KNOWS_ABOUT"], sample["ALUMNI_OF"]
+        validate_public_contacts(sample)
+
+    def test_contact_identifier_errors_say_what_to_write(self) -> None:
+        with self.assertRaisesRegex(ValueError, "X_HANDLE must be a plain public contact identifier: "
+                                                "the handle alone, such as yourhandle, without @ or a URL"):
+            validate_public_contacts(config(X_HANDLE="@yourhandle"))
+        with self.assertRaisesRegex(ValueError, "LINKEDIN_SLUG must be a plain public contact identifier: "
+                                                r"the part of your profile address after linkedin\.com/in/"):
+            validate_public_contacts(config(LINKEDIN_SLUG="https://www.linkedin.com/in/your-name/"))
 
 
 if __name__ == "__main__":
