@@ -52,6 +52,12 @@ AddDefaultCharset UTF-8
     Header always set Cache-Control "public, max-age=3600"
   </FilesMatch>
 
+  # The Markdown negotiation below makes one URL answer with HTML or Markdown,
+  # so caches must key on the Accept header for both faces.
+  <FilesMatch "\.(html|md)$">
+    Header always merge Vary "Accept"
+  </FilesMatch>
+
   <FilesMatch "\.xml$">
     Header always set Content-Type "application/xml; charset=utf-8"
   </FilesMatch>
@@ -92,6 +98,22 @@ AddDefaultCharset UTF-8
 
   RewriteCond %{HTTP_HOST} ^www\.(.+)$ [NC]
   RewriteRule ^(.*)$ https://%1%{REQUEST_URI} [L,R=301]
+
+  # --- Markdown on request ---------------------------------------------------
+  # Some agents, such as Claude Code and Cursor, send "Accept: text/markdown".
+  # Answer them with the page's Markdown twin at the same URL; browsers and
+  # search crawlers never send that type, so they keep getting HTML. The
+  # homepage's twin is profile.md. A page without a twin, such as 404.html,
+  # stays HTML. Check after deploy with:
+  #   curl -s -D - -o /dev/null -H "Accept: text/markdown" https://yourname.com/
+  # which must show Content-Type: text/markdown and Vary: Accept.
+  RewriteCond %{HTTP:Accept} text/markdown [NC]
+  RewriteRule ^(index\.html)?$ profile.md [L]
+
+  RewriteCond %{HTTP:Accept} text/markdown [NC]
+  RewriteCond %{REQUEST_FILENAME} ^(.+)\.html$
+  RewriteCond %1.md -f
+  RewriteRule ^(.+)\.html$ $1.md [L]
 </IfModule>
 
 # --- Compression ------------------------------------------------------------
