@@ -48,7 +48,7 @@ def create_article(repo, slug, title, description='', topics=(), body_path=None,
     lines = ['<!--', 'status: draft', 'title: ' + metadata(title)]
     for key, value in (('published', published), ('updated', updated)):
         if value is not None:
-            lines.append(key + ': ' + validate_last_updated(value))
+            lines.append(key + ': ' + validate_last_updated(value, '--' + key))
     if published and updated and published > updated:
         raise ValueError('article published date cannot follow updated date')
     if description:

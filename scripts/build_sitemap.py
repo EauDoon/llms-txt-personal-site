@@ -16,14 +16,18 @@ VERIFICATION_TOKENS = {
 }
 
 
-def validate_last_updated(value):
-    """Return an exact, calendar-valid YYYY-MM-DD date or raise ValueError."""
+def validate_last_updated(value, label="LAST_UPDATED"):
+    """Return an exact, calendar-valid YYYY-MM-DD date or raise ValueError.
+
+    label names the field in the error, for a date that is not LAST_UPDATED.
+    """
+    message = "%s must be a calendar-valid YYYY-MM-DD date" % label
     if not isinstance(value, str) or not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
-        raise ValueError("LAST_UPDATED must be a calendar-valid YYYY-MM-DD date")
+        raise ValueError(message)
     try:
         date.fromisoformat(value)
     except ValueError as exc:
-        raise ValueError("LAST_UPDATED must be a calendar-valid YYYY-MM-DD date") from exc
+        raise ValueError(message) from exc
     return value
 
 
