@@ -137,9 +137,10 @@ def validate_public_contacts(cfg):
     if any(not isinstance(item.get("name"), str) or not item["name"].strip() for item in alumni):
         raise ValueError("every ALUMNI_OF entry needs a nonempty name")
     topics = cfg.get("KNOWS_ABOUT", [])
-    if not isinstance(topics, str) and (
-        not isinstance(topics, list)
-        or any(not isinstance(topic, str) or not topic.strip() for topic in topics)
+    if isinstance(topics, str):
+        topics = [topics]
+    if not isinstance(topics, list) or any(
+        not isinstance(topic, str) or not topic.strip() for topic in topics
     ):
         raise ValueError("KNOWS_ABOUT must be an array of nonempty strings")
     urls.extend(("ALUMNI_OF url", item.get("url")) for item in alumni)

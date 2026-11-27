@@ -113,7 +113,7 @@ class StructuredDataInputTests(unittest.TestCase):
                     validate_public_contacts(config(ALUMNI_OF=[entry]))
 
     def test_knows_about_entries_must_be_nonempty_strings(self) -> None:
-        for value in ([1], [None], [{"a": 1}], [""], ["Real topic", " "], {"a": 1}, 5):
+        for value in ([1], [None], [{"a": 1}], [""], ["Real topic", " "], {"a": 1}, 5, "", "   "):
             with self.subTest(value=value):
                 with self.assertRaisesRegex(ValueError, "KNOWS_ABOUT must be an array of nonempty strings"):
                     validate_public_contacts(config(KNOWS_ABOUT=value))
