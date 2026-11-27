@@ -45,10 +45,13 @@ def article_metadata(source):
 
 
 def validate_article_dates(meta, fallback):
-    updated = validate_last_updated(meta.get('updated') or fallback)
+    if meta.get('updated'):
+        updated = validate_last_updated(meta['updated'], 'article updated date')
+    else:
+        updated = validate_last_updated(fallback)
     published = meta.get('published')
     if published:
-        validate_last_updated(published)
+        validate_last_updated(published, 'article published date')
         if published > updated:
             raise ValueError('article published date cannot follow updated date')
     return updated
@@ -75,7 +78,11 @@ def publication_exclusions(sources, fill, cfg):
             excluded.update((str(path).casefold(), str(path.with_suffix('.html')).casefold()))
         else:
             meta, _ = article_metadata(fill(text, cfg))
-            validate_article_dates(meta, cfg['LAST_UPDATED'])
+            try:
+                validate_article_dates(meta, cfg['LAST_UPDATED'])
+            except ValueError as exc:
+                # Name the article: the config date is not the one at fault.
+                raise ValueError('%s: %s' % (path, exc)) from exc
     return excluded
 
 

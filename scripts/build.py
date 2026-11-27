@@ -120,14 +120,27 @@ def validate_site_language(value):
 def validate_public_contacts(cfg):
     """Reject executable URLs and ambiguous contact routes before publishing."""
     validate_email_address(cfg.get("EMAIL"))
-    for key, pattern in (("LINKEDIN_SLUG", r"[A-Za-z0-9_-]+"),
-                         ("X_HANDLE", r"[A-Za-z0-9_]+")):
+    for key, pattern, hint in (
+        ("LINKEDIN_SLUG", r"[A-Za-z0-9_-]+",
+         "the part of your profile address after linkedin.com/in/, such as your-name, not the full URL"),
+        ("X_HANDLE", r"[A-Za-z0-9_]+", "the handle alone, such as yourhandle, without @ or a URL"),
+    ):
         if not isinstance(cfg.get(key), str) or not re.fullmatch(pattern, cfg[key]):
-            raise ValueError("%s must be a plain public contact identifier" % key)
+            raise ValueError("%s must be a plain public contact identifier: %s" % (key, hint))
     urls = [("EMPLOYER_URL", cfg.get("EMPLOYER_URL"))]
     alumni = cfg.get("ALUMNI_OF", [])
     if not isinstance(alumni, list) or any(not isinstance(item, dict) for item in alumni):
         raise ValueError("ALUMNI_OF must be an array of objects")
+    # Both collections are published as JSON-LD, which is read as fact: an
+    # organization without a name or a null topic says nothing true.
+    if any(not isinstance(item.get("name"), str) or not item["name"].strip() for item in alumni):
+        raise ValueError("every ALUMNI_OF entry needs a nonempty name")
+    topics = cfg.get("KNOWS_ABOUT", [])
+    if not isinstance(topics, str) and (
+        not isinstance(topics, list)
+        or any(not isinstance(topic, str) or not topic.strip() for topic in topics)
+    ):
+        raise ValueError("KNOWS_ABOUT must be an array of nonempty strings")
     urls.extend(("ALUMNI_OF url", item.get("url")) for item in alumni)
     for key, value in urls:
         try:
@@ -143,7 +156,7 @@ def validate_public_contacts(cfg):
             raise ValueError("%s must be an absolute HTTP(S) URL without credentials or fragment" % key)
 
 
-def fill(text, cfg, plain_text=False):
+def fill(text, cfg, plain_text=False, markdown=False):
     """Replace {{KEY}} with the config value. Scalars only; lists are handled by the caller.
 
     User-configured values are HTML-escaped because {{KEY}} substitutions
@@ -151,6 +164,12 @@ def fill(text, cfg, plain_text=False):
     which serializes and script-escapes the complete document, so it must
     be inserted without HTML entity encoding. plain_text preserves the configured
     EMAIL spelling only; other substitutions retain their existing escaping.
+
+    markdown marks a Markdown or text target such as profile.md or llms.txt.
+    Nothing there is an HTML attribute, so quotation marks and apostrophes
+    stay literal, as they do in the generated writing links: a reader of the
+    source sees O'Brien, not O&#x27;Brien. &, < and > are still escaped, and
+    the EMAIL rules do not change.
     """
     import html as _html
     def sub(m):
@@ -164,7 +183,7 @@ def fill(text, cfg, plain_text=False):
             return str(val)
         if key == 'EMAIL' and plain_text:
             return str(val)
-        escaped = _html.escape(str(val), quote=True)
+        escaped = _html.escape(str(val), quote=key == 'EMAIL' or not markdown)
         if key == 'EMAIL':
             # Contact spelling is literal in both HTML and Markdown tables,
             # emphasis and code. EMAIL_URI separately carries the URI encoding.
@@ -444,9 +463,11 @@ def build_site(template_dir, out_dir, cfg):
                     "template file is not UTF-8 text: %s; add its suffix to "
                     "BINARY_SUFFIXES or convert it" % relative.replace('\\', '/')
                 ) from exc
-            filled = fill(t, cfg, plain_text=src.lower().endswith('.txt'))
+            markdown = src.lower().endswith(('.md', '.txt'))
+            filled = fill(t, cfg, plain_text=src.lower().endswith('.txt'), markdown=markdown)
             if src.lower().endswith('.md') and '{{EMAIL}}' in t:
-                plain_email_sources[relative.replace('\\', '/')] = (filled, fill(t, cfg, plain_text=True))
+                plain_email_sources[relative.replace('\\', '/')] = (
+                    filled, fill(t, cfg, plain_text=True, markdown=True))
             with open(dst, "w", encoding="utf-8", newline="") as output:
                 output.write(filled)
         copied += 1
