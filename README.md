@@ -1,3 +1,5 @@
+<p align="center"><img src=".github/assets/banner.svg" alt="llms.txt personal site. A forkable template for a personal website whose main reader is an AI assistant. Write Markdown, keep repeated facts in one JSON config, and build static HTML, an llms.txt index and JSON-LD. Shown as one glowing source feeding three pages while a reading lens sweeps across them." width="100%"></p>
+
 # llms.txt personal site
 
 [![build](https://img.shields.io/github/actions/workflow/status/EauDoon/llms-txt-personal-site/quality-check.yml?branch=main)](https://github.com/EauDoon/llms-txt-personal-site/actions)
